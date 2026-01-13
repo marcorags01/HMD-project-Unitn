@@ -1,0 +1,783 @@
+[
+  {
+    "recipe_id": "R01",
+    "title": "Tomato Basil Penne with Parmesan",
+    "time_min": 20,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "dairy"],
+    "ingredients": [
+      {"name": "penne pasta", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "cherry tomatoes", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "fresh basil", "qty": 15, "unit": "g", "category": "produce"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "parmesan", "qty": 30, "unit": "g", "category": "dairy"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook pasta in salted water until al dente.",
+      "Sauté minced garlic in olive oil for 30–60 seconds.",
+      "Add halved cherry tomatoes; cook until softened.",
+      "Toss pasta with sauce and basil.",
+      "Finish with parmesan and black pepper."
+    ]
+  },
+  {
+    "recipe_id": "R02",
+    "title": "Lemon Garlic Chicken and Roasted Potatoes",
+    "time_min": 35,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["meat"],
+    "ingredients": [
+      {"name": "chicken breast", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "potatoes", "qty": 400, "unit": "g", "category": "produce"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "rosemary (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 5, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Heat oven to 220°C; cut potatoes into bite-size pieces.",
+      "Toss potatoes with half the oil, salt, pepper, and rosemary; roast 20 minutes.",
+      "Season chicken; sear in remaining oil until golden.",
+      "Add minced garlic and lemon juice/zest; cook chicken through.",
+      "Serve chicken with roasted potatoes."
+    ]
+  },
+  {
+    "recipe_id": "R03",
+    "title": "Chickpea Spinach Curry with Rice",
+    "time_min": 30,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "chickpeas (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "spinach", "qty": 120, "unit": "g", "category": "produce"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "tomatoes (canned)", "qty": 200, "unit": "g", "category": "pantry"},
+      {"name": "coconut milk", "qty": 200, "unit": "ml", "category": "pantry"},
+      {"name": "curry powder", "qty": 6, "unit": "g", "category": "spices"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice according to package directions.",
+      "Sauté chopped onion in olive oil until soft; add garlic and curry powder.",
+      "Add canned tomatoes, chickpeas, and coconut milk; simmer 10–12 minutes.",
+      "Stir in spinach until wilted; season with salt.",
+      "Serve curry over rice."
+    ]
+  },
+  {
+    "recipe_id": "R04",
+    "title": "Honey Mustard Salmon with Green Beans",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["fish"],
+    "ingredients": [
+      {"name": "salmon fillet", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "green beans", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "dijon mustard", "qty": 20, "unit": "g", "category": "pantry"},
+      {"name": "honey", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Mix mustard, honey, and a squeeze of lemon.",
+      "Season salmon; brush with honey-mustard.",
+      "Bake salmon at 200°C for 12–15 minutes (or pan-sear 4–5 minutes per side).",
+      "Steam or sauté green beans with olive oil and salt.",
+      "Serve salmon with beans and lemon wedges."
+    ]
+  },
+  {
+    "recipe_id": "R05",
+    "title": "Beef and Vegetable Stir-Fry with Rice",
+    "time_min": 30,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat", "soy", "gluten"],
+    "ingredients": [
+      {"name": "beef strips", "qty": 250, "unit": "g", "category": "protein"},
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "broccoli", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "bell pepper", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "carrot", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "soy sauce", "qty": 30, "unit": "ml", "category": "pantry"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice.",
+      "Sear beef in oil over high heat; remove to a plate.",
+      "Stir-fry broccoli, sliced pepper, and carrot; add garlic.",
+      "Return beef; add soy sauce and black pepper; toss 1–2 minutes.",
+      "Serve over rice."
+    ]
+  },
+  {
+    "recipe_id": "R06",
+    "title": "Spinach Mushroom Frittata",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["egg", "dairy"],
+    "ingredients": [
+      {"name": "eggs", "qty": 6, "unit": "pc", "category": "protein"},
+      {"name": "mushrooms", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "spinach", "qty": 100, "unit": "g", "category": "produce"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "milk", "qty": 60, "unit": "ml", "category": "dairy"},
+      {"name": "cheese (grated)", "qty": 30, "unit": "g", "category": "dairy"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Whisk eggs with milk, salt, pepper, and grated cheese.",
+      "Sauté onion and mushrooms in oil until browned.",
+      "Add spinach to wilt; pour egg mixture over vegetables.",
+      "Cook on low 6–8 minutes until mostly set.",
+      "Finish under broiler 1–2 minutes until set."
+    ]
+  },
+  {
+    "recipe_id": "R07",
+    "title": "Turkey Taco Rice Bowls",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["meat"],
+    "ingredients": [
+      {"name": "ground turkey", "qty": 250, "unit": "g", "category": "protein"},
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "black beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "corn kernels", "qty": 150, "unit": "g", "category": "produce"},
+      {"name": "avocado", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "salsa", "qty": 120, "unit": "g", "category": "pantry"},
+      {"name": "lime", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "cumin", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice.",
+      "Brown turkey in oil; season with cumin and salt.",
+      "Warm beans and corn in the same pan.",
+      "Assemble bowls: rice, turkey, beans/corn, salsa, sliced avocado.",
+      "Finish with lime juice."
+    ]
+  },
+  {
+    "recipe_id": "R08",
+    "title": "Red Lentil Tomato Soup",
+    "time_min": 35,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      {"name": "red lentils (dry)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "carrots", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "celery stalks", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "tomatoes (canned)", "qty": 250, "unit": "g", "category": "pantry"},
+      {"name": "vegetable broth", "qty": 600, "unit": "ml", "category": "pantry"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "cumin", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Sauté chopped onion, carrot, and celery in olive oil 5 minutes.",
+      "Add garlic and cumin; cook 30 seconds.",
+      "Add lentils, canned tomatoes, broth, and salt; simmer 18–20 minutes.",
+      "Blend partially (optional) for a thicker texture.",
+      "Adjust seasoning and serve."
+    ]
+  },
+  {
+    "recipe_id": "R09",
+    "title": "Greek Chickpea Salad with Feta",
+    "time_min": 15,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["dairy"],
+    "ingredients": [
+      {"name": "chickpeas (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "red onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "feta", "qty": 80, "unit": "g", "category": "dairy"},
+      {"name": "olives", "qty": 60, "unit": "g", "category": "pantry"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 2, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Chop cucumber, tomatoes, and onion.",
+      "Combine with chickpeas and olives.",
+      "Whisk olive oil, lemon juice, oregano, and salt.",
+      "Toss salad with dressing and top with feta."
+    ]
+  },
+  {
+    "recipe_id": "R10",
+    "title": "Zucchini Noodles with Pesto and Tomatoes",
+    "time_min": 20,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["nuts", "dairy"],
+    "ingredients": [
+      {"name": "zucchini", "qty": 3, "unit": "pc", "category": "produce"},
+      {"name": "cherry tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "pesto", "qty": 60, "unit": "g", "category": "pantry"},
+      {"name": "parmesan", "qty": 20, "unit": "g", "category": "dairy"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Spiralize zucchini into noodles.",
+      "Sauté tomatoes in olive oil 3–4 minutes.",
+      "Add zucchini noodles; cook 2 minutes (do not overcook).",
+      "Stir in pesto; season with salt and pepper.",
+      "Top with parmesan."
+    ]
+  },
+  {
+    "recipe_id": "R11",
+    "title": "Garlic Lime Shrimp with Couscous",
+    "time_min": 20,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["shellfish", "gluten", "dairy"],
+    "ingredients": [
+      {"name": "shrimp", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "couscous", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "lime", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "parsley", "qty": 10, "unit": "g", "category": "produce"},
+      {"name": "butter", "qty": 15, "unit": "g", "category": "dairy"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Prepare couscous according to package directions.",
+      "Sauté shrimp in olive oil 2–3 minutes per side.",
+      "Add butter, minced garlic, and lime juice; toss 1 minute.",
+      "Stir in parsley; season with salt and pepper.",
+      "Serve shrimp over couscous."
+    ]
+  },
+  {
+    "recipe_id": "R12",
+    "title": "Tofu Broccoli Stir-Fry with Rice Noodles",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["soy"],
+    "ingredients": [
+      {"name": "tofu (firm)", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "broccoli", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "carrot", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "rice noodles (dry)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "tamari", "qty": 30, "unit": "ml", "category": "pantry"},
+      {"name": "ginger", "qty": 15, "unit": "g", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"}
+    ],
+    "steps": [
+      "Cook rice noodles; drain.",
+      "Cube tofu; sear in oil until golden.",
+      "Add broccoli and sliced carrot; stir-fry until tender-crisp.",
+      "Add garlic, ginger, and tamari; toss.",
+      "Combine with noodles and serve."
+    ]
+  },
+  {
+    "recipe_id": "R13",
+    "title": "Creamy Mushroom Risotto",
+    "time_min": 40,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["dairy"],
+    "ingredients": [
+      {"name": "arborio rice", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "mushrooms", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "vegetable broth", "qty": 700, "unit": "ml", "category": "pantry"},
+      {"name": "butter", "qty": 20, "unit": "g", "category": "dairy"},
+      {"name": "parmesan", "qty": 60, "unit": "g", "category": "dairy"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Warm broth in a saucepan.",
+      "Sauté onion and mushrooms in olive oil; add garlic.",
+      "Stir in arborio rice 1 minute; add broth a ladle at a time, stirring.",
+      "Continue until rice is creamy and tender (18–20 minutes).",
+      "Stir in butter and parmesan; season with salt and pepper."
+    ]
+  },
+  {
+    "recipe_id": "R14",
+    "title": "Tuna Pasta Salad with Peas",
+    "time_min": 20,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["fish", "gluten", "egg"],
+    "ingredients": [
+      {"name": "pasta (fusilli)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "tuna (canned, drained)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "peas", "qty": 150, "unit": "g", "category": "produce"},
+      {"name": "celery stalks", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "mayonnaise", "qty": 60, "unit": "g", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "dill (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook pasta; rinse briefly under cool water and drain.",
+      "Cook peas (or thaw if frozen).",
+      "Mix tuna, chopped celery, mayo, lemon juice, dill, salt, and pepper.",
+      "Toss with pasta and peas; chill or serve immediately."
+    ]
+  },
+  {
+    "recipe_id": "R15",
+    "title": "Black Bean Quesadillas",
+    "time_min": 20,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "dairy"],
+    "ingredients": [
+      {"name": "flour tortillas", "qty": 4, "unit": "pc", "category": "pantry"},
+      {"name": "black beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "cheddar", "qty": 120, "unit": "g", "category": "dairy"},
+      {"name": "bell pepper", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "cumin", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salsa", "qty": 120, "unit": "g", "category": "pantry"}
+    ],
+    "steps": [
+      "Sauté chopped onion and pepper in olive oil; season with cumin.",
+      "Mash beans lightly and mix into vegetables.",
+      "Fill tortillas with bean mixture and cheddar.",
+      "Toast in a dry pan until crisp and cheese melts.",
+      "Serve with salsa."
+    ]
+  },
+  {
+    "recipe_id": "R16",
+    "title": "Eggplant Parmesan Bake",
+    "time_min": 40,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["dairy", "gluten"],
+    "ingredients": [
+      {"name": "eggplant", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "marinara sauce", "qty": 300, "unit": "g", "category": "pantry"},
+      {"name": "mozzarella", "qty": 150, "unit": "g", "category": "dairy"},
+      {"name": "parmesan", "qty": 40, "unit": "g", "category": "dairy"},
+      {"name": "breadcrumbs", "qty": 60, "unit": "g", "category": "pantry"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "fresh basil", "qty": 10, "unit": "g", "category": "produce"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Slice eggplant; salt lightly and rest 10 minutes; pat dry.",
+      "Brush with oil and bake at 220°C for ~15 minutes to soften.",
+      "Layer marinara, eggplant, mozzarella, and breadcrumbs in a baking dish.",
+      "Bake 15–20 minutes until bubbly.",
+      "Top with parmesan and basil."
+    ]
+  },
+  {
+    "recipe_id": "R17",
+    "title": "Chicken Egg Fried Rice",
+    "time_min": 30,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat", "egg", "soy", "gluten"],
+    "ingredients": [
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "chicken thighs", "qty": 250, "unit": "g", "category": "protein"},
+      {"name": "eggs", "qty": 2, "unit": "pc", "category": "protein"},
+      {"name": "peas", "qty": 100, "unit": "g", "category": "produce"},
+      {"name": "carrots", "qty": 100, "unit": "g", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "soy sauce", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice and cool slightly (best if pre-cooked and chilled).",
+      "Sauté diced chicken in oil until cooked through.",
+      "Push chicken aside; scramble eggs in the pan.",
+      "Add carrots and peas; stir-fry 2–3 minutes.",
+      "Add rice and soy sauce; toss until hot; season with pepper."
+    ]
+  },
+  {
+    "recipe_id": "R18",
+    "title": "Spaghetti Aglio e Olio with Broccoli",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["gluten"],
+    "ingredients": [
+      {"name": "spaghetti", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "broccoli", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "garlic", "qty": 3, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "chili flakes", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook spaghetti; add broccoli florets for the last 3 minutes; drain.",
+      "Gently sauté sliced garlic in olive oil until fragrant.",
+      "Add chili flakes and a splash of pasta water.",
+      "Toss in pasta and broccoli; season with salt.",
+      "Finish with lemon zest/juice."
+    ]
+  },
+  {
+    "recipe_id": "R19",
+    "title": "Quinoa Stuffed Peppers",
+    "time_min": 35,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      {"name": "bell peppers", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "quinoa (dry)", "qty": 140, "unit": "g", "category": "pantry"},
+      {"name": "black beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "corn kernels", "qty": 120, "unit": "g", "category": "produce"},
+      {"name": "tomatoes (canned)", "qty": 200, "unit": "g", "category": "pantry"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "cumin", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook quinoa.",
+      "Sauté chopped onion in olive oil; add cumin.",
+      "Mix quinoa with beans, corn, tomatoes, and salt.",
+      "Stuff peppers; bake at 200°C for 18–20 minutes.",
+      "Serve hot."
+    ]
+  },
+  {
+    "recipe_id": "R20",
+    "title": "Pork Chops with Apple Cabbage Slaw",
+    "time_min": 30,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat"],
+    "ingredients": [
+      {"name": "pork chops", "qty": 320, "unit": "g", "category": "protein"},
+      {"name": "cabbage", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "apple", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "carrot", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "apple cider vinegar", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "dijon mustard", "qty": 10, "unit": "g", "category": "pantry"},
+      {"name": "honey", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Shred cabbage and carrot; thinly slice apple.",
+      "Whisk vinegar, mustard, honey, and half the oil; toss with slaw.",
+      "Season pork with salt and pepper; pan-sear in remaining oil.",
+      "Cook pork 4–5 minutes per side (depending on thickness).",
+      "Serve pork with slaw."
+    ]
+  },
+  {
+    "recipe_id": "R21",
+    "title": "Roasted Vegetable Couscous with Halloumi",
+    "time_min": 35,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "dairy"],
+    "ingredients": [
+      {"name": "couscous", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "zucchini", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "bell pepper", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "red onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "cherry tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "halloumi", "qty": 180, "unit": "g", "category": "dairy"},
+      {"name": "olive oil", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Chop vegetables; toss with olive oil, oregano, and salt; roast at 220°C for 18–20 minutes.",
+      "Prepare couscous according to package directions.",
+      "Sear sliced halloumi in a dry pan until golden.",
+      "Combine couscous with roasted vegetables and lemon juice.",
+      "Top with halloumi."
+    ]
+  },
+  {
+    "recipe_id": "R22",
+    "title": "Easy Vegetable Chili",
+    "time_min": 35,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      {"name": "kidney beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "black beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "tomatoes (canned)", "qty": 300, "unit": "g", "category": "pantry"},
+      {"name": "bell pepper", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "corn kernels", "qty": 150, "unit": "g", "category": "produce"},
+      {"name": "chili powder", "qty": 6, "unit": "g", "category": "spices"},
+      {"name": "cumin", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Sauté chopped onion and pepper in olive oil 5 minutes.",
+      "Add chili powder and cumin; cook 30 seconds.",
+      "Add beans, canned tomatoes, corn, and salt; simmer 15–20 minutes.",
+      "Adjust seasoning and serve."
+    ]
+  },
+  {
+    "recipe_id": "R23",
+    "title": "Spinach Ricotta Stuffed Shells",
+    "time_min": 45,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "dairy", "egg"],
+    "ingredients": [
+      {"name": "pasta shells", "qty": 200, "unit": "g", "category": "pantry"},
+      {"name": "ricotta", "qty": 250, "unit": "g", "category": "dairy"},
+      {"name": "spinach", "qty": 150, "unit": "g", "category": "produce"},
+      {"name": "mozzarella", "qty": 120, "unit": "g", "category": "dairy"},
+      {"name": "marinara sauce", "qty": 350, "unit": "g", "category": "pantry"},
+      {"name": "egg", "qty": 1, "unit": "pc", "category": "protein"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "fresh basil", "qty": 10, "unit": "g", "category": "produce"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook shells until just tender; drain.",
+      "Wilt spinach; squeeze dry; mix with ricotta, egg, salt, and minced garlic.",
+      "Spread marinara in a baking dish; fill shells with ricotta mixture.",
+      "Top with mozzarella; bake at 200°C for 18–20 minutes.",
+      "Garnish with basil."
+    ]
+  },
+  {
+    "recipe_id": "R24",
+    "title": "Fish Tacos with Cabbage Slaw",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["fish", "dairy"],
+    "ingredients": [
+      {"name": "white fish fillets", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "corn tortillas", "qty": 6, "unit": "pc", "category": "pantry"},
+      {"name": "cabbage", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "lime", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "yogurt", "qty": 80, "unit": "g", "category": "dairy"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "chili powder", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Season fish with salt and chili powder; pan-sear in olive oil until flaky.",
+      "Shred cabbage; toss with lime juice and a pinch of salt.",
+      "Mix yogurt with a squeeze of lime for a quick crema.",
+      "Warm tortillas.",
+      "Assemble tacos: tortilla, fish, slaw, yogurt crema."
+    ]
+  },
+  {
+    "recipe_id": "R25",
+    "title": "Sesame Ginger Soba with Vegetables",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["sesame", "soy", "gluten"],
+    "ingredients": [
+      {"name": "soba noodles", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "sesame oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "sesame seeds", "qty": 10, "unit": "g", "category": "pantry"},
+      {"name": "soy sauce", "qty": 30, "unit": "ml", "category": "pantry"},
+      {"name": "ginger", "qty": 15, "unit": "g", "category": "produce"},
+      {"name": "carrots", "qty": 150, "unit": "g", "category": "produce"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "scallions", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "rice vinegar", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "sugar", "qty": 5, "unit": "g", "category": "pantry"}
+    ],
+    "steps": [
+      "Cook soba; rinse under cold water and drain well.",
+      "Whisk soy sauce, rice vinegar, sesame oil, grated ginger, and sugar.",
+      "Toss noodles with shredded carrots, sliced cucumber, and scallions.",
+      "Top with sesame seeds and serve."
+    ]
+  },
+  {
+    "recipe_id": "R26",
+    "title": "Peanut Chicken Noodles",
+    "time_min": 30,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["nuts", "meat", "soy", "gluten"],
+    "ingredients": [
+      {"name": "chicken breast", "qty": 280, "unit": "g", "category": "protein"},
+      {"name": "wheat noodles", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "peanut butter", "qty": 60, "unit": "g", "category": "pantry"},
+      {"name": "soy sauce", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "lime", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "carrot", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "cilantro", "qty": 10, "unit": "g", "category": "produce"},
+      {"name": "water", "qty": 60, "unit": "ml", "category": "pantry"},
+      {"name": "chili flakes", "qty": 2, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook noodles; drain.",
+      "Sauté sliced chicken until cooked through.",
+      "Whisk peanut butter, soy sauce, lime juice, minced garlic, water, and chili flakes.",
+      "Toss noodles and shredded carrot with sauce and chicken.",
+      "Top with cilantro."
+    ]
+  },
+  {
+    "recipe_id": "R27",
+    "title": "Caprese Chicken Skillet",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["meat", "dairy"],
+    "ingredients": [
+      {"name": "chicken breast", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "cherry tomatoes", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "mozzarella", "qty": 120, "unit": "g", "category": "dairy"},
+      {"name": "fresh basil", "qty": 15, "unit": "g", "category": "produce"},
+      {"name": "balsamic vinegar", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Season chicken with salt and pepper; sear in olive oil until cooked through.",
+      "Add garlic and cherry tomatoes; cook until tomatoes soften.",
+      "Add balsamic vinegar; simmer 1–2 minutes.",
+      "Top with mozzarella; cover until melted.",
+      "Finish with basil."
+    ]
+  },
+  {
+    "recipe_id": "R28",
+    "title": "Falafel Pita with Tahini Sauce",
+    "time_min": 35,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "sesame"],
+    "ingredients": [
+      {"name": "pita bread", "qty": 2, "unit": "pc", "category": "pantry"},
+      {"name": "chickpeas (canned, drained)", "qty": 300, "unit": "g", "category": "pantry"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "parsley", "qty": 15, "unit": "g", "category": "produce"},
+      {"name": "cumin", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "baking powder", "qty": 4, "unit": "g", "category": "pantry"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "tahini", "qty": 40, "unit": "g", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Blend chickpeas, onion, garlic, parsley, cumin, baking powder, and salt into a coarse paste.",
+      "Form small patties; pan-fry in olive oil until browned on both sides.",
+      "Mix tahini with lemon juice and a little water (from tap) to loosen.",
+      "Warm pita and slice cucumber.",
+      "Assemble pitas with falafel, cucumber, and tahini sauce."
+    ]
+  },
+  {
+    "recipe_id": "R29",
+    "title": "Roasted Vegetable Farro Bowl with Feta",
+    "time_min": 40,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "dairy"],
+    "ingredients": [
+      {"name": "farro", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "sweet potato", "qty": 300, "unit": "g", "category": "produce"},
+      {"name": "broccoli", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "red onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "balsamic vinegar", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "feta", "qty": 60, "unit": "g", "category": "dairy"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook farro until tender; drain.",
+      "Roast diced sweet potato, broccoli, and sliced onion with olive oil, salt, and pepper at 220°C for ~20 minutes.",
+      "Toss farro with balsamic vinegar.",
+      "Assemble bowls with farro and roasted vegetables.",
+      "Top with feta."
+    ]
+  },
+  {
+    "recipe_id": "R30",
+    "title": "Shakshuka with Eggs and Feta",
+    "time_min": 30,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["egg", "dairy"],
+    "ingredients": [
+      {"name": "eggs", "qty": 4, "unit": "pc", "category": "protein"},
+      {"name": "tomatoes (canned)", "qty": 300, "unit": "g", "category": "pantry"},
+      {"name": "bell pepper", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "feta", "qty": 80, "unit": "g", "category": "dairy"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "cumin", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "paprika", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "parsley", "qty": 10, "unit": "g", "category": "produce"}
+    ],
+    "steps": [
+      "Sauté chopped onion and pepper in olive oil until soft.",
+      "Add garlic, cumin, and paprika; cook 30 seconds.",
+      "Add canned tomatoes and salt; simmer 10 minutes.",
+      "Make wells and crack in eggs; cover and cook until set.",
+      "Top with feta and parsley."
+    ]
+  }
+]

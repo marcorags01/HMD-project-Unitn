@@ -1,0 +1,49 @@
+# -------------------------
+# Python bytecode / caches
+# -------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# -------------------------
+# Virtual environments
+# -------------------------
+.venv/
+venv/
+ENV/
+env/
+
+# -------------------------
+# Common tooling caches
+# -------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+
+# -------------------------
+# Logs / temp files
+# -------------------------
+*.log
+*.tmp
+
+# -------------------------
+# IDE / editor
+# -------------------------
+.vscode/
+.idea/
+
+# -------------------------
+# OS files
+# -------------------------
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# -------------------------
+# Secrets / local config
+# -------------------------
+.env
+.env.*
+*.key
+*.pem
