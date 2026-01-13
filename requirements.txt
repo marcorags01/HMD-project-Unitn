@@ -1,7 +1,7 @@
 accelerate==1.10.1
-transformers==4.57.0
+transformers==4.57.5
 torch==2.8.0
-huggingface_hub[cli]
+huggingface-hub
 safetensors
 sentencepiece
 protobuf
