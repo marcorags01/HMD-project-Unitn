@@ -30,13 +30,7 @@ import copy
 Phase = Literal["AWAITING_PLAN", "AWAITING_MENU_SELECTION", "ACTIVE_MENU", "CONFIRMED"]
 
 ALLOWED_DAYS = {"Mon", "Tue", "Wed", "Thu", "Fri"}
-DAY_ALIASES = {
-    "monday": "Mon", "mon": "Mon",
-    "tuesday": "Tue", "tue": "Tue", "tues": "Tue",
-    "wednesday": "Wed", "wed": "Wed",
-    "thursday": "Thu", "thu": "Thu", "thurs": "Thu",
-    "friday": "Fri", "fri": "Fri",
-}
+
 
 ALLOWED_TIME_LIMITS = {"FAST", "NORMAL"}
 ALLOWED_CALORIE_LEVELS = {"LOW", "MED", "HIGH"}
@@ -62,15 +56,24 @@ def _normalize_upper_enum(x: Any) -> Optional[str]:
 
 
 def _normalize_day(x: Any) -> Optional[str]:
+    """
+    Validation-only day normalization:
+    - Accept canonical day codes only (Mon/Tue/Wed/Thu/Fri), case-insensitive.
+    - Do NOT map full names ("monday") or other aliases; NLU should do that.
+    """
     if _is_nullish(x):
         return None
-    if isinstance(x, str):
-        key = x.strip().lower()
-        # Already in canonical short form?
-        if x.strip() in ALLOWED_DAYS:
-            return x.strip()
-        return DAY_ALIASES.get(key, None)
-    return None
+    if not isinstance(x, str):
+        return None
+
+    s = x.strip()
+    if not s:
+        return None
+
+    # case-only normalization
+    s3 = s[:3].title()  # "mon" -> "Mon", "MON" -> "Mon"
+    return s3 if s3 in ALLOWED_DAYS else None
+
 
 
 def _normalize_avoid_items(x: Any) -> Optional[List[str]]:
@@ -84,15 +87,16 @@ def _normalize_avoid_items(x: Any) -> Optional[List[str]]:
     if _is_nullish(x):
         return None
 
-    items: List[str] = []
+    raw: List[str] 
     if isinstance(x, list):
-        raw = x
+        raw = [str(it).strip() for it in x]
     elif isinstance(x, str):
         # try splitting by commas
         raw = [p.strip() for p in x.split(",")] if "," in x else [x.strip()]
     else:
         raw = [str(x).strip()]
 
+    items: List[str] = []
     for it in raw:
         if not it:
             continue
@@ -344,13 +348,13 @@ class Tracker:
             menu_id = slots.get("menu_id", None)
             if not _is_nullish(menu_id):
                 try:
-                    mid = int(menu_id)
+                    _ = int(menu_id)
                     count_provided += 1
-                    # Let DM decide whether to block; but we can set if menus exist.
-                    self.set_active_menu(mid)
+                    # Do NOT set_active_menu here; executor does it after policy approves.
                 except (TypeError, ValueError):
                     pass
             return count_provided
+
 
         if intent == "inspect":
             day = _normalize_day(slots.get("target_day", None))

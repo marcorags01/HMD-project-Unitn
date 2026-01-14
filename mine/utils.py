@@ -269,6 +269,7 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     if tokenizer.pad_token_id is None and tokenizer.eos_token_id is not None:
         tokenizer.pad_token = tokenizer.eos_token
 
+    model.eval()
     return model, tokenizer  # type: ignore
 
 
@@ -288,7 +289,8 @@ def generate(
 
     gen_kwargs = dict(
         max_new_tokens=getattr(args, "max_new_tokens", 64),
-        pad_token_id=tokenizer.eos_token_id,
+        pad_token_id=tokenizer.pad_token_id,
+        eos_token_id=tokenizer.eos_token_id,
         do_sample=do_sample,
     )
 
@@ -296,10 +298,11 @@ def generate(
         gen_kwargs["temperature"] = float(getattr(args, "temperature", 0.7))
         gen_kwargs["top_p"] = float(getattr(args, "top_p", 0.9))
 
-    output = model.generate(
-        inputs.input_ids,
-        attention_mask=inputs.attention_mask,
-        **gen_kwargs,
-    )
+    with torch.inference_mode():
+        output = model.generate(
+            inputs.input_ids,
+            attention_mask=inputs.attention_mask,
+            **gen_kwargs,
+        )
 
     return tokenizer.decode(output[0][len(inputs.input_ids[0]) :], skip_special_tokens=True).strip()

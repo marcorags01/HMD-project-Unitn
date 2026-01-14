@@ -73,14 +73,37 @@ class DM:
 
         # 2) Compose system prompt from utils (Marina-like)
         extra_rules = """ADDITIONAL DM RESPONSIBILITY (you are the primary controller):
-        - If the PLAN is complete and tracker.phase is AWAITING_PLAN (menus not yet proposed), output propose_menus().
-        - If menus are proposed but no active menu is selected, do not show/swap/update/confirm; request_info(menu_id).
+        - Your goal is a smooth, human conversation. Do NOT mention intents, slots, enums, variable names, or JSON.
+        - Ask for ONE piece of information at a time when you need something.
+        - Prefer natural, short questions. Avoid listing options unless the user asks.
+        - If the user already provided multiple preferences in one message, do NOT re-ask them—only ask what is still missing.
+        - Use RECENT_TURNS to interpret short answers (e.g., "1", "yes", "menu 2", "Tue") in context.
         
+        FLOW GUIDELINES:
+        - If the PLAN is incomplete, use request_info(<one_missing_item>) to ask the next best question.
+          Suggested order: servings -> time_limit -> calorie_level -> avoid_items (avoid_items can be optional if user says 'no allergies').
+        - If the PLAN is complete and tracker.phase is AWAITING_PLAN (menus not yet proposed), output propose_menus().
+        - If menus are proposed but no active menu is selected, do not show/swap/update/confirm; ask for the menu choice with request_info(menu_id).
+        - If an active menu exists:
+          * show_day(target_day) for "what's on Tue" / "show Tue"
+          * swap_day(target_day) for "swap Tue"
+          * update_avoid(ADD_AVOID_ITEM, item) or update_avoid(REMOVE_AVOID_ITEM, item) for avoid changes
+          * confirm_plan() when user confirms or asks for shopping list
+
+        STYLE (for request_info arguments):
+        - request_info(servings): ask "How many servings should I plan for?"
+        - request_info(time_limit): ask "Do you want quick meals, or is normal prep time OK?"
+        - request_info(calorie_level): ask "Are you aiming for lighter, balanced, or more filling meals?"
+        - request_info(avoid_items): ask "Any allergies or foods you want to avoid?"
+        - request_info(menu_id): ask "Do you prefer option 1 or option 2?"
+        - request_info(target_day): ask "Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?"
+
         STRICT OUTPUT FORMAT (important):
         - Output exactly one line: action(arg1, arg2) or action() if no args.
         - Use POSITIONAL arguments only. Do NOT use key=value.
         - Do NOT add quotes, backticks, code fences, or any other text.
         """
+
 
         system_prompt = (
             PROMPTS["DM_START"]
@@ -107,8 +130,11 @@ class DM:
             "mr_valid": bool(vr.valid),
             "mr_errors": vr.errors,
             "tracker": tracker.to_state_dict() if hasattr(tracker, "to_state_dict") else {},
+            "missing_plan": tracker.missing_plan_slots() if hasattr(tracker, "missing_plan_slots") else [],
+            "has_active_menu": tracker.has_active_menu() if hasattr(tracker, "has_active_menu") else False,
             "last_action": last_action or "",
         }
+
 
         user_text = (
             "RECENT_TURNS:\n"

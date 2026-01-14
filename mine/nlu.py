@@ -79,8 +79,9 @@ class NLU:
             "rules": [
                 "Extract EXACTLY ONE intent.",
                 "Only fill slots that belong to that intent.",
-                "If a slot is not explicitly stated, set it to null.",
-                "Never invent defaults.",
+                "If a slot value is missing, set it to null.",
+                "Do not invent new information, but DO normalize synonyms/typos into the controlled values.",
+                "Use RECENT_TURNS to resolve short answers (e.g., '1', 'fast', 'yes').",
                 "Return ONLY JSON.",
             ],
         }
@@ -88,29 +89,56 @@ class NLU:
         system_prompt = (
             "You are the NLU component for a Meal Kit Composer assistant.\n"
             "Task: extract EXACTLY ONE intent and its slot-value pairs from the user's text.\n"
-            "Rules:\n"
-            "- If a slot value is not explicitly provided, output null.\n"
-            "- Do not invent values. Do not assume defaults.\n"
-            "- Only use the provided intents/slots and controlled values.\n"
-            'Output format must be EXACTLY: {"intent":"...","slots":{...}}\n'
-            "Return ONLY the JSON object. No extra text.\n"
-            "Special intent rule:\n"
-            "- If the user asks what values/options are allowed/supported for a slot, "
-            "use intent='help' and set slots.slot to that slot name.\n"
-            "- If the user asks general help (e.g., 'what can I do?'), use intent='help' with slots.slot='all'.\n"
-            "- For help.intent, set it to the most relevant context among: plan/select_menu/inspect/refine/confirm; "
-            "if unclear, set it to null.\n"
-            'Output format must be EXACTLY: {"intent":"...","slots":{...}}\n'
-            "Return ONLY the JSON object. No extra text.\n"
+            "\n"
+            "Core rules:\n"
+            "- Output MUST be valid JSON and MUST match EXACTLY: {\"intent\":\"...\",\"slots\":{...}}\n"
+            "- Extract EXACTLY ONE intent.\n"
+            "- Only fill slots that belong to that intent.\n"
+            "- If a slot value is missing, output null.\n"
+            "- Do not invent values or add defaults that the user did not state.\n"
+            "- Return ONLY the JSON object. No extra text.\n"
+            "\n"
+            "Dialogue context rules (use RECENT_TURNS):\n"
+            "- If the last assistant message asked for a specific detail (e.g., servings/time/calories/menu choice/day),\n"
+            "  and the user replies with only a value (e.g., \"1\", \"two\", \"fast\", \"Tuesday\", \"menu 1\", \"yes\"),\n"
+            "  interpret it as answering that question and fill the corresponding slot.\n"
+            "- If the user replies \"yes/ok/fine\" after a confirmation request, interpret as intent='confirm'.\n"
+            "\n"
+            "Canonicalization (normalize user language into controlled values):\n"
+            "- servings: output an integer 1..6 (map words one/two/three/four/five/six to 1..6).\n"
+            "- time_limit: output FAST or NORMAL (map quick/short/asap to FAST; regular/standard to NORMAL).\n"
+            "- calorie_level: output LOW, MED, or HIGH (map medium/balanced/average to MED).\n"
+            "- target_day: output one of Mon,Tue,Wed,Thu,Fri (map full names like Monday->Mon).\n"
+            "- menu_id: output 1 or 2.\n"
+            "- If there is an obvious typo and confidence is high (e.g., \"fats\"->FAST), correct it.\n"
+            "\n"
+            "Special help intent rule:\n"
+            "- If the user asks what values/options are allowed/supported for something, use intent='help'\n"
+            "  and set slots.slot to the relevant item (e.g., 'servings', 'time_limit', 'calorie_level', 'avoid_items', or 'all').\n"
+            "- For help.intent, set it to the most relevant context among: plan/select_menu/inspect/refine/confirm;\n"
+            "  if unclear, set it to null.\n"
         )
+
+
+        # Dialogue context to resolve short/elliptical answers (e.g., "1", "yes", "ok").
+        recent = ""
+        if self.history is not None:
+            try:
+                recent = self.history.last_iterations(last_n=6)
+            except TypeError:
+                # if last_iterations() doesn't accept last_n in your History implementation
+                recent = self.history.last_iterations()
 
         user_payload = (
             "SCHEMA_HINT:\n"
             + _safe_json(schema_hint)
+            + "\n\nRECENT_TURNS:\n"
+            + (recent if recent else "(none)")
             + "\n\nUSER_INPUT:\n"
             + (user_text or "")
             + "\n\nReturn ONLY the JSON."
         )
+
 
         nlu_text = format_chat(self.args, system_prompt, user_payload, tokenizer=self.tokenizer)
 

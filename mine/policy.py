@@ -79,7 +79,9 @@ def _is_missing(x: Any) -> bool:
     s = str(x).strip()
     return s == "" or s.lower() in {"null", "none"}
 
-
+def _norm_day(s: str) -> str:
+    s = (s or "").strip()
+    return s[:3].title() if len(s) >= 3 else s.title()
 
 
 
@@ -144,20 +146,36 @@ def apply_policy(
         else:
             return _final("fallback", "", nm, proposed_action, proposed_argument, "intent=out_of_domain")
 
-    # 1) PLAN slot completion gate (hard rule)
+    # 1) PLAN slot completion gate (hard rule, but let DM choose WHICH missing field to ask next)
     missing_plan: List[str] = []
     if hasattr(tracker, "missing_plan_slots"):
         missing_plan = tracker.missing_plan_slots() or []
 
     if missing_plan:
+        pa = (proposed_action or "").strip()
+        parg = (proposed_argument or "").strip()
+
+        # If DM is already asking for one missing field, allow it (smoother ordering)
+        if pa == "request_info" and parg in missing_plan:
+            return _final(
+                "request_info",
+                parg,
+                nm,
+                proposed_action,
+                proposed_argument,
+                f"missing_plan_slot=dm_selected:{parg}",
+            )
+
+        # Otherwise, force a request for ONE missing field (deterministic fallback)
         return _final(
             "request_info",
             missing_plan[0],
             nm,
             proposed_action,
             proposed_argument,
-            f"missing_plan_slot={missing_plan[0]}",
+            f"missing_plan_slot=forced:{missing_plan[0]}",
         )
+
 
     # 2) Menus must exist before menu-dependent actions
     # If tracker.phase is AWAITING_PLAN, menus have not been proposed yet.
@@ -221,9 +239,9 @@ def sanitize_proposed_action(
         return ("set_active_menu", str(mid)) if mid in (1, 2) else ("request_info", "menu_id")
 
     if a in {"show_day", "swap_day"}:
-        day = (arg or "").strip()
+        day = _norm_day(arg)
         return (a, day) if day in ALLOWED_DAYS else ("request_info", "target_day")
-
+   
     if a == "update_avoid":
         parts = _split_args(arg)
         if len(parts) != 2 or _is_missing(parts[0]) or _is_missing(parts[1]):

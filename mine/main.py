@@ -18,14 +18,13 @@ Notes:
 
 from __future__ import annotations
 
-import json
+
 import logging
 from typing import Any, Dict
 from nlg import NLG
 from nlu import NLU
-from utils import PROMPTS, get_args, load_model, generate
+from utils import PROMPTS, get_args, load_model
 from support_fn import (
-    parsing_json,
     load_recipes,
     can_generate_menus,
     generate_two_menus,
@@ -37,10 +36,9 @@ from support_fn import (
 )
 from support_classes import (
     History, Tracker,
-     ALLOWED_AVOID_ITEMS
 )
 from dm import DM
-from policy import apply_policy, REQUESTABLE_SLOTS
+from policy import apply_policy
 
 
 logger = logging.getLogger("MealKitComposer")
@@ -53,38 +51,58 @@ logger.setLevel(logging.DEBUG)
 def _provide_info_message(tracker: Tracker, intent: str, slot: str) -> str:
     intent = (intent or "").strip().lower()
     slot = (slot or "").strip().lower()
+    phase = getattr(tracker, "phase", "") or ""
+    has_active = getattr(tracker, "has_active_menu", lambda: False)()
 
-    if slot == "all":
-        return (
-            "PLAN slots and allowed values:\n"
-            "- servings: 1–6\n"
-            "- time_limit: FAST or NORMAL\n"
-            "- calorie_level: LOW, MED, HIGH\n"
-            "- avoid_items: none, or: " + ", ".join(sorted(ALLOWED_AVOID_ITEMS)) + "\n\n"
-            "Other slots:\n"
-            "- menu_id: 1 or 2\n"
-            "- target_day: Mon–Fri\n"
-            "- refine_type: SWAP_DAY / ADD_AVOID_ITEM / REMOVE_AVOID_ITEM\n"
-            "- value: (SWAP_DAY) BEST_FIT; (avoid ops) one avoid item"
-        )
+    if slot in {"all", ""}:
+        if phase == "AWAITING_PLAN":
+            return (
+                "I can help you plan weekday dinners (Mon–Fri) and generate a shopping list.\n"
+                "To start: how many servings should I plan for?"
+            )
 
+        if phase == "AWAITING_MENU_SELECTION":
+            return (
+                "I can suggest two weekly menu options and you can pick the one you prefer.\n"
+                "If you tell me how many people you’re cooking for, whether you want quick meals, and anything to avoid, "
+                "I’ll generate options."
+            )
+
+        if has_active or phase == "ACTIVE_MENU":
+            return (
+                "For your current plan, you can:\n"
+                "- ask what’s planned on a day (e.g., “What’s on Tue?”)\n"
+                "- swap a day (e.g., “Swap Wed”)\n"
+                "- add/remove foods to avoid (e.g., “Avoid nuts”)\n"
+                "- confirm to get the shopping list\n"
+                "What would you like to do next?"
+            )
+
+        if phase == "CONFIRMED":
+            return (
+                "Your plan is already confirmed and the shopping list is ready.\n"
+                "You can start a new plan (e.g., “Plan meals for 2 people, quick, balanced”), or type “exit”."
+            )
+
+        # Safe default
+        return "How can I help with your meal plan?"
+
+    # Slot-specific help (keep it conversational)
     if slot == "servings":
-        return "servings: integer 1–6."
+        return "How many servings should I plan for? (1–6)"
     if slot == "time_limit":
-        return "time_limit: FAST (≤25 min) or NORMAL (≤40 min)."
+        return "Do you want quick meals, or is normal prep time OK?"
     if slot == "calorie_level":
-        return "calorie_level: LOW, MED, or HIGH."
+        return "Are you aiming for lighter meals, balanced, or more filling?"
     if slot == "avoid_items":
-        return "avoid_items: none, or a comma-separated list from: " + ", ".join(sorted(ALLOWED_AVOID_ITEMS)) + "."
+        return "Any allergies or foods you want to avoid?"
     if slot == "menu_id":
-        return "menu_id: 1 or 2."
+        return "Do you prefer option 1 or option 2?"
     if slot == "target_day":
-        return "target_day: Mon, Tue, Wed, Thu, Fri."
-    if slot == "refine_type":
-        return "refine_type: SWAP_DAY, ADD_AVOID_ITEM, REMOVE_AVOID_ITEM."
-    if slot == "value":
-        return "value: BEST_FIT for SWAP_DAY; or one avoid item for ADD/REMOVE."
-    return "I can provide allowed values for: " + ", ".join(sorted(REQUESTABLE_SLOTS))
+        return "Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?"
+
+    # Fallback
+    return "What would you like to do next?"
 
 
 # ------------------------- Executor (domain calls + tracker updates) -------------------------
@@ -105,7 +123,14 @@ def execute_action(
     if action == "propose_menus":
         ok, missing = can_generate_menus(tracker)
         if not ok:
-            payload["error"] = f"Before I can generate menus, I still need: {', '.join(missing)}."
+            friendly = {
+                "servings": "how many servings you need",
+                "time_limit": "whether you prefer quick meals or normal prep time",
+                "calorie_level": "whether you want lighter, balanced, or more filling meals",
+                "avoid_items": "any foods you want to avoid",
+            }
+            need = [friendly.get(x, "one more detail") for x in (missing or [])]
+            payload["error"] = "Before I can suggest menus, I still need " + "; ".join(need) + "."
             return payload
 
         try:
@@ -117,8 +142,12 @@ def execute_action(
             payload["menu1_pretty"] = {d: recipes_by_id[str(rid)]["title"] for d, rid in menu1.items()}
             payload["menu2_pretty"] = {d: recipes_by_id[str(rid)]["title"] for d, rid in menu2.items()}
             return payload
+        
         except Exception as e:
-            payload["error"] = f"I couldn't generate menus with the current constraints: {e}"
+            payload["error"] = str(e) or (
+                "I couldn’t generate a weekly plan with those preferences. "
+                "If you adjust them a bit, I can try again."
+            )
             return payload
 
     if action == "set_active_menu":
@@ -134,7 +163,7 @@ def execute_action(
 
     if action == "show_day":
         if not tracker.has_active_menu():
-            payload["error"] = "No active menu yet. Please select menu 1 or 2 first."
+            payload["error"] = "Please pick a menu option first (1 or 2)."
             return payload
 
         day = argument.strip()
@@ -149,12 +178,12 @@ def execute_action(
             payload["details"] = details
             return payload
         except Exception as e:
-            payload["error"] = f"I couldn't inspect that day: {e}"
+            payload["error"] = f"I couldn't show that day: {e}"
             return payload
 
     if action == "swap_day":
         if not tracker.has_active_menu():
-            payload["error"] = "No active menu yet. Please select menu 1 or 2 first."
+            payload["error"] = "Please pick a menu option first (1 or 2)."
             return payload
 
         day = argument.strip()
@@ -165,7 +194,6 @@ def execute_action(
                 return payload
 
             tracker.active_menu = updated
-            # persist back into stored menu option as well
             if tracker.active_menu_id in (1, 2):
                 tracker.menus[str(tracker.active_menu_id)] = dict(updated)
 
@@ -179,22 +207,20 @@ def execute_action(
 
     if action == "update_avoid":
         if not tracker.has_active_menu():
-            payload["error"] = "No active menu yet. Please select menu 1 or 2 first."
+            payload["error"] = "Please pick a menu option first (1 or 2)."
             return payload
 
-        # argument: "OP, value"
         parts = [p.strip() for p in argument.split(",") if p.strip()]
         if len(parts) != 2:
-            payload["error"] = "Invalid avoid update arguments."
+            payload["error"] = "I didn’t catch that—tell me what to avoid (e.g., “avoid nuts”)."
             return payload
 
         op, val = parts[0], parts[1]
         ok, err = update_avoid_items(tracker.constraints, op, val)
         if not ok:
-            payload["error"] = err or "Avoid update failed."
+            payload["error"] = err or "I couldn’t update that avoid item."
             return payload
 
-        # repair menu to satisfy new constraints
         try:
             repaired_menu, repaired_days = repair_menu(
                 tracker.active_menu or {},
@@ -208,12 +234,12 @@ def execute_action(
             payload["repaired_days"] = repaired_days
             return payload
         except Exception as e:
-            payload["error"] = f"Avoid list updated, but repair failed: {e}"
+            payload["error"] = f"I updated your avoid list, but I couldn’t repair the plan: {e}"
             return payload
 
     if action == "confirm_plan":
         if not tracker.has_active_menu():
-            payload["error"] = "No active menu yet. Please select menu 1 or 2 first."
+            payload["error"] = "Please pick a menu option first (1 or 2)."
             return payload
 
         try:
@@ -230,30 +256,20 @@ def execute_action(
             return payload
 
     if action == "provide_info":
-        # argument expected: "intent, slot" (e.g., "plan, all" or "plan, avoid_items")
         raw = (argument or "").strip()
 
         if not raw:
-            payload["message"] = (
-                "Please specify what you want values for, e.g., provide_info(plan, all) "
-                "or provide_info(plan, time_limit)."
-            )
+            payload["message"] = _provide_info_message(tracker, intent="plan", slot="all")
             return payload
 
-        # Split only once to avoid accidental extra commas breaking parsing
         parts = [p.strip() for p in raw.split(",", 1) if p.strip()]
-
         if len(parts) == 1:
-            intent_req, slot_req = parts[0], "all"   # default to all
+            intent_req, slot_req = parts[0], "all"
         else:
             intent_req, slot_req = parts[0], parts[1]
 
-        intent_req = intent_req.strip().lower()
-        slot_req = slot_req.strip().lower()
-
-        payload["message"] = _provide_info_message(tracker, intent_req, slot_req)
+        payload["message"] = _provide_info_message(tracker, intent_req.strip().lower(), slot_req.strip().lower())
         return payload
-
 
     # request_info / fallback: no execution
     return payload
@@ -284,6 +300,22 @@ class Dialogue:
 
         while True:
             user_text = input().strip()
+            raw = (user_text or "").strip()
+            low = raw.lower()
+
+            if low in {"exit", "quit", "q"}:
+                print("Goodbye.")
+                break
+
+            if getattr(self.tracker, "phase", "") == "CONFIRMED" and low in {
+                "finalize", "done", "thanks", "thank you", "bye"
+            }:
+                print("All set. Goodbye.")
+                break
+
+            if not raw:
+                continue
+
             self.history.add_msg(user_text, "user", "input")
 
             # 1) NLU -> MR

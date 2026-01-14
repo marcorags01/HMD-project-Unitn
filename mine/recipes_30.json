@@ -779,5 +779,964 @@
       "Make wells and crack in eggs; cover and cook until set.",
       "Top with feta and parsley."
     ]
+  },
+  {
+    "recipe_id": "R31",
+    "title": "One-Pan Lemon Herb Chicken with Zucchini",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["meat"],
+    "ingredients": [
+      {"name": "chicken breast", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "zucchini", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Slice zucchini; season chicken with salt and pepper.",
+      "Sear chicken in olive oil until golden; add minced garlic.",
+      "Add zucchini; cook until tender-crisp.",
+      "Finish with lemon juice/zest and oregano; toss and serve."
+    ]
+  },
+  {
+    "recipe_id": "R32",
+    "title": "Mediterranean Tuna Rice Bowl",
+    "time_min": 20,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["fish"],
+    "ingredients": [
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "tuna (canned, drained)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "olives", "qty": 60, "unit": "g", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice and let steam dry.",
+      "Chop cucumber and tomatoes; combine with olives.",
+      "Flake tuna and season with lemon juice, olive oil, and salt.",
+      "Assemble bowls: rice topped with salad and tuna."
+    ]
+  },
+  {
+    "recipe_id": "R33",
+    "title": "Quick Veggie Couscous with Chickpeas",
+    "time_min": 15,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["gluten"],
+    "ingredients": [
+      {"name": "couscous", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "chickpeas (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "cherry tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Prepare couscous according to package directions.",
+      "Chop cucumber and tomatoes; combine with chickpeas.",
+      "Whisk lemon juice, olive oil, oregano, and salt.",
+      "Toss everything together and serve."
+    ]
+  },
+  {
+    "recipe_id": "R34",
+    "title": "Turkey Burger Lettuce Wraps with Yogurt Sauce",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["meat", "dairy"],
+    "ingredients": [
+      {"name": "ground turkey", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "lettuce", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "yogurt", "qty": 120, "unit": "g", "category": "dairy"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Form turkey into 2 patties; season with salt and pepper.",
+      "Sear in olive oil until cooked through.",
+      "Mix yogurt with lemon juice and a pinch of salt.",
+      "Serve patties in lettuce leaves with chopped tomato/cucumber and yogurt sauce."
+    ]
+  },
+  {
+    "recipe_id": "R35",
+    "title": "Sheet-Pan Sausage and Peppers",
+    "time_min": 35,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat"],
+    "ingredients": [
+      {"name": "sausages", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "bell pepper", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "red onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "potatoes", "qty": 350, "unit": "g", "category": "produce"},
+      {"name": "olive oil", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "paprika", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 5, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Heat oven to 220°C; cut peppers, onion, and potatoes into chunks.",
+      "Toss vegetables with olive oil, paprika, salt, and pepper on a sheet pan.",
+      "Nestle sausages among vegetables.",
+      "Roast 25–30 minutes, turning once, until browned and cooked."
+    ]
+  },
+  {
+    "recipe_id": "R36",
+    "title": "Garlic Butter Green Beans with Steak Strips",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat", "dairy"],
+    "ingredients": [
+      {"name": "beef strips", "qty": 260, "unit": "g", "category": "protein"},
+      {"name": "green beans", "qty": 300, "unit": "g", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "butter", "qty": 20, "unit": "g", "category": "dairy"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Season beef with salt and pepper; sear in olive oil over high heat and set aside.",
+      "Sauté green beans until tender-crisp.",
+      "Add butter and minced garlic; toss 1 minute.",
+      "Return beef; finish with lemon juice and serve."
+    ]
+  },
+  {
+    "recipe_id": "R37",
+    "title": "Veggie Egg Scramble with Toast",
+    "time_min": 15,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["egg", "gluten"],
+    "ingredients": [
+      {"name": "eggs", "qty": 5, "unit": "pc", "category": "protein"},
+      {"name": "spinach", "qty": 100, "unit": "g", "category": "produce"},
+      {"name": "cherry tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "bread", "qty": 4, "unit": "pc", "category": "pantry"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Sauté chopped onion and halved tomatoes in olive oil 3–4 minutes.",
+      "Add spinach to wilt.",
+      "Add beaten eggs; scramble until set; season.",
+      "Toast bread and serve alongside."
+    ]
+  },
+  {
+    "recipe_id": "R38",
+    "title": "Tomato White Bean Skillet",
+    "time_min": 20,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      {"name": "white beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "tomatoes (canned)", "qty": 300, "unit": "g", "category": "pantry"},
+      {"name": "spinach", "qty": 120, "unit": "g", "category": "produce"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Sauté chopped onion in olive oil until soft; add garlic and oregano.",
+      "Add canned tomatoes and salt; simmer 6–8 minutes.",
+      "Stir in beans to warm through.",
+      "Add spinach to wilt; serve hot."
+    ]
+  },
+  {
+    "recipe_id": "R39",
+    "title": "Chicken Caesar Salad Wraps",
+    "time_min": 20,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["meat", "gluten", "dairy", "egg"],
+    "ingredients": [
+      {"name": "chicken breast (cooked or pre-cooked)", "qty": 250, "unit": "g", "category": "protein"},
+      {"name": "romaine lettuce", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "parmesan", "qty": 40, "unit": "g", "category": "dairy"},
+      {"name": "croutons", "qty": 40, "unit": "g", "category": "pantry"},
+      {"name": "caesar dressing", "qty": 80, "unit": "g", "category": "pantry"},
+      {"name": "flour tortillas", "qty": 4, "unit": "pc", "category": "pantry"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"}
+    ],
+    "steps": [
+      "Chop lettuce; slice chicken.",
+      "Toss lettuce with dressing, parmesan, croutons, pepper, and lemon juice.",
+      "Add chicken and mix.",
+      "Fill tortillas, wrap, and serve."
+    ]
+  },
+  {
+    "recipe_id": "R40",
+    "title": "Baked Cod with Tomato Olive Sauce",
+    "time_min": 30,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["fish"],
+    "ingredients": [
+      {"name": "cod fillets", "qty": 320, "unit": "g", "category": "protein"},
+      {"name": "tomatoes (canned)", "qty": 300, "unit": "g", "category": "pantry"},
+      {"name": "olives", "qty": 60, "unit": "g", "category": "pantry"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Heat oven to 200°C; season cod with salt and pepper.",
+      "Simmer tomatoes with olive oil, garlic, oregano, and olives 5 minutes.",
+      "Pour sauce over cod in a baking dish.",
+      "Bake 12–15 minutes until flaky."
+    ]
+  },
+  {
+    "recipe_id": "R41",
+    "title": "Creamy Tomato Gnocchi",
+    "time_min": 20,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "dairy"],
+    "ingredients": [
+      {"name": "gnocchi", "qty": 400, "unit": "g", "category": "pantry"},
+      {"name": "tomatoes (canned)", "qty": 250, "unit": "g", "category": "pantry"},
+      {"name": "cream", "qty": 120, "unit": "ml", "category": "dairy"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "spinach", "qty": 120, "unit": "g", "category": "produce"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Sauté garlic in olive oil for 30 seconds.",
+      "Add canned tomatoes; simmer 5 minutes.",
+      "Stir in cream and gnocchi; cook until tender.",
+      "Add spinach to wilt; season and serve."
+    ]
+  },
+  {
+    "recipe_id": "R42",
+    "title": "Teriyaki Tofu Rice Bowl",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["soy"],
+    "ingredients": [
+      {"name": "tofu (firm)", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "broccoli", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "carrot", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "soy sauce", "qty": 30, "unit": "ml", "category": "pantry"},
+      {"name": "sugar", "qty": 8, "unit": "g", "category": "pantry"},
+      {"name": "ginger", "qty": 10, "unit": "g", "category": "produce"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"}
+    ],
+    "steps": [
+      "Cook rice.",
+      "Sear cubed tofu in olive oil until golden.",
+      "Stir-fry broccoli and sliced carrot until tender-crisp.",
+      "Mix soy sauce, sugar, and grated ginger; toss with tofu and vegetables; serve over rice."
+    ]
+  },
+  {
+    "recipe_id": "R43",
+    "title": "Pesto White Bean Pasta",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "nuts", "dairy"],
+    "ingredients": [
+      {"name": "pasta (penne)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "white beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "pesto", "qty": 70, "unit": "g", "category": "pantry"},
+      {"name": "cherry tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "spinach", "qty": 100, "unit": "g", "category": "produce"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook pasta until al dente; reserve a splash of water.",
+      "Warm beans and halved tomatoes with olive oil 3–4 minutes.",
+      "Add spinach to wilt.",
+      "Toss pasta with pesto and vegetables; loosen with pasta water; season and serve."
+    ]
+  },
+  {
+    "recipe_id": "R44",
+    "title": "Sweet Potato Black Bean Hash",
+    "time_min": 30,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      {"name": "sweet potato", "qty": 350, "unit": "g", "category": "produce"},
+      {"name": "black beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "bell pepper", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "cumin", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "paprika", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Dice sweet potato; sauté in olive oil 10–12 minutes until tender.",
+      "Add chopped onion and pepper; cook 5 minutes.",
+      "Stir in beans, cumin, paprika, and salt.",
+      "Cook 2–3 minutes more and serve."
+    ]
+  },
+  {
+    "recipe_id": "R45",
+    "title": "Lentil Bolognese Spaghetti",
+    "time_min": 35,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["gluten"],
+    "ingredients": [
+      {"name": "spaghetti", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "lentils (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "tomatoes (canned)", "qty": 300, "unit": "g", "category": "pantry"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "carrot", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook spaghetti.",
+      "Sauté chopped onion and grated carrot in olive oil 6–7 minutes.",
+      "Add tomatoes, lentils, oregano, and salt; simmer 12–15 minutes.",
+      "Serve sauce over spaghetti."
+    ]
+  },
+  {
+    "recipe_id": "R46",
+    "title": "Shrimp Tomato Orzo",
+    "time_min": 25,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["shellfish", "gluten"],
+    "ingredients": [
+      {"name": "shrimp", "qty": 280, "unit": "g", "category": "protein"},
+      {"name": "orzo", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "tomatoes (canned)", "qty": 250, "unit": "g", "category": "pantry"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "spinach", "qty": 100, "unit": "g", "category": "produce"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Sauté garlic in olive oil; add orzo and toast 1 minute.",
+      "Add tomatoes plus 250 ml water; simmer until orzo is tender.",
+      "Add shrimp; cook until pink.",
+      "Stir in spinach to wilt; season and serve."
+    ]
+  },
+  {
+    "recipe_id": "R47",
+    "title": "Veggie Fried Rice with Egg",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["egg", "soy", "gluten"],
+    "ingredients": [
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "eggs", "qty": 2, "unit": "pc", "category": "protein"},
+      {"name": "peas", "qty": 120, "unit": "g", "category": "produce"},
+      {"name": "carrots", "qty": 120, "unit": "g", "category": "produce"},
+      {"name": "soy sauce", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "garlic", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice and cool slightly.",
+      "Stir-fry carrots and peas in olive oil; add minced garlic.",
+      "Push aside and scramble eggs in the pan.",
+      "Add rice and soy sauce; toss until hot; season with pepper."
+    ]
+  },
+  {
+    "recipe_id": "R48",
+    "title": "Greek Yogurt Chicken with Rice",
+    "time_min": 35,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat", "dairy"],
+    "ingredients": [
+      {"name": "chicken thighs", "qty": 320, "unit": "g", "category": "protein"},
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "yogurt", "qty": 120, "unit": "g", "category": "dairy"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 5, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice.",
+      "Mix yogurt with lemon juice, minced garlic, oregano, and salt.",
+      "Sear chicken in olive oil until cooked through.",
+      "Serve chicken over rice with yogurt sauce."
+    ]
+  },
+  {
+    "recipe_id": "R49",
+    "title": "Quinoa Avocado Lime Salad",
+    "time_min": 20,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      {"name": "quinoa (dry)", "qty": 140, "unit": "g", "category": "pantry"},
+      {"name": "avocado", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "lime", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook quinoa and cool slightly.",
+      "Chop avocado, tomatoes, and cucumber.",
+      "Whisk lime juice, olive oil, and salt.",
+      "Toss quinoa with vegetables and dressing."
+    ]
+  },
+  {
+    "recipe_id": "R50",
+    "title": "Chicken Veggie Noodle Soup",
+    "time_min": 35,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["meat", "gluten"],
+    "ingredients": [
+      {"name": "chicken breast", "qty": 250, "unit": "g", "category": "protein"},
+      {"name": "vegetable broth", "qty": 700, "unit": "ml", "category": "pantry"},
+      {"name": "carrots", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "celery stalks", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "egg noodles", "qty": 140, "unit": "g", "category": "pantry"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Sauté chopped onion, carrot, and celery in olive oil 5 minutes.",
+      "Add broth and chicken; simmer 12–15 minutes.",
+      "Remove chicken, slice, and return to pot.",
+      "Add noodles; cook until tender; season and serve."
+    ]
+  },
+  {
+    "recipe_id": "R51",
+    "title": "Burrito Bowls with Beef and Salsa",
+    "time_min": 30,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat"],
+    "ingredients": [
+      {"name": "ground beef", "qty": 260, "unit": "g", "category": "protein"},
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "black beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "corn kernels", "qty": 150, "unit": "g", "category": "produce"},
+      {"name": "salsa", "qty": 140, "unit": "g", "category": "pantry"},
+      {"name": "lime", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "cumin", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice.",
+      "Brown beef; season with cumin and salt.",
+      "Warm beans and corn.",
+      "Assemble bowls with rice, beef, beans/corn, salsa, and lime juice."
+    ]
+  },
+  {
+    "recipe_id": "R52",
+    "title": "Sesame Cucumber Chicken Salad",
+    "time_min": 20,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["meat", "sesame", "soy"],
+    "ingredients": [
+      {"name": "chicken breast (cooked or pre-cooked)", "qty": 250, "unit": "g", "category": "protein"},
+      {"name": "cucumber", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "carrots", "qty": 150, "unit": "g", "category": "produce"},
+      {"name": "soy sauce", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "sesame oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "rice vinegar", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "sesame seeds", "qty": 8, "unit": "g", "category": "pantry"},
+      {"name": "sugar", "qty": 5, "unit": "g", "category": "pantry"}
+    ],
+    "steps": [
+      "Slice cucumber and shred carrots; slice chicken.",
+      "Whisk soy sauce, vinegar, sesame oil, and sugar.",
+      "Toss salad with dressing.",
+      "Top with sesame seeds and serve."
+    ]
+  },
+  {
+    "recipe_id": "R53",
+    "title": "Ricotta Spinach Toasts",
+    "time_min": 15,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["dairy", "gluten"],
+    "ingredients": [
+      {"name": "bread", "qty": 4, "unit": "pc", "category": "pantry"},
+      {"name": "ricotta", "qty": 180, "unit": "g", "category": "dairy"},
+      {"name": "spinach", "qty": 120, "unit": "g", "category": "produce"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "garlic", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Toast bread.",
+      "Sauté spinach with olive oil and minced garlic until wilted; season.",
+      "Spread ricotta on toast.",
+      "Top with spinach and serve."
+    ]
+  },
+  {
+    "recipe_id": "R54",
+    "title": "Coconut Lentil Curry with Rice",
+    "time_min": 40,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "red lentils (dry)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "coconut milk", "qty": 200, "unit": "ml", "category": "pantry"},
+      {"name": "tomatoes (canned)", "qty": 250, "unit": "g", "category": "pantry"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "curry powder", "qty": 6, "unit": "g", "category": "spices"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice.",
+      "Sauté chopped onion in olive oil; add curry powder.",
+      "Add lentils, tomatoes, coconut milk, and salt; simmer until lentils are tender.",
+      "Serve curry over rice."
+    ]
+  },
+  {
+    "recipe_id": "R55",
+    "title": "Pork and Broccoli Stir-Fry with Rice",
+    "time_min": 30,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat", "soy", "gluten"],
+    "ingredients": [
+      {"name": "pork strips", "qty": 260, "unit": "g", "category": "protein"},
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "broccoli", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "carrot", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "soy sauce", "qty": 30, "unit": "ml", "category": "pantry"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice.",
+      "Sear pork in olive oil over high heat; remove.",
+      "Stir-fry broccoli and sliced carrot; add garlic.",
+      "Return pork; add soy sauce and pepper; toss and serve over rice."
+    ]
+  },
+  {
+    "recipe_id": "R56",
+    "title": "Caprese Pasta with Mozzarella",
+    "time_min": 20,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "dairy"],
+    "ingredients": [
+      {"name": "pasta (fusilli)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "cherry tomatoes", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "mozzarella", "qty": 140, "unit": "g", "category": "dairy"},
+      {"name": "fresh basil", "qty": 15, "unit": "g", "category": "produce"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "balsamic vinegar", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook pasta; drain.",
+      "Halve tomatoes; tear mozzarella; chop basil.",
+      "Toss pasta with olive oil, balsamic vinegar, and salt.",
+      "Fold in tomatoes, mozzarella, and basil; serve."
+    ]
+  },
+  {
+    "recipe_id": "R57",
+    "title": "Miso-Style Soup with Tofu and Greens",
+    "time_min": 20,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["soy"],
+    "ingredients": [
+      {"name": "vegetable broth", "qty": 700, "unit": "ml", "category": "pantry"},
+      {"name": "tofu (firm)", "qty": 240, "unit": "g", "category": "protein"},
+      {"name": "spinach", "qty": 150, "unit": "g", "category": "produce"},
+      {"name": "scallions", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "soy sauce", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "ginger", "qty": 10, "unit": "g", "category": "produce"},
+      {"name": "sesame oil", "qty": 5, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 2, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Bring broth to a simmer with grated ginger.",
+      "Add cubed tofu and soy sauce; simmer 5 minutes.",
+      "Stir in spinach to wilt.",
+      "Finish with sesame oil and sliced scallions; adjust salt."
+    ]
+  },
+  {
+    "recipe_id": "R58",
+    "title": "Chicken Parmesan Pasta Skillet",
+    "time_min": 35,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat", "gluten", "dairy"],
+    "ingredients": [
+      {"name": "chicken breast", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "pasta (penne)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "marinara sauce", "qty": 350, "unit": "g", "category": "pantry"},
+      {"name": "parmesan", "qty": 50, "unit": "g", "category": "dairy"},
+      {"name": "mozzarella", "qty": 120, "unit": "g", "category": "dairy"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 5, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook pasta; drain.",
+      "Sear diced chicken in olive oil; season with salt and pepper.",
+      "Add marinara and pasta; toss to combine.",
+      "Top with mozzarella and parmesan; cover 2–3 minutes until melted."
+    ]
+  },
+  {
+    "recipe_id": "R59",
+    "title": "Veggie Tostadas with Beans and Cheese",
+    "time_min": 20,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "dairy"],
+    "ingredients": [
+      {"name": "tortillas", "qty": 4, "unit": "pc", "category": "pantry"},
+      {"name": "black beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "cheddar", "qty": 100, "unit": "g", "category": "dairy"},
+      {"name": "tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "avocado", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "salsa", "qty": 120, "unit": "g", "category": "pantry"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Toast tortillas in a dry pan (or lightly brush with oil and toast) until crisp.",
+      "Warm beans and season with a pinch of salt.",
+      "Top tostadas with beans, cheddar, chopped tomatoes, salsa, and sliced avocado.",
+      "Serve immediately."
+    ]
+  },
+  {
+    "recipe_id": "R60",
+    "title": "Salmon Rice Bowl with Cucumber",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["fish", "soy"],
+    "ingredients": [
+      {"name": "salmon fillet", "qty": 320, "unit": "g", "category": "protein"},
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "carrot", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "soy sauce", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "sesame oil", "qty": 5, "unit": "ml", "category": "pantry"},
+      {"name": "lime", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook rice.",
+      "Season salmon with salt; sear until cooked through.",
+      "Slice cucumber and shred carrot.",
+      "Assemble bowls; drizzle soy sauce, sesame oil, and lime juice."
+    ]
+  },
+  {
+    "recipe_id": "R61",
+    "title": "Chickpea Tomato Pita Pockets",
+    "time_min": 20,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["gluten"],
+    "ingredients": [
+      {"name": "pita bread", "qty": 2, "unit": "pc", "category": "pantry"},
+      {"name": "chickpeas (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Chop tomatoes and cucumber; combine with chickpeas.",
+      "Dress with olive oil, lemon juice, oregano, and salt.",
+      "Warm pita briefly.",
+      "Fill pita pockets and serve."
+    ]
+  },
+  {
+    "recipe_id": "R62",
+    "title": "Broccoli Cheddar Baked Potatoes",
+    "time_min": 40,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["dairy"],
+    "ingredients": [
+      {"name": "potatoes", "qty": 500, "unit": "g", "category": "produce"},
+      {"name": "broccoli", "qty": 250, "unit": "g", "category": "produce"},
+      {"name": "cheddar", "qty": 140, "unit": "g", "category": "dairy"},
+      {"name": "milk", "qty": 80, "unit": "ml", "category": "dairy"},
+      {"name": "butter", "qty": 20, "unit": "g", "category": "dairy"},
+      {"name": "salt", "qty": 5, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Bake potatoes at 220°C until tender (or microwave until soft).",
+      "Steam broccoli until tender.",
+      "Split potatoes; mash insides with butter, milk, salt, and pepper.",
+      "Top with broccoli and cheddar; melt briefly in oven and serve."
+    ]
+  },
+  {
+    "recipe_id": "R63",
+    "title": "Egg Fried Noodles with Vegetables",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["egg", "soy", "gluten"],
+    "ingredients": [
+      {"name": "wheat noodles", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "eggs", "qty": 2, "unit": "pc", "category": "protein"},
+      {"name": "carrots", "qty": 150, "unit": "g", "category": "produce"},
+      {"name": "cabbage", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "soy sauce", "qty": 30, "unit": "ml", "category": "pantry"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "garlic", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook noodles; drain.",
+      "Stir-fry cabbage and shredded carrots in oil; add garlic.",
+      "Push aside; scramble eggs.",
+      "Add noodles and soy sauce; toss; season with pepper."
+    ]
+  },
+  {
+    "recipe_id": "R64",
+    "title": "Lemon Dill White Fish with Rice",
+    "time_min": 30,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["fish"],
+    "ingredients": [
+      {"name": "white fish fillets", "qty": 320, "unit": "g", "category": "protein"},
+      {"name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "dill (dried)", "qty": 2, "unit": "g", "category": "spices"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"},
+      {"name": "green beans", "qty": 250, "unit": "g", "category": "produce"}
+    ],
+    "steps": [
+      "Cook rice.",
+      "Season fish with salt, pepper, dill, and lemon juice.",
+      "Pan-sear fish in olive oil until flaky.",
+      "Steam green beans; serve fish and beans over rice with extra lemon."
+    ]
+  },
+  {
+    "recipe_id": "R65",
+    "title": "Pasta Primavera with Mixed Veg",
+    "time_min": 30,
+    "calorie_level": "MED",
+    "servings_base": 2,
+    "contains_tags": ["gluten"],
+    "ingredients": [
+      {"name": "pasta (penne)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "zucchini", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "bell pepper", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "cherry tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "peas", "qty": 120, "unit": "g", "category": "produce"},
+      {"name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "salt", "qty": 4, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook pasta; drain.",
+      "Sauté garlic in olive oil; add chopped vegetables and cook until tender-crisp.",
+      "Add peas and tomatoes; cook 2–3 minutes.",
+      "Toss with pasta; season with salt and serve."
+    ]
+  },
+  {
+    "recipe_id": "R66",
+    "title": "Beef Chili with Beans",
+    "time_min": 40,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat"],
+    "ingredients": [
+      {"name": "ground beef", "qty": 280, "unit": "g", "category": "protein"},
+      {"name": "kidney beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "tomatoes (canned)", "qty": 350, "unit": "g", "category": "pantry"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "chili powder", "qty": 6, "unit": "g", "category": "spices"},
+      {"name": "cumin", "qty": 3, "unit": "g", "category": "spices"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 5, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Sauté chopped onion in olive oil 4–5 minutes.",
+      "Brown beef; season with chili powder, cumin, and salt.",
+      "Add tomatoes and beans; simmer 18–20 minutes.",
+      "Adjust seasoning and serve."
+    ]
+  },
+  {
+    "recipe_id": "R67",
+    "title": "Spinach Chickpea Wraps with Tahini",
+    "time_min": 15,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "sesame"],
+    "ingredients": [
+      {"name": "tortillas", "qty": 4, "unit": "pc", "category": "pantry"},
+      {"name": "chickpeas (canned, drained)", "qty": 240, "unit": "g", "category": "pantry"},
+      {"name": "spinach", "qty": 120, "unit": "g", "category": "produce"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "tahini", "qty": 40, "unit": "g", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 3, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Mix tahini with lemon juice and a little water to loosen; add salt.",
+      "Chop cucumber; combine with chickpeas and spinach.",
+      "Dress with olive oil and a spoon of tahini sauce.",
+      "Fill tortillas and serve with remaining sauce."
+    ]
+  },
+  {
+    "recipe_id": "R68",
+    "title": "Sausage Pasta with Tomato Sauce",
+    "time_min": 30,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["meat", "gluten"],
+    "ingredients": [
+      {"name": "pasta (rigatoni)", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "sausages", "qty": 260, "unit": "g", "category": "protein"},
+      {"name": "tomatoes (canned)", "qty": 350, "unit": "g", "category": "pantry"},
+      {"name": "onion", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 2, "unit": "pc", "category": "produce"},
+      {"name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry"},
+      {"name": "salt", "qty": 5, "unit": "g", "category": "spices"},
+      {"name": "black pepper", "qty": 1, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Cook pasta; drain.",
+      "Sauté onion and garlic in olive oil; add sliced sausage and brown.",
+      "Add tomatoes, salt, and pepper; simmer 10–12 minutes.",
+      "Toss sauce with pasta and serve."
+    ]
+  },
+  {
+    "recipe_id": "R69",
+    "title": "Cucumber Tomato Feta Wraps",
+    "time_min": 15,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": ["gluten", "dairy"],
+    "ingredients": [
+      {"name": "tortillas", "qty": 4, "unit": "pc", "category": "pantry"},
+      {"name": "cucumber", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "tomatoes", "qty": 200, "unit": "g", "category": "produce"},
+      {"name": "feta", "qty": 100, "unit": "g", "category": "dairy"},
+      {"name": "olives", "qty": 50, "unit": "g", "category": "pantry"},
+      {"name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry"},
+      {"name": "lemon", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "salt", "qty": 2, "unit": "g", "category": "spices"}
+    ],
+    "steps": [
+      "Chop cucumber and tomatoes; crumble feta.",
+      "Toss with olives, olive oil, lemon juice, and salt.",
+      "Warm tortillas briefly.",
+      "Fill wraps and serve."
+    ]
+  },
+  {
+    "recipe_id": "R70",
+    "title": "Peanut Tofu Noodles",
+    "time_min": 30,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["nuts", "soy", "gluten"],
+    "ingredients": [
+      {"name": "tofu (firm)", "qty": 300, "unit": "g", "category": "protein"},
+      {"name": "wheat noodles", "qty": 180, "unit": "g", "category": "pantry"},
+      {"name": "peanut butter", "qty": 60, "unit": "g", "category": "pantry"},
+      {"name": "soy sauce", "qty": 25, "unit": "ml", "category": "pantry"},
+      {"name": "lime", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "garlic", "qty": 1, "unit": "pc", "category": "produce"},
+      {"name": "carrots", "qty": 150, "unit": "g", "category": "produce"},
+      {"name": "water", "qty": 60, "unit": "ml", "category": "pantry"}
+    ],
+    "steps": [
+      "Cook noodles; drain.",
+      "Sear cubed tofu until golden.",
+      "Whisk peanut butter, soy sauce, lime juice, minced garlic, and water.",
+      "Toss noodles with tofu and shredded carrots; coat with sauce and serve."
+    ]
   }
+
+
 ]

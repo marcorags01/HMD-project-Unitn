@@ -24,7 +24,6 @@ from typing import Any, Dict, List, Optional, Tuple
 from support_classes import (
     POSSIBLE_INTENTS,
     ALLOWED_DAYS,
-    DAY_ALIASES,
     ALLOWED_TIME_LIMITS,
     ALLOWED_CALORIE_LEVELS,
     ALLOWED_AVOID_ITEMS,
@@ -94,16 +93,22 @@ def _lower(x: Any) -> Optional[str]:
 
 def normalize_day(x: Any) -> Optional[str]:
     """
-    Normalize user-provided day to one of: Mon Tue Wed Thu Fri.
-    Accepts both canonical form and common aliases (mon, monday, etc.).
+    Validation-only day normalization:
+    - Accept canonical day codes only (Mon/Tue/Wed/Thu/Fri), case-insensitive.
+    - Do NOT map full names ("monday") or other aliases; NLU should do that.
     """
     if _is_nullish(x):
         return None
-    s = str(x).strip()
-    if s in ALLOWED_DAYS:
-        return s
-    key = s.lower()
-    return DAY_ALIASES.get(key)
+    if not isinstance(x, str):
+        return None
+
+    s = x.strip()
+    if not s:
+        return None
+
+    s3 = s[:3].title()  # "mon" -> "Mon", "MONDAY" -> "Mon"
+    return s3 if s3 in ALLOWED_DAYS else None
+
 
 
 def normalize_avoid_items(x: Any) -> Optional[List[str]]:

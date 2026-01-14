@@ -52,6 +52,50 @@ REQUIRED_RECIPE_FIELDS = {
 }
 REQUIRED_ING_FIELDS = {"name", "qty", "unit", "category"}
 
+class MenuGenerationError(ValueError):
+    """
+    User-facing error for menu infeasibility.
+    Keep the message safe to show directly to the user.
+    """
+    pass
+
+
+def _menu_infeasibility_message(constraints: Dict[str, Any], feasible_count: int) -> str:
+    """
+    Build a friendly, actionable message without internal jargon like:
+    - "constraints"
+    - "need at least 5"
+    """
+    time_limit = str((constraints or {}).get("time_limit") or "").upper()
+    calorie = str((constraints or {}).get("calorie_level") or "").upper()
+    avoids = (constraints or {}).get("avoid_items") or []
+
+    suggestions: list[str] = []
+
+    # 1–2 concrete relaxations, based on what the user chose
+    if time_limit == "FAST":
+        suggestions.append("switching to normal prep time")
+    if calorie in {"LOW", "HIGH"}:
+        suggestions.append("choosing balanced calories")
+    if avoids:
+        suggestions.append("removing one item to avoid")
+
+    suggestions = suggestions[:2]
+
+    if feasible_count <= 0:
+        base = "I couldn’t find meals that match those preferences."
+    else:
+        base = "I couldn’t put together a full Mon–Fri plan with those preferences."
+
+    if suggestions:
+        if len(suggestions) == 1:
+            return f"{base} Try {suggestions[0]}, and I can generate options."
+        return f"{base} Try {suggestions[0]} or {suggestions[1]}, and I can generate options."
+
+    # If we have no specific suggestion, fall back to a generic gentle prompt
+    return f"{base} If you adjust your preferences a bit, I can try again."
+
+
 
 def _extract_first_balanced_json_span(text: str) -> Optional[Tuple[int, int]]:
     """
@@ -385,7 +429,7 @@ def generate_two_menus(
     """
     feasible = filter_recipes(recipes, constraints)
     if len(feasible) == 0:
-        raise ValueError("No feasible recipes found for the given constraints.")
+        raise MenuGenerationError(_menu_infeasibility_message(constraints, len(feasible)))
 
     menu1 = _build_menu_option1(feasible)
     menu2 = _build_menu_option2(feasible)

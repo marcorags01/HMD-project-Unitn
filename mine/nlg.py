@@ -24,22 +24,28 @@ from utils import PROMPTS, generate, format_chat
 from collections import defaultdict
 
 
-_ACTION_GUIDE = """ACTION SEMANTICS:
-- request_info(slot): Ask a single clear question to obtain that missing slot value. Do not list options unless asked.
-- provide_info(intent, slot): Provide allowed values for that slot only, concise.
-- propose_menus(): Present two menu options (Mon–Fri). Ask user to choose menu_id 1 or 2.
-- set_active_menu(menu_id): Confirm selection and explain next possible actions (inspect/refine/confirm).
-- show_day(target_day): Show recipe title, time, calorie level, and ingredients (scaled).
-- swap_day(target_day): Confirm the swap (or explain no alternative exists).
-- update_avoid(op, value): Confirm updated avoid list and mention repaired days if any.
-- confirm_plan(): Confirm and present the shopping list clearly.
-- fallback(): Explain capabilities succinctly.
+_ACTION_GUIDE = """YOU WRITE THE USER-FACING MESSAGE.
 
-STYLE:
-- Be concise and task-focused.
-- No chitchat.
-- Use bullet points for menus and shopping lists where helpful.
-- If payload contains an "error", prioritize returning that error message clearly.
+Hard requirements:
+- Never mention internal system concepts (e.g., intents, slots, enums, IDs, variables, JSON).
+- Do not output action names or action syntax.
+- Keep the tone human, brief, and helpful.
+
+If the input bundle contains any of these blocks:
+- MENU_BLOCK
+- DAY_BLOCK
+- SHOPPING_BLOCK
+- FACT_BLOCK
+
+You MUST include each non-empty block EXACTLY as provided (verbatim).
+Do not edit, reformat, reorder, paraphrase, or “improve” the block.
+You may add a short sentence before and/or after the block if helpful.
+Do not add additional markdown formatting around these blocks (no extra headings/bold beyond what is already inside).
+
+General behavior:
+- Ask for only one missing detail at a time.
+- If the user confirms something (“yes”, “ok”, “that’s fine”), acknowledge and proceed naturally.
+- Use bullet points when presenting options or lists, but do not alter the provided blocks.
 """
 
 
@@ -66,22 +72,40 @@ def _strip_accidental_action_echo(text: str) -> str:
 
 _WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
+_REQUEST_QUESTIONS = {
+    "servings": "How many servings should I plan for? (1–6)",
+    "time_limit": "Do you want quick meals, or is normal prep time OK?",
+    "calorie_level": "Are you aiming for lighter meals, balanced, or more filling?",
+    "avoid_items": "Any allergies or foods you want to avoid?",
+    "menu_id": "Which option do you prefer—1 or 2?",
+    "target_day": "Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?",
+    "refine_type": "Do you want to swap a day, or update foods to avoid?",
+    "value": "What should I add or remove from foods to avoid? (e.g., nuts, dairy, gluten)",
+    "all": "What would you like to do next?",
+}
+
 def _fmt_constraints(tracker_state: Dict[str, Any]) -> str:
     c = (tracker_state or {}).get("constraints") or {}
     servings = c.get("servings")
-    time_limit = c.get("time_limit")
-    calorie = c.get("calorie_level")
+    time_limit = str(c.get("time_limit") or "").upper()
+    calorie = str(c.get("calorie_level") or "").upper()
     avoids = c.get("avoid_items") or []
-    avoids_txt = ", ".join(avoids) if avoids else "none"
+
+    time_map = {"FAST": "Quick", "NORMAL": "Normal"}
+    cal_map = {"LOW": "Lighter", "MED": "Balanced", "HIGH": "More filling"}
+
     lines = []
     if servings is not None:
         lines.append(f"- Servings: {servings}")
-    if time_limit is not None:
-        lines.append(f"- Time limit: {time_limit}")
-    if calorie is not None:
-        lines.append(f"- Calorie level: {calorie}")
-    lines.append(f"- Avoid items: {avoids_txt}")
+    if time_limit:
+        lines.append(f"- Prep time: {time_map.get(time_limit, time_limit.title())}")
+    if calorie:
+        lines.append(f"- Calories: {cal_map.get(calorie, calorie.title())}")
+
+    avoids_txt = ", ".join(avoids) if avoids else "none"
+    lines.append(f"- Foods to avoid: {avoids_txt}")
     return "\n".join(lines)
+
 
 
 def _render_menus(menu1_pretty: Dict[str, str], menu2_pretty: Dict[str, str]) -> str:
@@ -93,11 +117,12 @@ def _render_menus(menu1_pretty: Dict[str, str], menu2_pretty: Dict[str, str]) ->
         return "\n".join(lines) if lines else "(no items)"
 
     return (
-        "Here are two menu options (Mon–Fri):\n\n"
-        "**Menu 1**\n" + fmt(menu1_pretty) + "\n\n"
-        "**Menu 2**\n" + fmt(menu2_pretty) + "\n\n"
-        "Reply with the menu ID you want (1 or 2)."
+        "Two weekly options (Mon–Fri):\n\n"
+        "Option 1\n" + fmt(menu1_pretty) + "\n\n"
+        "Option 2\n" + fmt(menu2_pretty) + "\n\n"
+        "Which option do you prefer—1 or 2?"
     )
+
 
 
 def _render_shopping_list(items: list[Dict[str, Any]]) -> str:
@@ -133,23 +158,27 @@ def _render_shopping_list(items: list[Dict[str, Any]]) -> str:
 
 
 def _render_day_details(details: Dict[str, Any]) -> str:
-    # details: {day, title, time_min, calorie_level, ingredients:[...], avoid_check:bool}
     day = details.get("day", "")
     title = details.get("title", "")
     time_min = details.get("time_min", "")
-    cal = details.get("calorie_level", "")
-    avoid_check = details.get("avoid_check", False)
+    cal = str(details.get("calorie_level", "") or "").upper()
+    avoid_check = bool(details.get("avoid_check", False))
     ings = details.get("ingredients", []) or []
 
-    lines = [
-        f"**{day} — {title}**",
-        f"- Time: {time_min} min",
-        f"- Calorie level: {cal}",
-    ]
-    if avoid_check:
-        lines.append("- Note: this recipe contains at least one avoided tag.")
+    cal_map = {"LOW": "Lighter", "MED": "Balanced", "HIGH": "More filling"}
 
-    lines.append("\nIngredients (scaled):")
+    lines = [
+        f"{day} — {title}",
+        f"- Time: {time_min} min",
+    ]
+    if cal:
+        lines.append(f"- Calories: {cal_map.get(cal, cal.title())}")
+
+    if avoid_check:
+        lines.append("- Note: this includes something you asked to avoid.")
+
+    lines.append("")
+    lines.append("Ingredients (scaled):")
     for ing in ings:
         name = str(ing.get("name", "")).strip()
         qty = ing.get("qty", "")
@@ -157,6 +186,7 @@ def _render_day_details(details: Dict[str, Any]) -> str:
         lines.append(f"- {qty} {unit} {name}".strip())
 
     return "\n".join(lines).strip()
+
 
 class NLG:
     def __init__(self, history, model, tokenizer, args, logger):
@@ -174,66 +204,74 @@ class NLG:
         payload: Optional[Dict[str, Any]] = None,
         last_n_turns: Optional[int] = None,
     ) -> str:
+
         payload = payload or {}
-               
         tracker_state = tracker_state or {}
         phase = str(tracker_state.get("phase", "") or "")
 
-        # ------------------------- Deterministic short-circuits -------------------------
-        # If execution produced an error or a direct message, return it verbatim.
+        # ------------------------- Hard short-circuits -------------------------
         if payload.get("error"):
             return str(payload["error"])
 
+        if action == "fallback" and phase == "CONFIRMED":
+            return "All set — your meal plan is finalized. Type 'exit' to end, or start a new plan anytime."
+
+        # ------------------------- Build verbatim factual blocks -------------------------
+        menu_block = ""
+        day_block = ""
+        shopping_block = ""
+        fact_block = ""
+
+        # If executor produced a direct message (e.g., help), treat it as factual content.
         if payload.get("message"):
-            return str(payload["message"])
+            fact_block = str(payload["message"]).strip()
 
-        # Render menus deterministically (executor provides menu*_pretty).
+        # Request questions are best kept deterministic (but wrapped by LLM).
+        if action == "request_info":
+            q = _REQUEST_QUESTIONS.get((argument or "").strip(), "")
+            if q:
+                return q if q else "What would you like to do next?"
+
+        # Menus
         if action == "propose_menus" and payload.get("menu1_pretty") and payload.get("menu2_pretty"):
-            return _render_menus(payload["menu1_pretty"], payload["menu2_pretty"])
+            menu_block = _render_menus(payload["menu1_pretty"], payload["menu2_pretty"])
 
-        # Render shopping list deterministically (executor provides shopping_list).
-        if action == "confirm_plan" and payload.get("shopping_list") is not None:
-            header = "Here is your shopping list (Mon–Fri):\n\n"
-            header += _fmt_constraints(tracker_state) + "\n\n"
-            body = _render_shopping_list(payload.get("shopping_list") or [])
-            footer = "\n\nIf you are done, you can say 'finalize' or 'exit'."
-            return header + body + footer
-
-        # Deterministic inspect rendering
+        # Day details
         if action == "show_day" and payload.get("details"):
-            return _render_day_details(payload["details"])
+            day_block = _render_day_details(payload["details"])
 
-        # Deterministic swap rendering
-        if action == "swap_day":
-            if payload.get("swapped"):
-                return f"Done — I swapped **{argument}** to: **{payload.get('new_title', 'a new recipe')}**."
-            return f"I couldn't find a feasible alternative for **{argument}** under the current constraints."
+        # Shopping list
+        if action == "confirm_plan" and payload.get("shopping_list") is not None:
+            header = "Shopping list (Mon–Fri):\n\n" + _fmt_constraints(tracker_state) + "\n\n"
+            body = _render_shopping_list(payload.get("shopping_list") or [])
+            shopping_block = (header + body).strip()
 
-        # Deterministic avoid update rendering
-        if action == "update_avoid":
-            repaired = payload.get("repaired_days") or []
-            msg = "Updated your avoid list.\n\n" + _fmt_constraints(tracker_state)
-            if repaired:
-                msg += "\n\nRepaired days: " + ", ".join(repaired)
-            return msg
-
-        # Deterministic menu selection acknowledgement
+        # Menu selection acknowledgement (keep facts correct, let LLM add tone)
         if action == "set_active_menu":
             if payload.get("ok"):
-                mid = tracker_state.get("active_menu_id")
-                return (
-                    f"Menu **{mid}** selected.\n"
-                    "You can:\n"
-                    "- inspect a day (e.g., 'inspect Tue')\n"
-                    "- swap a day (e.g., 'swap Wed')\n"
-                    "- update avoid items (e.g., 'avoid nuts')\n"
-                    "- confirm to get the shopping list"
+                mid = tracker_state.get("active_menu_id") or argument
+                fact_block = (
+                    f"Great — we’ll go with option {mid}.\n"
+                    "You can ask what’s planned on a day, swap a day, update foods to avoid, or confirm for the shopping list."
                 )
-            return "I couldn’t select that menu. Please reply with menu ID 1 or 2."
+            else:
+                fact_block = "I couldn’t select that option. Please reply with 1 or 2."
 
-        # In CONFIRMED, fallback should not restart; provide closure guidance.
-        if action == "fallback" and phase == "CONFIRMED":
-            return "All set — your meal plan is finalized. Type 'exit' to end, or 'plan a meal' to start a new one."
+        # Swap acknowledgement (factual)
+        if action == "swap_day":
+            if payload.get("swapped"):
+                fact_block = f"Done — I swapped {argument} to: {payload.get('new_title', 'a new recipe')}."
+            else:
+                fact_block = "I couldn’t find a good alternative for that day with your current preferences."
+
+        # Avoid update acknowledgement (factual)
+        if action == "update_avoid":
+            repaired = payload.get("repaired_days") or []
+            base = "Got it — I updated your foods to avoid.\n\n" + _fmt_constraints(tracker_state)
+            if repaired:
+                base += "\n\nI also updated these days to keep everything compatible: " + ", ".join(repaired)
+            fact_block = base
+   
 
         # Build system prompt
         system_prompt = (
@@ -259,7 +297,12 @@ class NLG:
             "tracker_state": tracker_state or {},
             "payload": payload,
             "recent_turns": recent if recent else "(none)",
+            "MENU_BLOCK": menu_block,
+            "DAY_BLOCK": day_block,
+            "SHOPPING_BLOCK": shopping_block,
+            "FACT_BLOCK": fact_block,
         }
+
 
         user_text = (
             "INPUT_BUNDLE_JSON:\n"
