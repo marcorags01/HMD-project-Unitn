@@ -125,11 +125,24 @@ def apply_policy(
         )
 
     phase = getattr(tracker, "phase", "")
+
+    #--Post confirmation behavior--
+    # If the plan is already confirmed and the user confirms again (e.g., "finalize", "done"),
+    # do not restart the workflow; just acknowledge closure.
+    if phase == "CONFIRMED" and intent == "confirm":
+        return _final("fallback", "", nm, proposed_action, proposed_argument, "already_confirmed")
     has_active = getattr(tracker, "has_active_menu", lambda: False)()
 
-    # 0) Out-of-domain always falls back
+    # 0) Out-of-domain handling
+    # In mid-workflow states, the user may produce acknowledgements or short commands
+    # that the NLU cannot reliably classify (e.g., "ok", "go ahead", "finalize").
+    # If the DM proposes a valid action, allow it to pass through guard rails.
     if intent == "out_of_domain":
-        return _final("fallback", "", nm, proposed_action, proposed_argument, "intent=out_of_domain")
+        if phase in {"AWAITING_MENU_SELECTION", "ACTIVE_MENU", "CONFIRMED"} and proposed_action in ALLOWED_DM_ACTIONS and proposed_action != "fallback":
+            # Continue to normal guard rails below.
+            pass
+        else:
+            return _final("fallback", "", nm, proposed_action, proposed_argument, "intent=out_of_domain")
 
     # 1) PLAN slot completion gate (hard rule)
     missing_plan: List[str] = []
