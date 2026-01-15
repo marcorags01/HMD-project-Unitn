@@ -322,13 +322,14 @@ class Dialogue:
             self.history.add_msg(user_text, "user", "input")
 
             # 1) NLU -> MR
-            mr = self.nlu(user_text)
+            raw_mr = self.nlu(user_text)
             vr = validate_mr(mr)
+            mr = vr.normalized_mr
 
             mr = vr.normalized_mr  # use normalized for tracker/DM/policy
-            print("DEBUG raw MR:", mr) # debug print
+            print("DEBUG raw MR:", raw_mr) # debug print
             print("DEBUG mr_valid:", vr.valid, "errors:", vr.errors)
-            print("DEBUG normalized MR:", vr.normalized_mr)
+            print("DEBUG normalized MR:", mr)
 
             
 
