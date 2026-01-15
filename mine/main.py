@@ -40,6 +40,9 @@ from support_classes import (
 from dm import DM
 from policy import apply_policy
 
+from intents_schema import validate_mr
+
+
 
 logger = logging.getLogger("MealKitComposer")
 logger.setLevel(logging.DEBUG)
@@ -320,9 +323,20 @@ class Dialogue:
 
             # 1) NLU -> MR
             mr = self.nlu(user_text)
+            vr = validate_mr(mr)
+
+            mr = vr.normalized_mr  # use normalized for tracker/DM/policy
+            print("DEBUG raw MR:", mr) # debug print
+            print("DEBUG mr_valid:", vr.valid, "errors:", vr.errors)
+            print("DEBUG normalized MR:", vr.normalized_mr)
+
+            
 
             # 2) Apply MR to tracker
             intent, _, _ = self.tracker.creation(mr, self.history, update=True)
+            print("DEBUG tracker.constraints:", self.tracker.constraints)
+            print("DEBUG missing_plan_slots:", self.tracker.missing_plan_slots())
+            print("DEBUG tracker.phase:", self.tracker.phase)
             self.logger.info(f"Intent: {intent}")
 
             # 3) DM proposes action
@@ -331,6 +345,9 @@ class Dialogue:
 
             # 4) Policy enforces hard rules
             action, arg, dbg = apply_policy(self.tracker, mr, proposed_action, proposed_arg)
+            print("DEBUG DM proposed:", proposed_action, "arg:", proposed_arg)
+            print("DEBUG Policy final:", action, "arg:", arg, "reason:", dbg.get("policy_reason"))
+
             self.logger.info(f"Policy final: {action}({arg}) | reason={dbg.get('policy_reason')}")
 
             # 5) Execute action (domain services) and update tracker
