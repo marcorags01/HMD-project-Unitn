@@ -175,7 +175,20 @@ def apply_policy(
             proposed_argument,
             f"missing_plan_slot=forced:{missing_plan[0]}",
         )
-
+    # 1b) Plan complete: do NOT keep requesting required plan slots
+    # Tracker is authoritative; NLU may output a delta MR with None for other slots.
+    if phase == "AWAITING_PLAN":
+        pa = (proposed_action or "").strip()
+        parg = (proposed_argument or "").strip()
+        if pa == "request_info" and parg in {"servings", "time_limit", "calorie_level"}:
+            return _final(
+                "propose_menus",
+                "",
+                nm,
+                proposed_action,
+                proposed_argument,
+                "plan_complete_force_propose_menus",
+            )
 
     # 2) Menus must exist before menu-dependent actions
     # If tracker.phase is AWAITING_PLAN, menus have not been proposed yet.
