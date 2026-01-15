@@ -323,7 +323,7 @@ class Dialogue:
 
             # 1) NLU -> MR
             raw_mr = self.nlu(user_text)
-            vr = validate_mr(mr)
+            vr = validate_mr(raw_mr)
             mr = vr.normalized_mr
 
             mr = vr.normalized_mr  # use normalized for tracker/DM/policy
