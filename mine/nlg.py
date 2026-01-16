@@ -245,6 +245,7 @@ class NLG:
             header = "Shopping list (Mon–Fri):\n\n" + _fmt_constraints(tracker_state) + "\n\n"
             body = _render_shopping_list(payload.get("shopping_list") or [])
             shopping_block = (header + body).strip()
+            return shopping_block  # direct return for shopping list
 
         # Menu selection acknowledgement (keep facts correct, let LLM add tone)
         if action == "set_active_menu":

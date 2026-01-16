@@ -323,32 +323,45 @@ class Dialogue:
 
             # 1) NLU -> MR
             raw_mr = self.nlu(user_text)
-            vr = validate_mr(raw_mr)
-            mr = vr.normalized_mr
-
-            mr = vr.normalized_mr  # use normalized for tracker/DM/policy
-            print("DEBUG raw MR:", raw_mr) # debug print
-            print("DEBUG mr_valid:", vr.valid, "errors:", vr.errors)
-            print("DEBUG normalized MR:", mr)
-
+            vr_delta = validate_mr(raw_mr)
+            mr = vr_delta.normalized_mr # use normalized for tracker/DM/policy
+           
             
 
             # 2) Apply MR to tracker
             intent, _, _ = self.tracker.creation(mr, self.history, update=True)
+            self.logger.info(f"Intent: {intent}")
+
+            # validate the effective (merged) plan state for meaningful mr_valid ---
+            vr = vr_delta  # default: keep delta validation
+            if getattr(self.tracker, "phase", "") == "AWAITING_PLAN" and intent == "plan":
+                # Build an MR that represents the current effective plan constraints
+                effective_mr = {
+                    "intent": "plan",
+                    "slots": dict(self.tracker.constraints or {}),
+                }
+                # Ensure avoid_items is normalized (your tracker uses [] by default)
+                if effective_mr["slots"].get("avoid_items") is None:
+                    effective_mr["slots"]["avoid_items"] = []
+
+                vr = validate_mr(effective_mr)  # now mr_valid becomes true when plan complete
+
+            # Debug prints (optional)
+            print("DEBUG raw MR:", raw_mr)
+            print("DEBUG mr_valid:", vr.valid, "errors:", vr.errors)
+            print("DEBUG normalized MR:", mr)
             print("DEBUG tracker.constraints:", self.tracker.constraints)
             print("DEBUG missing_plan_slots:", self.tracker.missing_plan_slots())
             print("DEBUG tracker.phase:", self.tracker.phase)
-            self.logger.info(f"Intent: {intent}")
 
             # 3) DM proposes action
             proposed_action, proposed_arg, _ = self.dm(self.tracker, mr, last_action=last_action)
             self.logger.info(f"DM proposed: {proposed_action}({proposed_arg})")
+            print("DEBUG DM proposed:", proposed_action, "arg:", proposed_arg)
 
             # 4) Policy enforces hard rules
             action, arg, dbg = apply_policy(self.tracker, mr, proposed_action, proposed_arg)
-            print("DEBUG DM proposed:", proposed_action, "arg:", proposed_arg)
             print("DEBUG Policy final:", action, "arg:", arg, "reason:", dbg.get("policy_reason"))
-
             self.logger.info(f"Policy final: {action}({arg}) | reason={dbg.get('policy_reason')}")
 
             # 5) Execute action (domain services) and update tracker

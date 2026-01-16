@@ -696,18 +696,32 @@ def scale_ingredients(recipe: Dict[str, Any], servings: int) -> List[Dict[str, A
 
     scaled: List[Dict[str, Any]] = []
     for ing in recipe.get("ingredients", []):
-        name = str(ing.get("name", "")).strip()
-        unit = str(ing.get("unit", "")).strip()
-        category = str(ing.get("category", "")).strip()
+        raw_name = ing.get("name", "")
+        name = raw_name.strip() if isinstance(raw_name, str) else str(raw_name).strip()
+      
+        if not name:
+            # Optional during debugging: raise to find the offending ingredient precisely
+            # raise ValueError(f"Ingredient missing/blank name in recipe {recipe.get('recipe_id')}: {ing}")
+            continue
+
+        raw_unit = ing.get("unit", "")
+        unit = raw_unit.strip() if isinstance(raw_unit, str) else str(raw_unit).strip()
+
+        raw_category = ing.get("category", "")
+        category = raw_category.strip() if isinstance(raw_category, str) else str(raw_category).strip()
+        if not category:
+            category = "Other"
+
         qty = ing.get("qty", 0)
 
         try:
             q = float(qty) * scale
         except Exception:
-            q = 0.0
+            # If qty is malformed, skip rather than injecting junk
+            continue
 
         q_rounded = _round_qty(q, unit)
-
+        
         scaled.append({
             "name": name,
             "qty": q_rounded,
