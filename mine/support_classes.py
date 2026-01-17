@@ -248,7 +248,13 @@ class Tracker:
     def missing_plan_slots(self) -> List[str]:
         from intents_schema import missing_plan_slots_from_constraints
         return missing_plan_slots_from_constraints(self.constraints)
-
+    
+    def menus_exist(self) -> bool:
+        return (
+            isinstance(self.menus, dict)
+            and self.menus.get("1") is not None
+            and self.menus.get("2") is not None
+        )
 
     def has_active_menu(self) -> bool:
         return self.active_menu_id in (1, 2) and self.active_menu is not None

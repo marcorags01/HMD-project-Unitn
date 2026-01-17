@@ -171,7 +171,12 @@ def apply_policy(
 
     # 2) Menus must exist before menu-dependent actions.
     # Do NOT use phase as proxy; check actual menu availability.
-    menus_exist = bool(getattr(tracker, "menus", None))
+    if hasattr(tracker, "menus_exist"):
+        menus_exist = tracker.menus_exist()
+    else:
+        menus = getattr(tracker, "menus", None)
+        menus_exist = bool(menus) and menus.get("1") is not None and menus.get("2") is not None
+
 
     menu_dependent_actions = {"set_active_menu", "show_day", "swap_day", "update_avoid", "confirm_plan"}
 

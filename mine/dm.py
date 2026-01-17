@@ -126,7 +126,7 @@ class DM:
 
         ds = {
             "mr": nm,
-            "menus_exist": bool(getattr(tracker, "menus", None)),
+            "menus_exist": tracker.menus_exist() if hasattr(tracker, "menus_exist") else False,
             "tracker": tracker.to_state_dict() if hasattr(tracker, "to_state_dict") else {},
             "missing_plan": tracker.missing_plan_slots() if hasattr(tracker, "missing_plan_slots") else [],
             "has_active_menu": tracker.has_active_menu() if hasattr(tracker, "has_active_menu") else False,
