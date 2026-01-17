@@ -33,7 +33,6 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from support_classes import (
     ALLOWED_DAYS,
-    ALLOWED_TIME_LIMITS,
     ALLOWED_CALORIE_LEVELS,
     ALLOWED_AVOID_ITEMS,
 )
@@ -331,46 +330,6 @@ def _validate_recipe(r: Dict[str, Any]) -> None:
             raise ValueError(f"Ingredient missing fields {sorted(missing_ing)} in recipe {r.get('recipe_id')}")
 
 
-# ------------------------- DM gating helpers -------------------------
-
-def can_generate_menus(tracker: Any) -> Tuple[bool, List[str]]:
-    """
-    Minimal PLAN slot completion check.
-
-    In our Tracker, avoid_items defaults to [] (which is a valid 'no avoids' value),
-    so the true required slots are:
-      - servings, time_limit, calorie_level
-    """
-    missing = []
-    constraints = getattr(tracker, "constraints", {}) or {}
-
-    servings = constraints.get("servings", None)
-    time_limit = constraints.get("time_limit", None)
-    calorie_level = constraints.get("calorie_level", None)
-
-    if servings is None:
-        missing.append("servings")
-    if time_limit is None:
-        missing.append("time_limit")
-    if calorie_level is None:
-        missing.append("calorie_level")
-
-    # Minimal sanity checks (keep DM simple)
-    if servings is not None:
-        try:
-            s = int(servings)
-            if not (1 <= s <= 6):
-                missing.append("servings")
-        except Exception:
-            missing.append("servings")
-
-    if time_limit is not None and str(time_limit).upper() not in ALLOWED_TIME_LIMITS:
-        missing.append("time_limit")
-
-    if calorie_level is not None and str(calorie_level).upper() not in ALLOWED_CALORIE_LEVELS:
-        missing.append("calorie_level")
-
-    return (len(missing) == 0), sorted(set(missing))
 
 
 # ------------------------- Filtering / feasibility -------------------------

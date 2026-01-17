@@ -29,7 +29,12 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Tuple
 
-from support_classes import ALLOWED_DAYS, ALLOWED_AVOID_ITEMS
+from support_classes import (
+    ALLOWED_DAYS,
+    ALLOWED_AVOID_ITEMS,
+    is_nullish,
+    normalize_day,
+)
 from intents_schema import normalize_mr
 
 
@@ -73,19 +78,6 @@ def _join_args(args: List[str]) -> str:
     return ", ".join([str(a).strip() for a in args if str(a).strip()])
 
 
-def _is_missing(x: Any) -> bool:
-    if x is None:
-        return True
-    s = str(x).strip()
-    return s == "" or s.lower() in {"null", "none"}
-
-def _norm_day(s: str) -> str:
-    s = (s or "").strip()
-    return s[:3].title() if len(s) >= 3 else s.title()
-
-
-
-
 def apply_policy(
     tracker: Any,
     mr: Dict[str, Any],
@@ -106,11 +98,11 @@ def apply_policy(
         req_slot = slots.get("slot")
         req_intent = slots.get("intent")
 
-        if _is_missing(req_slot):
+        if is_nullish(req_slot):
             req_slot = "all"
         req_slot = str(req_slot).strip()
 
-        if _is_missing(req_intent) or str(req_intent).strip() not in PROVIDE_INFO_INTENTS:
+        if is_nullish(req_intent) or str(req_intent).strip() not in PROVIDE_INFO_INTENTS:
             req_intent = "plan"
         req_intent = str(req_intent).strip()
 
@@ -175,33 +167,37 @@ def apply_policy(
             proposed_argument,
             f"missing_plan_slot=forced:{missing_plan[0]}",
         )
-    # 1b) Plan complete: do NOT keep requesting required plan slots
-    # Tracker is authoritative; NLU may output a delta MR with None for other slots.
-    if phase == "AWAITING_PLAN":
-        pa = (proposed_action or "").strip()
-        parg = (proposed_argument or "").strip()
-        if pa == "request_info" and parg in {"servings", "time_limit", "calorie_level"}:
+    
+
+    # 2) Menus must exist before menu-dependent actions.
+    # Do NOT use phase as proxy; check actual menu availability.
+    menus_exist = bool(getattr(tracker, "menus", None))
+
+    menu_dependent_actions = {"set_active_menu", "show_day", "swap_day", "update_avoid", "confirm_plan"}
+
+    if not menus_exist:
+        # If DM tries anything that implies menus exist, force propose_menus()
+        if proposed_action in menu_dependent_actions:
             return _final(
                 "propose_menus",
                 "",
                 nm,
                 proposed_action,
                 proposed_argument,
-                "plan_complete_force_propose_menus",
+                "need_menus_before_menu_ops",
             )
 
-    # 2) Menus must exist before menu-dependent actions
-    # If tracker.phase is AWAITING_PLAN, menus have not been proposed yet.
-    menu_dependent_actions = {"set_active_menu", "show_day", "swap_day", "update_avoid", "confirm_plan"}
-
-    if phase == "AWAITING_PLAN":
-        # If DM tries anything that implies menus exist, force propose_menus()
-        if proposed_action in menu_dependent_actions:
-            return _final("propose_menus", "", nm, proposed_action, proposed_argument, "need_menus_before_menu_ops")
-
         # Avoid asking for menu_id before menus exist (confusing UX)
-        if proposed_action == "request_info" and (proposed_argument or "").strip() == "menu_id":
-            return _final("propose_menus", "", nm, proposed_action, proposed_argument, "need_menus_before_menu_id")
+        if (proposed_action or "").strip() == "request_info" and (proposed_argument or "").strip() == "menu_id":
+            return _final(
+                "propose_menus",
+                "",
+                nm,
+                proposed_action,
+                proposed_argument,
+                "need_menus_before_menu_id",
+            )
+
 
     # 3) Menu selection gate: must have an active menu before show/swap/update/confirm
     active_required_actions = {"show_day", "swap_day", "update_avoid", "confirm_plan"}
@@ -223,7 +219,7 @@ def sanitize_proposed_action(
     a = (proposed_action or "").strip()
     arg = (proposed_argument or "").strip()
 
-    if _is_missing(arg):
+    if is_nullish(arg):
         arg = ""  # canonicalize missing DM argument
 
     if a not in ALLOWED_DM_ACTIONS:
@@ -238,7 +234,7 @@ def sanitize_proposed_action(
 
     if a == "provide_info":
         parts = _split_args(arg)
-        if len(parts) != 2 or _is_missing(parts[0]) or _is_missing(parts[1]):
+        if len(parts) != 2 or is_nullish(parts[0]) or is_nullish(parts[1]):
             return "fallback", ""
         if parts[0] not in PROVIDE_INFO_INTENTS or parts[1] not in REQUESTABLE_SLOTS:
             return "fallback", ""
@@ -252,12 +248,12 @@ def sanitize_proposed_action(
         return ("set_active_menu", str(mid)) if mid in (1, 2) else ("request_info", "menu_id")
 
     if a in {"show_day", "swap_day"}:
-        day = _norm_day(arg)
+        day = normalize_day(arg)
         return (a, day) if day in ALLOWED_DAYS else ("request_info", "target_day")
    
     if a == "update_avoid":
         parts = _split_args(arg)
-        if len(parts) != 2 or _is_missing(parts[0]) or _is_missing(parts[1]):
+        if len(parts) != 2 or is_nullish(parts[0]) or is_nullish(parts[1]):
             return "request_info", "value"
         op = parts[0].strip().upper()
         val = parts[1].strip().lower()

@@ -84,6 +84,64 @@ _REQUEST_QUESTIONS = {
     "all": "What would you like to do next?",
 }
 
+def _render_provide_info(payload: Dict[str, Any], tracker_state: Dict[str, Any]) -> str:
+    # Prefer payload values (executor-supplied), fall back to tracker_state
+    help_intent = str(payload.get("help_intent", "plan") or "plan").strip().lower() # (Currently unused; reserved for future intent-specific help variations.)
+    help_slot = str(payload.get("help_slot", "all") or "all").strip().lower()
+
+    phase = str(payload.get("phase") or tracker_state.get("phase") or "")
+    has_active = bool(payload.get("has_active_menu", False))
+    if "has_active_menu" not in payload:
+        has_active = bool((tracker_state or {}).get("active_menu_id") in (1, 2))  # executor already computed it
+
+    # Slot == all: phase-aware guidance (this is your old _provide_info_message logic)
+    if help_slot in {"all", ""}:
+        if phase == "AWAITING_PLAN":
+            return (
+                "I can help you plan weekday dinners (Mon–Fri) and generate a shopping list.\n"
+                "To start: how many servings should I plan for?"
+            )
+
+        if phase == "AWAITING_MENU_SELECTION":
+            return (
+                "I’ve generated two options. Which do you prefer—1 or 2?"
+            )
+
+        if has_active or phase == "ACTIVE_MENU":
+            return (
+                "For your current plan, you can:\n"
+                "- ask what’s planned on a day (e.g., “What’s on Tue?”)\n"
+                "- swap a day (e.g., “Swap Wed”)\n"
+                "- add/remove foods to avoid (e.g., “Avoid nuts”)\n"
+                "- confirm to get the shopping list\n"
+                "What would you like to do next?"
+            )
+
+        if phase == "CONFIRMED":
+            return (
+                "Your plan is already confirmed and the shopping list is ready.\n"
+                "You can start a new plan (e.g., “Plan meals for 2 people, quick, balanced”), or type “exit”."
+            )
+
+        return "How can I help with your meal plan?"
+
+    # Slot-specific help (same strings as you had in main.py)
+    if help_slot == "servings":
+        return _REQUEST_QUESTIONS["servings"]
+    if help_slot == "time_limit":
+        return _REQUEST_QUESTIONS["time_limit"]
+    if help_slot == "calorie_level":
+        return _REQUEST_QUESTIONS["calorie_level"]
+    if help_slot == "avoid_items":
+        return _REQUEST_QUESTIONS["avoid_items"]
+    if help_slot == "menu_id":
+        return _REQUEST_QUESTIONS["menu_id"]
+    if help_slot == "target_day":
+        return _REQUEST_QUESTIONS["target_day"]
+
+    return _REQUEST_QUESTIONS["all"]
+
+
 def _fmt_constraints(tracker_state: Dict[str, Any]) -> str:
     c = (tracker_state or {}).get("constraints") or {}
     servings = c.get("servings")
@@ -212,6 +270,10 @@ class NLG:
         # ------------------------- Hard short-circuits -------------------------
         if payload.get("error"):
             return str(payload["error"])
+        
+        if action == "provide_info":
+            return _render_provide_info(payload, tracker_state)
+
 
         if action == "fallback" and phase == "CONFIRMED":
             return "All set — your meal plan is finalized. Type 'exit' to end, or start a new plan anytime."
@@ -223,7 +285,7 @@ class NLG:
         fact_block = ""
 
         # If executor produced a direct message (e.g., help), treat it as factual content.
-        if payload.get("message"):
+        if payload.get("message") and action != "provide_info" :
             fact_block = str(payload["message"]).strip()
 
         # Request questions are best kept deterministic (but wrapped by LLM).

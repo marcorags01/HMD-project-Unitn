@@ -42,26 +42,26 @@ ALLOWED_AVOID_ITEMS = {
 POSSIBLE_INTENTS = {"plan", "select_menu", "inspect", "refine", "confirm", "help", "out_of_domain"}
 
 
-def _is_nullish(x: Any) -> bool:
+def is_nullish(x: Any) -> bool:
     """Treat common LLM-returned null variants as null."""
     return x is None or x == "null" or x == "None" or x == ""
 
 
-def _normalize_upper_enum(x: Any) -> Optional[str]:
-    if _is_nullish(x):
+def normalize_upper_enum(x: Any) -> Optional[str]:
+    if is_nullish(x):
         return None
     if isinstance(x, str):
         return x.strip().upper()
     return str(x).strip().upper()
 
 
-def _normalize_day(x: Any) -> Optional[str]:
+def normalize_day(x: Any) -> Optional[str]:
     """
     Validation-only day normalization:
     - Accept canonical day codes only (Mon/Tue/Wed/Thu/Fri), case-insensitive.
     - Do NOT map full names ("monday") or other aliases; NLU should do that.
     """
-    if _is_nullish(x):
+    if is_nullish(x):
         return None
     if not isinstance(x, str):
         return None
@@ -76,7 +76,7 @@ def _normalize_day(x: Any) -> Optional[str]:
 
 
 
-def _normalize_avoid_items(x: Any) -> Optional[List[str]]:
+def normalize_avoid_items(x: Any) -> Optional[List[str]]:
     """
     Accept:
     - list[str]
@@ -84,7 +84,7 @@ def _normalize_avoid_items(x: Any) -> Optional[List[str]]:
     - single str
     Returns a list[str] (possibly empty) or None if nullish.
     """
-    if _is_nullish(x):
+    if is_nullish(x):
         return None
 
     raw: List[str] 
@@ -103,6 +103,12 @@ def _normalize_avoid_items(x: Any) -> Optional[List[str]]:
         items.append(it.lower())
 
     return items
+
+# --- Backward-compatible aliases (remove after one commit) ---
+_is_nullish = is_nullish
+_normalize_upper_enum = normalize_upper_enum
+_normalize_day = normalize_day
+_normalize_avoid_items = normalize_avoid_items
 
 
 @dataclass
@@ -180,7 +186,7 @@ class Tracker:
         "servings": None,
         "time_limit": None,
         "calorie_level": None,
-        "avoid_items": [],  # empty list means "no avoids"
+        "avoid_items": None,
     })
     menus: Dict[str, Optional[Dict[str, Any]]] = field(default_factory=lambda: {"1": None, "2": None})
     active_menu_id: Optional[int] = None
@@ -238,16 +244,11 @@ class Tracker:
 
     # ------------------------- state inspection -----------------------------
 
+    
     def missing_plan_slots(self) -> List[str]:
-        missing: List[str] = []
-        if self.constraints.get("servings") is None:
-            missing.append("servings")
-        if self.constraints.get("time_limit") is None:
-            missing.append("time_limit")
-        if self.constraints.get("calorie_level") is None:
-            missing.append("calorie_level")
-        # avoid_items defaults to [] (not missing)
-        return missing
+        from intents_schema import missing_plan_slots_from_constraints
+        return missing_plan_slots_from_constraints(self.constraints)
+
 
     def has_active_menu(self) -> bool:
         return self.active_menu_id in (1, 2) and self.active_menu is not None
@@ -291,7 +292,7 @@ class Tracker:
 
     def clear(self) -> None:
         self.phase = "AWAITING_PLAN"
-        self.constraints = {"servings": None, "time_limit": None, "calorie_level": None, "avoid_items": []}
+        self.constraints = {"servings": None, "time_limit": None, "calorie_level": None, "avoid_items": None}
         self.menus = {"1": None, "2": None}
         self.active_menu_id = None
         self.active_menu = None
@@ -314,7 +315,7 @@ class Tracker:
         if intent == "plan":
             # servings
             servings = slots.get("servings", None)
-            if not _is_nullish(servings):
+            if not is_nullish(servings):
                 try:
                     self.constraints["servings"] = int(servings)
                     count_provided += 1
@@ -322,23 +323,21 @@ class Tracker:
                     pass
 
             # time_limit
-            time_limit = _normalize_upper_enum(slots.get("time_limit", None))
+            time_limit = normalize_upper_enum(slots.get("time_limit", None))
             if time_limit and time_limit in ALLOWED_TIME_LIMITS:
                 self.constraints["time_limit"] = time_limit
                 count_provided += 1
 
             # calorie_level
-            cal = _normalize_upper_enum(slots.get("calorie_level", None))
+            cal = normalize_upper_enum(slots.get("calorie_level", None))
             if cal and cal in ALLOWED_CALORIE_LEVELS:
                 self.constraints["calorie_level"] = cal
                 count_provided += 1
 
             # avoid_items (optional; empty list is valid)
-            avoid_raw = _normalize_avoid_items(slots.get("avoid_items", None))
+            avoid_raw = normalize_avoid_items(slots.get("avoid_items", None))
             if avoid_raw is not None:
-                # Keep only allowed values; DM can decide whether to ask clarification if something is dropped.
-                cleaned = [a for a in avoid_raw if a in ALLOWED_AVOID_ITEMS]
-                self.constraints["avoid_items"] = cleaned
+                self.constraints["avoid_items"] = avoid_raw
                 count_provided += 1
 
             # phase stays AWAITING_PLAN until DM actually generates menus
@@ -346,7 +345,7 @@ class Tracker:
 
         if intent == "select_menu":
             menu_id = slots.get("menu_id", None)
-            if not _is_nullish(menu_id):
+            if not is_nullish(menu_id):
                 try:
                     _ = int(menu_id)
                     count_provided += 1
@@ -357,7 +356,7 @@ class Tracker:
 
 
         if intent == "inspect":
-            day = _normalize_day(slots.get("target_day", None))
+            day = normalize_day(slots.get("target_day", None))
             if day and day in ALLOWED_DAYS:
                 self.last_referenced_day = day
                 count_provided += 1
@@ -367,11 +366,11 @@ class Tracker:
             # We don't mutate menus here; DM/domain logic will.
             # We still record any provided fields for downstream DM logic.
             for k in ("refine_type", "target_day", "value"):
-                if not _is_nullish(slots.get(k, None)):
+                if not is_nullish(slots.get(k, None)):
                     count_provided += 1
 
             # Update last_referenced_day opportunistically if target_day is present
-            day = _normalize_day(slots.get("target_day", None))
+            day = normalize_day(slots.get("target_day", None))
             if day and day in ALLOWED_DAYS:
                 self.last_referenced_day = day
 

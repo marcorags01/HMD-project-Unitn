@@ -10,10 +10,7 @@ Pipeline:
     -> policy.apply_policy() enforces hard rules deterministically
     -> executor runs domain functions (support_fn) and updates Tracker
     -> NLG (templates) produces the user response
-
-Notes:
-- NLU and NLG are kept inside this file for now to avoid importing not-yet-existing modules.
-  You can later move them to nlu.py / nlg.py without changing the overall architecture.
+    
 """
 
 from __future__ import annotations
@@ -26,7 +23,6 @@ from nlu import NLU
 from utils import PROMPTS, get_args, load_model
 from support_fn import (
     load_recipes,
-    can_generate_menus,
     generate_two_menus,
     get_day_details,
     swap_day_in_menu,
@@ -50,64 +46,6 @@ logger.setLevel(logging.DEBUG)
 
 
 
-
-def _provide_info_message(tracker: Tracker, intent: str, slot: str) -> str:
-    intent = (intent or "").strip().lower()
-    slot = (slot or "").strip().lower()
-    phase = getattr(tracker, "phase", "") or ""
-    has_active = getattr(tracker, "has_active_menu", lambda: False)()
-
-    if slot in {"all", ""}:
-        if phase == "AWAITING_PLAN":
-            return (
-                "I can help you plan weekday dinners (Mon–Fri) and generate a shopping list.\n"
-                "To start: how many servings should I plan for?"
-            )
-
-        if phase == "AWAITING_MENU_SELECTION":
-            return (
-                "I can suggest two weekly menu options and you can pick the one you prefer.\n"
-                "If you tell me how many people you’re cooking for, whether you want quick meals, and anything to avoid, "
-                "I’ll generate options."
-            )
-
-        if has_active or phase == "ACTIVE_MENU":
-            return (
-                "For your current plan, you can:\n"
-                "- ask what’s planned on a day (e.g., “What’s on Tue?”)\n"
-                "- swap a day (e.g., “Swap Wed”)\n"
-                "- add/remove foods to avoid (e.g., “Avoid nuts”)\n"
-                "- confirm to get the shopping list\n"
-                "What would you like to do next?"
-            )
-
-        if phase == "CONFIRMED":
-            return (
-                "Your plan is already confirmed and the shopping list is ready.\n"
-                "You can start a new plan (e.g., “Plan meals for 2 people, quick, balanced”), or type “exit”."
-            )
-
-        # Safe default
-        return "How can I help with your meal plan?"
-
-    # Slot-specific help (keep it conversational)
-    if slot == "servings":
-        return "How many servings should I plan for? (1–6)"
-    if slot == "time_limit":
-        return "Do you want quick meals, or is normal prep time OK?"
-    if slot == "calorie_level":
-        return "Are you aiming for lighter meals, balanced, or more filling?"
-    if slot == "avoid_items":
-        return "Any allergies or foods you want to avoid?"
-    if slot == "menu_id":
-        return "Do you prefer option 1 or option 2?"
-    if slot == "target_day":
-        return "Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?"
-
-    # Fallback
-    return "What would you like to do next?"
-
-
 # ------------------------- Executor (domain calls + tracker updates) -------------------------
 
 def execute_action(
@@ -124,18 +62,6 @@ def execute_action(
     payload: Dict[str, Any] = {}
 
     if action == "propose_menus":
-        ok, missing = can_generate_menus(tracker)
-        if not ok:
-            friendly = {
-                "servings": "how many servings you need",
-                "time_limit": "whether you prefer quick meals or normal prep time",
-                "calorie_level": "whether you want lighter, balanced, or more filling meals",
-                "avoid_items": "any foods you want to avoid",
-            }
-            need = [friendly.get(x, "one more detail") for x in (missing or [])]
-            payload["error"] = "Before I can suggest menus, I still need " + "; ".join(need) + "."
-            return payload
-
         try:
             menu1, menu2 = generate_two_menus(recipes, tracker.constraints)
             tracker.set_menus(menu1, menu2)
@@ -145,13 +71,14 @@ def execute_action(
             payload["menu1_pretty"] = {d: recipes_by_id[str(rid)]["title"] for d, rid in menu1.items()}
             payload["menu2_pretty"] = {d: recipes_by_id[str(rid)]["title"] for d, rid in menu2.items()}
             return payload
-        
+
         except Exception as e:
             payload["error"] = str(e) or (
                 "I couldn’t generate a weekly plan with those preferences. "
                 "If you adjust them a bit, I can try again."
             )
             return payload
+
 
     if action == "set_active_menu":
         try:
@@ -261,22 +188,25 @@ def execute_action(
     if action == "provide_info":
         raw = (argument or "").strip()
 
-        if not raw:
-            payload["message"] = _provide_info_message(tracker, intent="plan", slot="all")
-            return payload
+        # Default
+        intent_req = "plan"
+        slot_req = "all"
 
-        parts = [p.strip() for p in raw.split(",", 1) if p.strip()]
-        if len(parts) == 1:
-            intent_req, slot_req = parts[0], "all"
-        else:
-            intent_req, slot_req = parts[0], parts[1]
+        if raw:
+            parts = [p.strip() for p in raw.split(",", 1) if p.strip()]
+            if len(parts) == 1:
+                intent_req, slot_req = parts[0], "all"
+            else:
+                intent_req, slot_req = parts[0], parts[1]
 
-        payload["message"] = _provide_info_message(tracker, intent_req.strip().lower(), slot_req.strip().lower())
+        payload["help_intent"] = (intent_req or "plan").strip().lower()
+        payload["help_slot"] = (slot_req or "all").strip().lower()
+        payload["phase"] = getattr(tracker, "phase", "") or ""
+        payload["has_active_menu"] = getattr(tracker, "has_active_menu", lambda: False)()
+
         return payload
-
-    # request_info / fallback: no execution
+    # request_info / fallback / unknown: no execution-side effects
     return payload
-
 
 # ------------------------- Dialogue wrapper (Marina-like) -------------------------
 
@@ -300,6 +230,8 @@ class Dialogue:
         self.history.add_msg(starting, "assistant", "start")
 
         last_action = ""
+        DEBUG = bool(getattr(self.args, "debug", False))
+
 
         while True:
             user_text = input().strip()
@@ -334,34 +266,27 @@ class Dialogue:
 
             # validate the effective (merged) plan state for meaningful mr_valid ---
             vr = vr_delta  # default: keep delta validation
-            if getattr(self.tracker, "phase", "") == "AWAITING_PLAN" and intent == "plan":
-                # Build an MR that represents the current effective plan constraints
-                effective_mr = {
-                    "intent": "plan",
-                    "slots": dict(self.tracker.constraints or {}),
-                }
-                # Ensure avoid_items is normalized (your tracker uses [] by default)
-                if effective_mr["slots"].get("avoid_items") is None:
-                    effective_mr["slots"]["avoid_items"] = []
-
-                vr = validate_mr(effective_mr)  # now mr_valid becomes true when plan complete
-
+            
             # Debug prints (optional)
-            print("DEBUG raw MR:", raw_mr)
-            print("DEBUG mr_valid:", vr.valid, "errors:", vr.errors)
-            print("DEBUG normalized MR:", mr)
-            print("DEBUG tracker.constraints:", self.tracker.constraints)
-            print("DEBUG missing_plan_slots:", self.tracker.missing_plan_slots())
-            print("DEBUG tracker.phase:", self.tracker.phase)
+            if DEBUG:
+                print("DEBUG raw MR:", raw_mr)
+                print("DEBUG mr_valid:", vr.valid, "errors:", vr.errors)
+                print("DEBUG normalized MR:", mr)
+                print("DEBUG tracker.constraints:", self.tracker.constraints)
+                print("DEBUG missing_plan_slots:", self.tracker.missing_plan_slots())
+                print("DEBUG tracker.phase:", self.tracker.phase)
 
             # 3) DM proposes action
             proposed_action, proposed_arg, _ = self.dm(self.tracker, mr, last_action=last_action)
             self.logger.info(f"DM proposed: {proposed_action}({proposed_arg})")
-            print("DEBUG DM proposed:", proposed_action, "arg:", proposed_arg)
+            if DEBUG:
+                print("DEBUG DM proposed:", proposed_action, "arg:", proposed_arg)
 
             # 4) Policy enforces hard rules
             action, arg, dbg = apply_policy(self.tracker, mr, proposed_action, proposed_arg)
-            print("DEBUG Policy final:", action, "arg:", arg, "reason:", dbg.get("policy_reason"))
+            if DEBUG:
+                print("DEBUG Policy final:", action, "arg:", arg, "reason:", dbg.get("policy_reason"))
+                
             self.logger.info(f"Policy final: {action}({arg}) | reason={dbg.get('policy_reason')}")
 
             # 5) Execute action (domain services) and update tracker

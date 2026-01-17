@@ -6,7 +6,7 @@ Responsibilities:
 - Given user text, produce EXACTLY ONE MR in the flat JSON format:
     {"intent": "...", "slots": {...}}
 - Do not invent values; if missing, output null
-- Normalize and validate using intents_schema.validate_mr
+- Normalize using intents_schema.validate_mr
 - Return the normalized MR even if invalid (for robustness)
 
 Compatible with:
@@ -22,7 +22,7 @@ import json
 from typing import Any, Dict, Optional
 
 from utils import generate, format_chat
-from intents_schema import INTENT_SLOTS, validate_mr
+from intents_schema import INTENT_SLOTS, normalize_mr
 from support_fn import parsing_json
 from support_classes import (
     ALLOWED_DAYS,
@@ -43,7 +43,7 @@ class NLU:
     Design choices (aligned with your blueprint + current architecture):
     - single intent only (no multi-intent splitting)
     - controlled vocab guidance via schema_hint
-    - validation/normalization via intents_schema.validate_mr
+    - normalization via intents_schema.normalize_mr
     """
 
     def __init__(self, history, model, tokenizer, args, logger):
@@ -111,6 +111,17 @@ class NLU:
             "- target_day: output one of Mon,Tue,Wed,Thu,Fri (map full names like Monday->Mon).\n"
             "- menu_id: output 1 or 2.\n"
             "- If there is an obvious typo and confidence is high (e.g., \"fats\"->FAST), correct it.\n"
+            "- avoid_items: output a list of strings from the controlled vocabulary.\n"
+            "  If the user explicitly indicates no restrictions (e.g., 'none', 'no allergies', 'nothing to avoid', 'I eat everything'),\n"
+            "  output an EMPTY LIST: [] (do NOT output null).\n"
+            "\n"
+            "Examples (illustrative, not exhaustive):\n"
+            "- User: \"Plan my meals for two people, fast, medium calories, no allergies.\" -> "
+            "{\"intent\":\"plan\",\"slots\":{\"servings\":2,\"time_limit\":\"FAST\",\"calorie_level\":\"MED\",\"avoid_items\":[]}}\n"
+            "- Assistant previously asked about avoid items. User: \"none\" -> "
+            "{\"intent\":\"plan\",\"slots\":{\"avoid_items\":[]}}\n"
+            "- User: \"Show me Tuesday.\" -> "
+            "{\"intent\":\"inspect\",\"slots\":{\"target_day\":\"Tue\"}}\n"
             "\n"
             "Special help intent rule:\n"
             "- If the user asks what values/options are allowed/supported for something, use intent='help'\n"
@@ -154,8 +165,8 @@ class NLU:
             # Hard fallback: keep pipeline alive
             return {"intent": "out_of_domain", "slots": {}}
 
-        vr = validate_mr(mr)
-        if not vr.valid:
-            self.logger.debug(f"NLU validation errors: {vr.errors}")
+        nm = normalize_mr(mr)
+        # Optional debug (normalization only; validation happens downstream)
+        self.logger.debug(f"NLU normalized MR: {nm}")
+        return nm
 
-        return vr.normalized_mr

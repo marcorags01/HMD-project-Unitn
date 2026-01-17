@@ -20,7 +20,7 @@ from typing import Any, Dict, Optional, Tuple
 
 from utils import PROMPTS, generate, format_chat
 from support_fn import extract_action_and_argument
-from intents_schema import validate_mr
+from intents_schema import normalize_mr
 
 
 ALLOWED_DM_ACTIONS = {
@@ -68,8 +68,7 @@ class DM:
         """
 
         # 1) Normalize MR (schema-level). We do not enforce DM workflow here.
-        vr = validate_mr(mr)
-        nm = vr.normalized_mr  # always present
+        nm = normalize_mr(mr)  # always present
 
         # 2) Compose system prompt from utils (Marina-like)
         extra_rules = """ADDITIONAL DM RESPONSIBILITY (you are the primary controller):
@@ -81,8 +80,8 @@ class DM:
         
         FLOW GUIDELINES:
         - If the PLAN is incomplete, use request_info(<one_missing_item>) to ask the next best question.
-          Suggested order: servings -> time_limit -> calorie_level -> avoid_items (avoid_items can be optional if user says 'no allergies').
-        - If the PLAN is complete and tracker.phase is AWAITING_PLAN (menus not yet proposed), output propose_menus().
+          Suggested order: servings -> time_limit -> calorie_level -> avoid_items.
+        - If the PLAN is complete and menus are not yet proposed (no menus exist yet), output propose_menus().
         - If menus are proposed but no active menu is selected, do not show/swap/update/confirm; ask for the menu choice with request_info(menu_id).
         - If an active menu exists:
           * show_day(target_day) for "what's on Tue" / "show Tue"
@@ -127,8 +126,7 @@ class DM:
 
         ds = {
             "mr": nm,
-            "mr_valid": bool(vr.valid),
-            "mr_errors": vr.errors,
+            "menus_exist": bool(getattr(tracker, "menus", None)),
             "tracker": tracker.to_state_dict() if hasattr(tracker, "to_state_dict") else {},
             "missing_plan": tracker.missing_plan_slots() if hasattr(tracker, "missing_plan_slots") else [],
             "has_active_menu": tracker.has_active_menu() if hasattr(tracker, "has_active_menu") else False,

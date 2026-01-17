@@ -65,7 +65,7 @@ Return ONLY the action. No explanations. No extra text.
     # We keep the “hard rules” in prompt for LLM guidance;
     # deterministic guard rails will still be implemented outside the DM (policy.py).
     "DM_RULES": """HARD WORKFLOW RULES (never violate):
-1) If PLAN is incomplete (missing servings/time_limit/calorie_level), choose request_info(one missing slot).
+1) If PLAN is incomplete (missing servings/time_limit/calorie_level/avoid_items), choose request_info(one missing slot).
 2) After menus are proposed, the user must select menu_id before inspect/refine/confirm.
 3) If inspect is requested and target_day is missing, choose request_info(target_day).
 4) If refine is requested and refine_type is missing, choose request_info(refine_type).
@@ -78,6 +78,8 @@ SLOT/VALUE NOTES:
 - target_day must be one of Mon Tue Wed Thu Fri
 - swap_day always uses BEST_FIT (do not ask for other values)
 - update_avoid op is ADD_AVOID_ITEM or REMOVE_AVOID_ITEM
+- avoid_items can be an empty list if the user has no restrictions (explicit “none”)
+
 """,
 
     "DM_END": """OUTPUT FORMAT:
@@ -218,6 +220,12 @@ def get_args() -> Namespace:
         "--parallel",
         action="store_true",
         help="Split model across devices with device_map='auto'.",
+    )
+
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug prints (for development; keep off for evaluation).",
     )
 
     args = parser.parse_args()
