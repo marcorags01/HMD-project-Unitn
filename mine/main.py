@@ -25,10 +25,12 @@ from support_fn import (
     load_recipes,
     generate_two_menus,
     get_day_details,
+    suggest_swap_day_in_menu,
     swap_day_in_menu,
     repair_menu,
     update_avoid_items,
     generate_shopping_list,
+    is_feasible,
 )
 from support_classes import (
     History, Tracker,
@@ -110,6 +112,33 @@ def execute_action(
         except Exception as e:
             payload["error"] = f"I couldn't show that day: {e}"
             return payload
+        
+    if action == "suggest_swap_day":
+        if not tracker.has_active_menu():
+            payload["error"] = "Please pick a menu option first (1 or 2)."
+            return payload
+
+        day = argument.strip()
+        try:
+            sug_id = suggest_swap_day_in_menu(tracker.active_menu or {}, day, recipes, tracker.constraints)
+            if sug_id is None:
+                payload["suggested"] = False
+                return payload
+
+            # Store pending suggestion (no menu mutation)
+            tracker.set_pending_swap(day, str(sug_id))
+
+            payload["suggested"] = True
+            payload["suggested_day"] = day
+            payload["suggested_recipe_id"] = str(sug_id)
+            payload["suggested_title"] = (
+                recipes_by_id[str(sug_id)]["title"] if str(sug_id) in recipes_by_id else str(sug_id)
+            )
+            return payload
+        except Exception as e:
+            payload["error"] = f"I couldn't suggest an alternative for that day: {e}"
+            return payload
+
 
     if action == "swap_day":
         if not tracker.has_active_menu():
@@ -117,6 +146,46 @@ def execute_action(
             return payload
 
         day = argument.strip()
+
+        # ---- 1) If a matching pending suggestion exists, commit it (no recomputation) ----
+        pending = getattr(tracker, "pending_action", None)
+        if pending:
+            p_type = str((pending or {}).get("type") or "").strip().upper()
+            p_day = (pending or {}).get("day")
+            p_rid = (pending or {}).get("recipe_id")
+
+            if p_type == "SWAP_DAY" and p_day == day and p_rid:
+                rid = str(p_rid)
+
+                # Safety checks (no new suggestion computation):
+                recipe = recipes_by_id.get(rid)
+                if recipe is None:
+                    tracker.pending_action = None
+                    payload["error"] = "That suggested recipe is no longer available. Please ask for another alternative."
+                    return payload
+
+                # Ensure still feasible under current constraints
+                if not is_feasible(recipe, tracker.constraints):
+                    tracker.pending_action = None
+                    payload["error"] = "That suggested meal no longer matches your preferences. Please ask for another alternative."
+                    return payload
+
+                # Commit pending swap deterministically
+                updated = dict(tracker.active_menu or {})
+                updated[day] = rid
+                tracker.active_menu = updated
+                if tracker.active_menu_id in (1, 2):
+                    tracker.menus[str(tracker.active_menu_id)] = dict(updated)
+
+                tracker.pending_action = None
+
+                payload["swapped"] = True
+                payload["new_recipe_id"] = rid
+                payload["new_title"] = recipe["title"]
+                payload["committed_from_pending"] = True
+                return payload
+
+        # ---- 2) Otherwise perform a normal swap (BEST_FIT) ----
         try:
             updated, new_id = swap_day_in_menu(tracker.active_menu or {}, day, recipes, tracker.constraints)
             if new_id is None:
@@ -127,13 +196,18 @@ def execute_action(
             if tracker.active_menu_id in (1, 2):
                 tracker.menus[str(tracker.active_menu_id)] = dict(updated)
 
+            # Any explicit swap invalidates prior pending suggestion
+            tracker.pending_action = None
+
             payload["swapped"] = True
             payload["new_recipe_id"] = new_id
             payload["new_title"] = recipes_by_id[str(new_id)]["title"] if str(new_id) in recipes_by_id else str(new_id)
+            payload["committed_from_pending"] = False
             return payload
         except Exception as e:
             payload["error"] = f"I couldn't swap that day: {e}"
             return payload
+
 
     if action == "update_avoid":
         if not tracker.has_active_menu():
@@ -286,7 +360,7 @@ class Dialogue:
             action, arg, dbg = apply_policy(self.tracker, mr, proposed_action, proposed_arg)
             if DEBUG:
                 print("DEBUG Policy final:", action, "arg:", arg, "reason:", dbg.get("policy_reason"))
-                
+
             self.logger.info(f"Policy final: {action}({arg}) | reason={dbg.get('policy_reason')}")
 
             # 5) Execute action (domain services) and update tracker

@@ -573,6 +573,56 @@ def swap_day_in_menu(
     updated[day] = new_id
     return updated, new_id
 
+def suggest_swap_day_in_menu(
+    menu: Dict[str, str],
+    day: str,
+    recipes: List[Dict[str, Any]],
+    constraints: Dict[str, Any],
+) -> Optional[str]:
+    """
+    Deterministic suggestion for an alternative on `day` without mutating the menu.
+
+    Returns:
+      - new_recipe_id (str) if a feasible alternative exists
+      - None if no alternative exists
+
+    Selection logic mirrors swap_day_in_menu():
+    - choose best feasible alternative not already used in the week if possible
+    - tie-break: minimum time_min, then recipe_id
+    """
+    if day not in ALLOWED_DAYS:
+        raise ValueError(f"Invalid day: {day}")
+    if day not in menu:
+        raise ValueError(f"Day {day} not present in menu.")
+
+    current_id = str(menu[day])
+    used_ids = {str(v) for v in menu.values()}
+
+    feasible = filter_recipes(recipes, constraints)
+
+    def rank_key(r: Dict[str, Any]) -> Tuple[int, str]:
+        return (int(r["time_min"]), _recipe_id(r))
+
+    # Pass 1: prefer recipes not used in the current week
+    candidates_1 = [
+        r for r in feasible
+        if _recipe_id(r) != current_id and _recipe_id(r) not in used_ids
+    ]
+    candidates_1.sort(key=rank_key)
+
+    # Pass 2: allow reuse (still avoid keeping the same recipe)
+    candidates_2 = [
+        r for r in feasible
+        if _recipe_id(r) != current_id
+    ]
+    candidates_2.sort(key=rank_key)
+
+    chosen = candidates_1[0] if candidates_1 else (candidates_2[0] if candidates_2 else None)
+    if chosen is None:
+        return None
+
+    return _recipe_id(chosen)
+
 
 def repair_menu(
     menu: Dict[str, str],

@@ -29,6 +29,7 @@ ALLOWED_DM_ACTIONS = {
     "propose_menus",
     "set_active_menu",
     "show_day",
+    "suggest_swap_day",
     "swap_day",
     "update_avoid",
     "confirm_plan",
@@ -77,17 +78,22 @@ class DM:
         - Prefer natural, short questions. Avoid listing options unless the user asks.
         - If the user already provided multiple preferences in one message, do NOT re-ask them—only ask what is still missing.
         - Use RECENT_TURNS to interpret short answers (e.g., "1", "yes", "menu 2", "Tue") in context.
-        
+
         FLOW GUIDELINES:
         - If the PLAN is incomplete, use request_info(<one_missing_item>) to ask the next best question.
           Suggested order: servings -> time_limit -> calorie_level -> avoid_items.
         - If the PLAN is complete and menus are not yet proposed (no menus exist yet), output propose_menus().
         - If menus are proposed but no active menu is selected, do not show/swap/update/confirm; ask for the menu choice with request_info(menu_id).
         - If an active menu exists:
-          * show_day(target_day) for "what's on Tue" / "show Tue"
-          * swap_day(target_day) for "swap Tue"
-          * update_avoid(ADD_AVOID_ITEM, item) or update_avoid(REMOVE_AVOID_ITEM, item) for avoid changes
-          * confirm_plan() when user confirms or asks for shopping list
+        * show_day(target_day) for "what's on Tue" / "show Tue"
+        * suggest_swap_day(target_day) when the user asks to "suggest/propose an alternative" for a day
+            (this must NOT commit the change; the user must explicitly confirm)
+        * swap_day(target_day) only when the user explicitly asks to swap/change a day
+        * If the tracker shows a pending_action of type SWAP_DAY and the user says "yes/ok/do it",
+            output swap_day(<the pending day>) to commit it
+        * update_avoid(ADD_AVOID_ITEM, item) or update_avoid(REMOVE_AVOID_ITEM, item) for avoid changes
+        * confirm_plan() when the user asks to finalize / shopping list and there is no pending suggested change
+
 
         STYLE (for request_info arguments):
         - request_info(servings): ask "How many servings should I plan for?"

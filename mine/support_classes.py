@@ -192,6 +192,7 @@ class Tracker:
     active_menu_id: Optional[int] = None
     active_menu: Optional[Dict[str, Any]] = None
     last_referenced_day: Optional[str] = None
+    pending_action: Optional[Dict[str, Any]] = None
 
     # Optional: keep last MR for debugging/logging
     last_user_mr: Optional[Dict[str, Any]] = None
@@ -267,6 +268,8 @@ class Tracker:
             "active_menu_id": self.active_menu_id,
             "active_menu": copy.deepcopy(self.active_menu),
             "last_referenced_day": self.last_referenced_day,
+            "pending_action": copy.deepcopy(self.pending_action),
+
         }
 
     # -------------------------- state mutation ------------------------------
@@ -280,6 +283,8 @@ class Tracker:
         self.active_menu_id = None
         self.active_menu = None
         self.last_referenced_day = None
+        self.pending_action = None
+
 
     def set_active_menu(self, menu_id: int) -> bool:
         """Called by DM after SELECT_MENU."""
@@ -289,6 +294,8 @@ class Tracker:
         if self.menus.get(key) is None:
             return False
         self.active_menu_id = menu_id
+        self.pending_action = None
+
         self.active_menu = copy.deepcopy(self.menus[key])
         self.phase = "ACTIVE_MENU"
         return True
@@ -304,6 +311,12 @@ class Tracker:
         self.active_menu = None
         self.last_referenced_day = None
         self.last_user_mr = None
+        self.pending_action = None
+
+    def set_pending_swap(self, day: str, recipe_id: str) -> None:
+        self.pending_action = {"type": "SWAP_DAY", "day": day, "recipe_id": recipe_id}
+
+
 
     # -------------------------- MR application ------------------------------
 
@@ -315,6 +328,26 @@ class Tracker:
         intent = str(mr.get("intent", "")).strip()
         slots = mr.get("slots", {}) or {}
         self.last_user_mr = {"intent": intent, "slots": copy.deepcopy(slots)}
+
+        # Expire pending_action unless the user is responding to it.
+        # This prevents a later generic "yes" from accidentally applying an old suggestion.
+        if self.pending_action is not None:
+            if intent == "confirm":
+                # Keep it; policy/executor will decide whether confirm means "commit pending"
+                pass
+            elif intent == "refine":
+                # If user issues a new refine, keep pending only if it's the same SWAP_DAY for same day
+                p = self.pending_action
+                p_type = str(p.get("type") or "").upper()
+                r_type = normalize_upper_enum(slots.get("refine_type", None)) or ""
+                r_day = normalize_day(slots.get("target_day", None))
+
+                if not (p_type == "SWAP_DAY" and r_type == "SWAP_DAY" and r_day and r_day == p.get("day")):
+                    self.pending_action = None
+            else:
+                # Any other intent cancels the pending action
+                self.pending_action = None
+
 
         count_provided = 0
 

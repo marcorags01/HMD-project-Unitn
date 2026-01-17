@@ -56,6 +56,7 @@ Return ONLY the action. No explanations. No extra text.
 - propose_menus()
 - set_active_menu(menu_id)
 - show_day(target_day)
+- suggest_swap_day(target_day)
 - swap_day(target_day)
 - update_avoid(op, value)
 - confirm_plan()
@@ -67,15 +68,18 @@ Return ONLY the action. No explanations. No extra text.
     "DM_RULES": """HARD WORKFLOW RULES (never violate):
 1) If PLAN is incomplete (missing servings/time_limit/calorie_level/avoid_items), choose request_info(one missing slot).
 2) After menus are proposed, the user must select menu_id before inspect/refine/confirm.
-3) If inspect is requested and target_day is missing, choose request_info(target_day).
-4) If refine is requested and refine_type is missing, choose request_info(refine_type).
+3) If the user asks to "suggest/propose an alternative" for a day, choose suggest_swap_day(target_day).
+   Only use swap_day(target_day) if the user explicitly asks to swap/change, or confirms a suggestion.
+4) If inspect is requested and target_day is missing, choose request_info(target_day).
+5) If refine is requested and refine_type is missing, choose request_info(refine_type).
    - If refine_type=SWAP_DAY and target_day missing -> request_info(target_day).
    - If refine_type=ADD_AVOID_ITEM or REMOVE_AVOID_ITEM and value missing -> request_info(value).
-5) If out_of_domain, choose fallback().
+6) If out_of_domain, choose fallback().
 
 SLOT/VALUE NOTES:
 - menu_id must be 1 or 2
 - target_day must be one of Mon Tue Wed Thu Fri
+- suggest_swap_day uses BEST_FIT and does NOT commit the change; the user must confirm to apply it
 - swap_day always uses BEST_FIT (do not ask for other values)
 - update_avoid op is ADD_AVOID_ITEM or REMOVE_AVOID_ITEM
 - avoid_items can be an empty list if the user has no restrictions (explicit “none”)
@@ -86,6 +90,8 @@ SLOT/VALUE NOTES:
 Return only one action in this exact format, e.g.:
 request_info(servings)
 set_active_menu(1)
+show_day(Tue)
+suggest_swap_day(Mon)
 swap_day(Tue)
 update_avoid(ADD_AVOID_ITEM, nuts)
 confirm_plan()

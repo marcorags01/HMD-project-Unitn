@@ -20,6 +20,7 @@ Action set (must match DM prompt + NLG expectations):
 - set_active_menu(menu_id)
 - show_day(target_day)
 - swap_day(target_day)
+- suggest_swap_day(target_day)
 - update_avoid(op, value)
 - confirm_plan()
 - fallback()
@@ -44,6 +45,7 @@ ALLOWED_DM_ACTIONS = {
     "propose_menus",
     "set_active_menu",
     "show_day",
+    "suggest_swap_day",
     "swap_day",
     "update_avoid",
     "confirm_plan",
@@ -76,6 +78,30 @@ def _split_args(arg_str: str) -> List[str]:
 
 def _join_args(args: List[str]) -> str:
     return ", ".join([str(a).strip() for a in args if str(a).strip()])
+
+def _mr_requests_suggestion(intent: str, slots: Dict[str, Any]) -> bool:
+    """
+    Return True if the MR indicates a non-committing 'suggest an alternative' request.
+
+    Note: policy does not have raw user text; it can only use MR slots.
+    We support an optional signal via slots['value'] (or slots['mode']) that NLU may emit.
+    """
+    if intent != "refine":
+        return False
+
+    refine_type = str(slots.get("refine_type") or "").strip().upper()
+    if refine_type != "SWAP_DAY":
+        return False
+
+    # Optional signals from NLU (safe no-op if not present)
+    v = slots.get("value")
+    mode = slots.get("mode")
+
+    v_str = str(v).strip().upper() if not is_nullish(v) else ""
+    m_str = str(mode).strip().upper() if not is_nullish(mode) else ""
+
+    return (v_str in {"SUGGEST", "ALTERNATIVE", "PROPOSE"} or m_str in {"SUGGEST", "PREVIEW"})
+
 
 
 def apply_policy(
@@ -123,6 +149,7 @@ def apply_policy(
     #--Post confirmation behavior--
     # If the plan is already confirmed and the user confirms again (e.g., "finalize", "done"),
     # do not restart the workflow; just acknowledge closure.
+    pending = getattr(tracker, "pending_action", None)
     if phase == "CONFIRMED" and intent == "confirm":
         return _final("fallback", "", nm, proposed_action, proposed_argument, "already_confirmed")
     has_active = getattr(tracker, "has_active_menu", lambda: False)()
@@ -178,7 +205,7 @@ def apply_policy(
         menus_exist = bool(menus) and menus.get("1") is not None and menus.get("2") is not None
 
 
-    menu_dependent_actions = {"set_active_menu", "show_day", "swap_day", "update_avoid", "confirm_plan"}
+    menu_dependent_actions = {"set_active_menu", "show_day", "suggest_swap_day","swap_day", "update_avoid", "confirm_plan"}
 
     if not menus_exist:
         # If DM tries anything that implies menus exist, force propose_menus()
@@ -205,11 +232,51 @@ def apply_policy(
 
 
     # 3) Menu selection gate: must have an active menu before show/swap/update/confirm
-    active_required_actions = {"show_day", "swap_day", "update_avoid", "confirm_plan"}
+    active_required_actions = {"show_day", "suggest_swap_day", "swap_day", "update_avoid", "confirm_plan"}
     if not has_active and proposed_action in active_required_actions:
         return _final("request_info", "menu_id", nm, proposed_action, proposed_argument, "menu_gate_action")
 
-    # 4) Otherwise: accept DM proposal, just sanitize action/args minimally
+    # 4) Pending suggestion confirmation routing:
+    # If there is a pending suggested SWAP_DAY and the user confirms (e.g., "yes/ok/do it"),
+    # force a commit of that pending swap rather than generating a shopping list or other action.
+    pending = getattr(tracker, "pending_action", None)
+    if pending and intent == "confirm":
+        p_type = str((pending or {}).get("type") or "").strip().upper()
+        p_day = (pending or {}).get("day")
+        if p_type == "SWAP_DAY" and p_day in ALLOWED_DAYS:
+            # Commit the pending suggestion deterministically.
+            return _final(
+                "swap_day",
+                str(p_day),
+                nm,
+                proposed_action,
+                proposed_argument,
+                "pending_swap_confirm->commit",
+            )
+
+    # 4b) Non-committing suggestion guardrail:
+    # If MR indicates the user asked for an alternative suggestion (not an applied swap),
+    # rewrite swap_day -> suggest_swap_day deterministically.
+    if _mr_requests_suggestion(intent, slots):
+        if (proposed_action or "").strip() == "swap_day":
+            proposed_action = "suggest_swap_day"
+
+    # 4c) Clear pending suggestion on non-confirm paths (unless user is continuing the same swap refine).
+    pending = getattr(tracker, "pending_action", None)
+    if pending and intent != "confirm":
+        keep = False
+        if intent == "refine":
+            p_type = str((pending or {}).get("type") or "").strip().upper()
+            p_day = (pending or {}).get("day")
+            r_type = str(slots.get("refine_type") or "").strip().upper()
+            r_day = normalize_day(slots.get("target_day"))
+            keep = (p_type == "SWAP_DAY" and r_type == "SWAP_DAY" and p_day and r_day and str(p_day) == str(r_day))
+        if not keep and hasattr(tracker, "pending_action"):
+            tracker.pending_action = None
+
+
+
+    # 5) Otherwise: accept DM proposal, just sanitize action/args minimally
     safe_action, safe_arg = sanitize_proposed_action(tracker, intent, slots, proposed_action, proposed_argument)
     return _final(safe_action, safe_arg, nm, proposed_action, proposed_argument, "guardrail_accept_or_sanitize")
 
@@ -252,7 +319,7 @@ def sanitize_proposed_action(
             return "request_info", "menu_id"
         return ("set_active_menu", str(mid)) if mid in (1, 2) else ("request_info", "menu_id")
 
-    if a in {"show_day", "swap_day"}:
+    if a in {"show_day", "suggest_swap_day", "swap_day"}:
         day = normalize_day(arg)
         return (a, day) if day in ALLOWED_DAYS else ("request_info", "target_day")
    

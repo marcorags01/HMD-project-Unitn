@@ -6,7 +6,7 @@ Responsibilities:
 - Given final action + argument + payload (+ tracker snapshot), generate a user-facing message.
 - Must NOT output the action string.
 - Must be compatible with your closed action set:
-  request_info, provide_info, propose_menus, set_active_menu, show_day,
+  request_info, provide_info, propose_menus, set_active_menu, suggest_swap_day, show_day,
   swap_day, update_avoid, confirm_plan, fallback
 
 Non-responsibilities:
@@ -319,6 +319,19 @@ class NLG:
                 )
             else:
                 fact_block = "I couldn’t select that option. Please reply with 1 or 2."
+
+        # Suggest swap (non-committing) acknowledgement (factual)
+        if action == "suggest_swap_day":
+            if payload.get("suggested"):
+                # argument is the day (e.g., "Mon")
+                fact_block = (
+                    f"Sure! Here's an alternative meal for {argument}:\n\n"
+                    f"- {payload.get('suggested_title', 'a new recipe')}\n\n"
+                    f"Do you want me to swap {argument} to this?"
+                )
+            else:
+                fact_block = "I couldn’t find a good alternative for that day with your current preferences."
+
 
         # Swap acknowledgement (factual)
         if action == "swap_day":
