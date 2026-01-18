@@ -276,21 +276,7 @@ def apply_policy(
         if (proposed_action or "").strip() == "swap_day":
             proposed_action = "suggest_swap_day"
 
-    # 4c) Clear pending suggestion on non-confirm paths (unless user is continuing the same swap refine).
-    pending = getattr(tracker, "pending_action", None)
-    if pending and intent != "confirm":
-        keep = False
-        if intent == "refine":
-            p_type = str((pending or {}).get("type") or "").strip().upper()
-            p_day = (pending or {}).get("day")
-            r_type = str(slots.get("refine_type") or "").strip().upper()
-            r_day = normalize_day(slots.get("target_day"))
-            keep = (p_type == "SWAP_DAY" and r_type == "SWAP_DAY" and p_day and r_day and str(p_day) == str(r_day))
-        if not keep and hasattr(tracker, "pending_action"):
-            tracker.pending_action = None
-
-
-
+    
     # 5) Otherwise: accept DM proposal, just sanitize action/args minimally
     safe_action, safe_arg = sanitize_proposed_action(tracker, intent, slots, proposed_action, proposed_argument)
     return _final(safe_action, safe_arg, nm, proposed_action, proposed_argument, "guardrail_accept_or_sanitize")

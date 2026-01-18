@@ -18,13 +18,14 @@ from __future__ import annotations
 
 import argparse
 from argparse import Namespace
-from typing import Tuple, Callable, Dict, Optional
+from typing import Tuple, Callable, Dict, Optional, Any
 from functools import partial
 
 
 from models import qwen3  # ensure models/__init__.py exists
 
 import torch
+import numpy as np
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -41,14 +42,20 @@ PROMPTS = {
 
     # DM prompt parts (LLM must output exactly ONE compact action)
     "DM_START": """You are the Dialogue Manager (DM) for a Meal Kit Composer assistant.
+
 You will be given:
-- the latest NLU Meaning Representation (MR) in JSON
-- the current tracker state in JSON
+- SELECTED_MR: the single NLU Meaning Representation (MR) to address NOW (JSON)
+- tracker_state: the current tracker state (JSON), which may include pending_mrs (a backlog)
 - recent dialogue turns
 
-Your job: output EXACTLY ONE next action in the specified compact format.
+Your job:
+- Decide the next best action for SELECTED_MR only.
+- Output EXACTLY ONE next action in the specified compact format.
+- Use pending_mrs only as context (do NOT try to satisfy multiple pending requests in one turn).
+
 Return ONLY the action. No explanations. No extra text.
 """,
+
 
     "DM_ACTIONS": """ALLOWED ACTIONS (choose exactly one):
 - request_info(slot)
@@ -66,6 +73,8 @@ Return ONLY the action. No explanations. No extra text.
     # We keep the “hard rules” in prompt for LLM guidance;
     # deterministic guard rails will still be implemented outside the DM (policy.py).
     "DM_RULES": """HARD WORKFLOW RULES (never violate):
+0) You must choose ONE action for SELECTED_MR only. pending_mrs is context only.
+0b) If SELECTED_MR is a synthetic/empty MR (e.g., {"intent":"plan","slots":{}}), ask for the next missing slot using request_info(...).
 1) If PLAN is incomplete (missing servings/time_limit/calorie_level/avoid_items), choose request_info(one missing slot).
 2) After menus are proposed, the user must select menu_id before inspect/refine/confirm.
 3) If the user asks to "suggest/propose an alternative" for a day, choose suggest_swap_day(target_day).
@@ -95,6 +104,9 @@ suggest_swap_day(Mon)
 swap_day(Tue)
 update_avoid(ADD_AVOID_ITEM, nuts)
 confirm_plan()
+fallback()
+
+Return ONE action for SELECTED_MR only.
 """,
 
     # NLG prompt parts (will be used by component/nlg.py)
@@ -147,6 +159,77 @@ TEMPLATES = {
     ),
 }
 
+def _flatten_token_ids(x: object) -> list[int]:
+    """
+    Convert token id containers into a flat list[int].
+    Accepts:
+      - torch.Tensor (1D/2D)
+      - list/tuple (possibly nested)
+      - int-like scalars
+    """
+    # torch tensor
+    if hasattr(x, "detach") and hasattr(x, "tolist"):
+        x = x.detach().cpu().tolist()
+
+    # batched [[...]] -> take first row
+    if isinstance(x, (list, tuple)) and len(x) > 0 and isinstance(x[0], (list, tuple)):
+        x = x[0]
+
+    if isinstance(x, (list, tuple)):
+        out: list[int] = []
+        for t in x:
+            try:
+                out.append(int(t))
+            except Exception:
+                # skip non-int-like entries
+                return []
+        return out
+
+    # scalar
+    try:
+        return [int(x)]
+    except Exception:
+        return []
+
+
+
+def _as_str_prompt(
+    out: object,
+    tokenizer: PreTrainedTokenizer,
+) -> str:
+    """
+    Normalize any chat-template output to a plain string prompt.
+
+    Handles:
+    - str
+    - BatchEncoding / dict with input_ids (decode deterministically)
+    - list/tuple of token ids (including int-like types) possibly nested (batch)
+    """
+    if isinstance(out, str):
+        return out
+
+    # BatchEncoding or dict-like pretokenized output
+    if isinstance(out, BatchEncoding):
+        data = out.data
+        ids = data.get("input_ids", None)
+        if ids is not None:
+            # ids might be tensor/list/nested list
+            return tokenizer.decode(_flatten_token_ids(ids), skip_special_tokens=False)
+        raise TypeError("prepare_text returned BatchEncoding without input_ids")
+
+    if isinstance(out, dict) and "input_ids" in out:
+        return tokenizer.decode(_flatten_token_ids(out["input_ids"]), skip_special_tokens=False)
+
+    # List/tuple tokens: could be [ids] or [[ids]] (batched)
+    if isinstance(out, (list, tuple)):
+        flat = _flatten_token_ids(out)
+        if flat:
+            return tokenizer.decode(flat, skip_special_tokens=False)
+
+    # Last resort: fail loudly rather than passing garbage downstream
+    raise TypeError(f"prepare_text returned unsupported type for prompt: {type(out)}")
+
+
 def format_chat(
     args: Namespace,
     system_prompt: str,
@@ -168,12 +251,7 @@ def format_chat(
         messages = [{"role": "system", "content": system_prompt}]
         out = prepare_fn(user_text, tokenizer, messages=messages, n_exchanges=1)
 
-        # HARDEN: force string
-        if isinstance(out, str):
-            return out
-        if isinstance(out, (list, tuple)) and all(isinstance(t, int) for t in out):
-            return tokenizer.decode(out, skip_special_tokens=False)
-        return str(out)
+        return _as_str_prompt(out, tokenizer)
 
     return args.chat_template.format(system_prompt, user_text)
 

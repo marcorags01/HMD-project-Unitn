@@ -193,6 +193,7 @@ class Tracker:
     active_menu: Optional[Dict[str, Any]] = None
     last_referenced_day: Optional[str] = None
     pending_action: Optional[Dict[str, Any]] = None
+    pending_mrs: List[Dict[str, Any]] = field(default_factory=list)
 
     # Optional: keep last MR for debugging/logging
     last_user_mr: Optional[Dict[str, Any]] = None
@@ -307,6 +308,7 @@ class Tracker:
             "active_menu": copy.deepcopy(self.active_menu),
             "last_referenced_day": self.last_referenced_day,
             "pending_action": copy.deepcopy(self.pending_action),
+            "pending_mrs": copy.deepcopy(self.pending_mrs),
 
         }
 
@@ -350,6 +352,192 @@ class Tracker:
         self.last_referenced_day = None
         self.last_user_mr = None
         self.pending_action = None
+        self.pending_mrs = []
+
+    def enqueue_mrs(self, mrs: List[Dict[str, Any]]) -> None:
+        """
+        Add new MRs to the pending queue (deepcopied).
+        Intended to be called once per user turn after validation/normalization.
+        """
+        if not mrs:
+            return
+        for mr in mrs:
+            if isinstance(mr, dict):
+                self.pending_mrs.append(copy.deepcopy(mr))
+
+    def has_pending(self) -> bool:
+        return bool(self.pending_mrs)
+
+    def peek_pending(self, idx: int = 0) -> Optional[Dict[str, Any]]:
+        if idx < 0 or idx >= len(self.pending_mrs):
+            return None
+        return self.pending_mrs[idx]
+
+    def pop_pending(self, idx: int = 0) -> Optional[Dict[str, Any]]:
+        if idx < 0 or idx >= len(self.pending_mrs):
+            return None
+        return self.pending_mrs.pop(idx)
+
+    def remove_pending(self, mr: Dict[str, Any]) -> bool:
+        """
+        Remove the first pending MR that is deeply equal to `mr`.
+        Returns True if removed.
+        """
+        for i, x in enumerate(self.pending_mrs):
+            if x == mr:
+                self.pending_mrs.pop(i)
+                return True
+        return False
+    
+    def prune_pending(self) -> None:
+        """
+        Conservative pruning to prevent obviously stale items from accumulating.
+        This does NOT implement full consume/keep semantics (Step 5).
+        """
+        pruned: List[Dict[str, Any]] = []
+        for mr in self.pending_mrs:
+            intent = str(mr.get("intent", "")).strip()
+
+            # If plan is already confirmed, drop non-help/out_of_domain.
+            if self.phase == "CONFIRMED" and intent not in {"help", "out_of_domain"}:
+                continue
+
+            pruned.append(mr)
+
+        self.pending_mrs = pruned
+
+    def select_next_pending_index(self) -> Optional[int]:
+        """
+        Same as select_next_pending_mr() but returns the index of the selected MR
+        in pending_mrs. Returns None if a synthetic MR should be used.
+        """
+        if not self.pending_mrs:
+            return None
+
+        if self.missing_plan_slots():
+            for i, mr in enumerate(self.pending_mrs):
+                if str(mr.get("intent", "")).strip() == "plan":
+                    return i
+            return None  # synthetic plan
+
+        if self.phase == "AWAITING_MENU_SELECTION" or (self.menus_exist() and not self.has_active_menu()):
+            for i, mr in enumerate(self.pending_mrs):
+                if str(mr.get("intent", "")).strip() == "select_menu":
+                    return i
+            return None  # synthetic select_menu
+
+        priority = ["refine", "inspect", "confirm", "help", "out_of_domain"]
+        for p in priority:
+            for i, mr in enumerate(self.pending_mrs):
+                if str(mr.get("intent", "")).strip() == p:
+                    return i
+
+        return 0
+    
+
+    def _intent_of(self, mr: Dict[str, Any]) -> str:
+        return str((mr or {}).get("intent", "")).strip() or "out_of_domain"
+
+    def _slots_of(self, mr: Dict[str, Any]) -> Dict[str, Any]:
+        s = (mr or {}).get("slots", {}) or {}
+        return s if isinstance(s, dict) else {}
+
+    def _remove_first_by_intent(self, intent: str) -> bool:
+        for i, x in enumerate(self.pending_mrs):
+            if self._intent_of(x) == intent:
+                self.pending_mrs.pop(i)
+                return True
+        return False
+    
+    def update_pending_after_action(self, selected_mr: Dict[str, Any], action: str, payload: Dict[str, Any]) -> None:
+        """
+        Consume/keep logic for pending_mrs after policy+execution.
+
+        selected_mr should be the SNAPSHOT you selected in main (deepcopy),
+        so equality removal works even if tracker state mutated.
+        """
+        action = (action or "").strip().lower()
+        intent = self._intent_of(selected_mr)
+
+        # 0) If we asked for info, keep everything (we're waiting for user input).
+        if action == "request_info":
+            return
+
+        # 1) Fallback: remove only out_of_domain, keep the rest.
+        if action == "fallback":
+            if intent == "out_of_domain":
+                self.remove_pending(selected_mr)
+            return
+
+        # 2) propose_menus: goal progressed, clear plan requests.
+        if action == "propose_menus":
+            # remove all pending plan MRs
+            self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "plan"]
+            # optional: if menus are now proposed, old select_menu prompts may become stale/noisy
+            # keep them if you want; or clear them and let user respond naturally.
+            # self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "select_menu"]
+            return
+
+        # 3) set_active_menu: if it worked, clear select_menu MRs
+        if action == "set_active_menu":
+            ok = bool((payload or {}).get("ok", False))
+            if ok:
+                self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "select_menu"]
+            else:
+                # if invalid selection, keep the MR (user still needs to choose)
+                return
+            return
+
+        # 4) show_day: if succeeded, remove the inspect MR we handled
+        if action == "show_day":
+            if (payload or {}).get("details") is not None and not (payload or {}).get("error"):
+                # remove the selected MR if it was inspect; otherwise remove first inspect
+                if intent == "inspect":
+                    self.remove_pending(selected_mr)
+                else:
+                    self._remove_first_by_intent("inspect")
+            return
+
+        # 5) update_avoid: if succeeded, remove refine MR we handled (best-effort)
+        if action == "update_avoid":
+            if not (payload or {}).get("error"):
+                if intent == "refine":
+                    self.remove_pending(selected_mr)
+                else:
+                    self._remove_first_by_intent("refine")
+            return
+
+        # 6) suggest_swap_day: if suggested=True, consume the refine MR (recommend consume)
+        if action == "suggest_swap_day":
+            if bool((payload or {}).get("suggested", False)) and not (payload or {}).get("error"):
+                if intent == "refine":
+                    self.remove_pending(selected_mr)
+                else:
+                    self._remove_first_by_intent("refine")
+            return
+
+        # 7) swap_day: if swapped=True, consume a refine MR (swap-type) or selected
+        if action == "swap_day":
+            if bool((payload or {}).get("swapped", False)) and not (payload or {}).get("error"):
+                if intent == "refine":
+                    self.remove_pending(selected_mr)
+                else:
+                    self._remove_first_by_intent("refine")
+            return
+
+        # 8) confirm_plan: if succeeded, clear confirm (and optionally clear all)
+        if action == "confirm_plan":
+            if (payload or {}).get("shopping_list") is not None and not (payload or {}).get("error"):
+                self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "confirm"]
+                # optional: clear all pending because flow is complete
+                # self.pending_mrs.clear()
+            return
+
+        # 9) Default: if we successfully did something, remove the MR we tried to handle
+        # (conservative; avoids repeated re-processing)
+        self.remove_pending(selected_mr)
+
+
 
     def set_pending_swap(self, day: str, recipe_id: str) -> None:
         self.pending_action = {"type": "SWAP_DAY", "day": day, "recipe_id": recipe_id}

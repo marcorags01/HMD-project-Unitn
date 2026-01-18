@@ -130,26 +130,68 @@ class DM:
             else:
                 recent = self.history.last_iterations(last_n=last_n_turns)
 
+                
+        pending_mrs = []
+        if hasattr(tracker, "pending_mrs"):
+            try:
+                pending_mrs = list(tracker.pending_mrs or [])
+            except Exception:
+                pending_mrs = []
+
+        pending_intents = []
+        for pmr in pending_mrs:
+            if isinstance(pmr, dict):
+                pending_intents.append(str(pmr.get("intent", "")).strip() or "out_of_domain")
+
+        tracker_state = tracker.to_state_dict() if hasattr(tracker, "to_state_dict") else {}
+        if isinstance(tracker_state, dict):
+            tracker_state.pop("pending_mrs", None)  # avoid duplicating / flooding
+
         ds = {
-            "mr": nm,
+            # Selected MR (the one main.py chose to address now)
+            "selected_mr": nm,                 # preferred name going forward
+            "mr": nm,                          # keep for backward-compatibility (optional)
+
+            # Queue summary (do NOT drown the model in JSON)
+            "selected_intent": str(nm.get("intent", "")).strip() or "out_of_domain",
+            "pending_count": len(pending_mrs),
+            "pending_intents": pending_intents,
+
+            # (Optional but useful) include only a tiny “head” sample, not full queue
+            "pending_head": pending_mrs[:3],
+
+            # Existing state signals
             "menus_exist": tracker.menus_exist() if hasattr(tracker, "menus_exist") else False,
-            "tracker": tracker.to_state_dict() if hasattr(tracker, "to_state_dict") else {},
+            "tracker": tracker_state,
             "missing_plan": tracker.missing_plan_slots() if hasattr(tracker, "missing_plan_slots") else [],
             "has_active_menu": tracker.has_active_menu() if hasattr(tracker, "has_active_menu") else False,
             "last_action": last_action or "",
         }
 
+         #  DM debug logging for queue context 
+        if bool(getattr(self.args, "debug", False)):
+            sel_intent = str(nm.get("intent", "")).strip() or "out_of_domain"
+            self.logger.debug(
+                "DM queue context | selected_intent=%s | pending_count=%d | pending_intents=%s",
+                sel_intent,
+                len(pending_mrs),
+                pending_intents,
+            )
+
+
 
         user_text = (
             "RECENT_TURNS:\n"
             + (recent if recent else "(none)")
-            + "\n\nDIALOGUE_STATE_JSON:\n"
+            + "\n\nSELECTED_MR_AND_STATE_JSON:\n"
             + _safe_json(ds)
             + "\n\nReturn the next action now."
         )
 
         # 4) Format with chat template (Marina-style: args.chat_template.format(system, user))
         dm_text = format_chat(self.args, system_prompt, user_text, tokenizer=self.tokenizer)
+        if not isinstance(dm_text, str):
+            raise TypeError(f"format_chat() must return str, got {type(dm_text)}: {repr(dm_text)[:200]}")
 
         self.logger.debug(f"DM input:\n{dm_text}")
 

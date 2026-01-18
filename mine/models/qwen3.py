@@ -1,8 +1,22 @@
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Any
+from transformers import PreTrainedTokenizer, BatchEncoding
 
-from transformers import PreTrainedTokenizer
+def _flatten_token_ids(x: Any) -> List[int]:
+    # torch tensor -> python list
+    if hasattr(x, "detach") and hasattr(x, "tolist"):
+        x = x.detach().cpu().tolist()
 
+    # batched [[...]] -> take first row
+    if isinstance(x, (list, tuple)) and len(x) > 0 and isinstance(x[0], (list, tuple)):
+        x = x[0]
 
+    if isinstance(x, (list, tuple)):
+        out: List[int] = []
+        for t in x:
+            out.append(int(t))  # int-like scalars supported
+        return out
+
+    return [int(x)]  # scalar int-like
 
 def prepare_text(
     prompt,
@@ -13,9 +27,7 @@ def prepare_text(
     if messages is None:
         messages = []
 
-    # Ensure prompt is a string
     prompt = "" if prompt is None else str(prompt)
-
     messages.append({"role": "user", "content": prompt})
 
     text = tokenizer.apply_chat_template(
@@ -24,12 +36,26 @@ def prepare_text(
         add_generation_prompt=True,
     )
 
-    # HARDEN: guarantee a string return type
+    # Expected path
     if isinstance(text, str):
         return text
 
-    # Some implementations may return token ids (list[int]) or something else.
-    if isinstance(text, (list, tuple)) and all(isinstance(t, int) for t in text):
-        return tokenizer.decode(text, skip_special_tokens=False)
+    # Some remote-code implementations might return pre-tokenized objects
+    if isinstance(text, BatchEncoding):
+        ids = text.data.get("input_ids", None)
+        if ids is None:
+            raise TypeError("apply_chat_template returned BatchEncoding without input_ids")
+        return tokenizer.decode(_flatten_token_ids(ids), skip_special_tokens=False)
 
-    return str(text)
+    if isinstance(text, dict) and "input_ids" in text:
+        return tokenizer.decode(_flatten_token_ids(text["input_ids"]), skip_special_tokens=False)
+
+    # Token-id lists/tuples (possibly nested)
+    if isinstance(text, (list, tuple)):
+        try:
+            return tokenizer.decode(_flatten_token_ids(text), skip_special_tokens=False)
+        except Exception as e:
+            raise TypeError(f"apply_chat_template returned an unsupported list/tuple shape: {type(text)}") from e
+
+    # Fail loudly (do NOT silently str() unknown objects)
+    raise TypeError(f"apply_chat_template returned unsupported type: {type(text)}")

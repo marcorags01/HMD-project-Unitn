@@ -299,14 +299,25 @@ class NLG:
             q = _REQUEST_QUESTIONS.get((argument or "").strip(), "")
             if q:
                 return q if q else "What would you like to do next?"
+            
+        # Deterministic high-risk actions 
+        if action == "propose_menus":
+            m1 = payload.get("menu1_pretty")
+            m2 = payload.get("menu2_pretty")
+            if isinstance(m1, dict) and isinstance(m2, dict) and m1 and m2:
+                return _render_menus(m1, m2)
+            # Defensive fallback if menus not provided
+            return (
+                "I couldn’t generate the two menu options. "
+                "Could you adjust your preferences (prep time, calories, or avoids) and try again?"
+            )
 
-        # Menus
-        if action == "propose_menus" and payload.get("menu1_pretty") and payload.get("menu2_pretty"):
-            menu_block = _render_menus(payload["menu1_pretty"], payload["menu2_pretty"])
-
-        # Day details
-        if action == "show_day" and payload.get("details"):
-            day_block = _render_day_details(payload["details"])
+        if action == "show_day":
+            details = payload.get("details")
+            if isinstance(details, dict) and details:
+                return _render_day_details(details)
+            # Defensive fallback if details missing
+            return "I couldn’t show that day. Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?"         
 
         # Shopping list
         if action == "confirm_plan" and payload.get("shopping_list") is not None:
@@ -391,6 +402,8 @@ class NLG:
         )
 
         nlg_text = format_chat(self.args, system_prompt, user_text, tokenizer=self.tokenizer)
+        if not isinstance(nlg_text, str):
+            raise TypeError(f"format_chat() must return str, got {type(nlg_text)}: {repr(nlg_text)[:200]}")
 
         self.logger.debug(f"NLG input:\n{nlg_text}")
 

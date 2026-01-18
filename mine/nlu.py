@@ -180,6 +180,8 @@ class NLU:
 
 
         nlu_text = format_chat(self.args, system_prompt, user_payload, tokenizer=self.tokenizer)
+        if not isinstance(nlu_text, str):
+            raise TypeError(f"format_chat() must return str, got {type(nlu_text)}: {repr(nlu_text)[:200]}")
 
         self.logger.debug(f"NLU input:\n{nlu_text}")
         self.logger.debug(f"NLU prompt type={type(nlu_text)}")
