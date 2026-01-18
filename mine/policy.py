@@ -150,7 +150,7 @@ def apply_policy(
     # If the plan is already confirmed and the user confirms again (e.g., "finalize", "done"),
     # do not restart the workflow; just acknowledge closure.
     pending = getattr(tracker, "pending_action", None)
-    if phase == "CONFIRMED" and intent == "confirm":
+    if phase == "CONFIRMED" and intent == "confirm" and not pending:    
         return _final("fallback", "", nm, proposed_action, proposed_argument, "already_confirmed")
     has_active = getattr(tracker, "has_active_menu", lambda: False)()
 
@@ -203,6 +203,18 @@ def apply_policy(
     else:
         menus = getattr(tracker, "menus", None)
         menus_exist = bool(menus) and menus.get("1") is not None and menus.get("2") is not None
+
+    # 2a) If PLAN is complete and menus are not yet generated, force proposing menus.
+    # This prevents the DM from re-asking already-filled plan slots due to per-turn MR nulls.
+    if not menus_exist and not missing_plan and phase == "AWAITING_PLAN":
+        return _final(
+            "propose_menus",
+            "",
+            nm,
+            proposed_action,
+            proposed_argument,
+            "plan_complete->propose_menus",
+        )
 
 
     menu_dependent_actions = {"set_active_menu", "show_day", "suggest_swap_day","swap_day", "update_avoid", "confirm_plan"}
