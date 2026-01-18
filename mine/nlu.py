@@ -186,7 +186,8 @@ class NLU:
         self.logger.debug(f"NLU input:\n{nlu_text}")
         self.logger.debug(f"NLU prompt type={type(nlu_text)}")
 
-
+        print("DEBUG nlu_text type:", type(nlu_text))
+        print("DEBUG nlu_text head:", repr(nlu_text)[:200])
         inputs = self.tokenizer(nlu_text, return_tensors="pt").to(self.model.device)
         out = generate(self.model, inputs, self.tokenizer, self.args).strip()
 
