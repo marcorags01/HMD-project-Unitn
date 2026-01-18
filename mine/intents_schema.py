@@ -39,7 +39,7 @@ INTENT_SLOTS: Dict[str, List[str]] = {
     "plan": ["servings", "time_limit", "calorie_level", "avoid_items"],
     "select_menu": ["menu_id"],
     "inspect": ["target_day"],
-    "refine": ["refine_type", "target_day", "value"],
+    "refine": ["refine_type", "target_day", "value", "mode"],
     "confirm": [],
     "help": ["intent", "slot"],
     "out_of_domain": [],
@@ -60,6 +60,8 @@ REQUIRED_SLOTS: Dict[str, List[str]] = {
 # refine_type controlled vocab + refine-specific constraints
 REFINE_TYPES = {"SWAP_DAY", "ADD_AVOID_ITEM", "REMOVE_AVOID_ITEM"}
 SWAP_VALUE = "BEST_FIT"
+REFINE_MODES = {"SUGGEST", "COMMIT"}
+
 
 
 # ------------------------- MR templates -------------------------
@@ -150,9 +152,11 @@ def normalize_mr(mr: Dict[str, Any]) -> Dict[str, Any]:
     elif intent == "refine":
         slots_out["refine_type"] = _upper(slots_out.get("refine_type"))
         slots_out["target_day"] = normalize_day(slots_out.get("target_day"))
+        slots_out["mode"] = _upper(slots_out.get("mode"))  # NEW
         # value: keep raw string for now; validation will interpret based on refine_type
         if not is_nullish(slots_out.get("value")):
             slots_out["value"] = str(slots_out["value"]).strip()
+
 
     elif intent == "help":
         slots_out["intent"] = _lower(slots_out.get("intent"))  # keep lowercase for matching keys
@@ -243,6 +247,11 @@ def validate_mr(mr: Dict[str, Any]) -> ValidationResult:
         if not is_nullish(rt) and rt not in REFINE_TYPES:
             errors.append(f"refine_type must be one of {sorted(REFINE_TYPES)}")
 
+        mode = slots.get("mode")
+        if not is_nullish(mode) and mode not in REFINE_MODES:
+            errors.append(f"mode must be one of {sorted(REFINE_MODES)}")
+            slots["mode"] = None
+            
         # refine_type-dependent rules
         if rt == "SWAP_DAY":
             day = slots.get("target_day")

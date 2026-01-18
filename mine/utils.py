@@ -166,7 +166,14 @@ def format_chat(
 
         # qwen3.prepare_text appends the user message; we inject system here
         messages = [{"role": "system", "content": system_prompt}]
-        return prepare_fn(user_text, tokenizer, messages=messages, n_exchanges=1)
+        out = prepare_fn(user_text, tokenizer, messages=messages, n_exchanges=1)
+
+        # HARDEN: force string
+        if isinstance(out, str):
+            return out
+        if isinstance(out, (list, tuple)) and all(isinstance(t, int) for t in out):
+            return tokenizer.decode(out, skip_special_tokens=False)
+        return str(out)
 
     return args.chat_template.format(system_prompt, user_text)
 

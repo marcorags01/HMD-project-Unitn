@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import json
 import re
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, List
 
 from utils import PROMPTS, generate, format_chat
 from collections import defaultdict
@@ -245,6 +245,12 @@ def _render_day_details(details: Dict[str, Any]) -> str:
 
     return "\n".join(lines).strip()
 
+def _render_confirm_plan(payload: Dict[str, Any], tracker_state: Dict[str, Any]) -> str:
+    header = "Shopping list (Mon–Fri):\n\n" + _fmt_constraints(tracker_state) + "\n\n"
+    body = _render_shopping_list(payload.get("shopping_list") or [])
+    return (header + body).strip()
+
+
 
 class NLG:
     def __init__(self, history, model, tokenizer, args, logger):
@@ -304,10 +310,8 @@ class NLG:
 
         # Shopping list
         if action == "confirm_plan" and payload.get("shopping_list") is not None:
-            header = "Shopping list (Mon–Fri):\n\n" + _fmt_constraints(tracker_state) + "\n\n"
-            body = _render_shopping_list(payload.get("shopping_list") or [])
-            shopping_block = (header + body).strip()
-            return shopping_block  # direct return for shopping list
+            return _render_confirm_plan(payload, tracker_state)
+
 
         # Menu selection acknowledgement (keep facts correct, let LLM add tone)
         if action == "set_active_menu":
@@ -399,3 +403,102 @@ class NLG:
             return "Sorry—something went wrong while generating the response. Could you repeat that?"
 
         return out
+    
+    def render_steps(
+        self,
+        executed_steps: List[Any],
+        tracker_state: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """
+        Deterministically render a single assistant message from multiple executed steps.
+        NO LLM calls here.
+        """
+        tracker_state = tracker_state or {}
+
+        chunks: List[str] = []
+
+        # Defensive: ensure confirm_plan is rendered last if present
+        def is_confirm(step: Any) -> bool:
+            return getattr(step, "final_action", "") == "confirm_plan"
+
+        non_confirm = [s for s in executed_steps if not is_confirm(s)]
+        confirm = [s for s in executed_steps if is_confirm(s)]
+        ordered = non_confirm + confirm
+
+        for s in ordered:
+            action = getattr(s, "final_action", "")
+            argument = getattr(s, "final_argument", "")
+            payload = getattr(s, "payload", {}) or {}
+
+            # If any step produced an execution error, surface it and stop.
+            if payload.get("error"):
+                return str(payload["error"]).strip()
+
+            # Hard stop: request_info should be the final output immediately
+            if action == "request_info":
+                q = _REQUEST_QUESTIONS.get((argument or "").strip(), "")
+                return q if q else "What would you like to do next?"
+
+            if action == "provide_info":
+                chunks.append(_render_provide_info(payload, tracker_state))
+                continue
+
+            if action == "propose_menus" and payload.get("menu1_pretty") and payload.get("menu2_pretty"):
+                chunks.append(_render_menus(payload["menu1_pretty"], payload["menu2_pretty"]))
+                # After menus, user must select next -> stop here
+                break
+
+            if action == "set_active_menu":
+                if payload.get("ok"):
+                    mid = (tracker_state.get("active_menu_id") or argument)
+                    chunks.append(
+                        f"Great — we’ll go with option {mid}.\n"
+                        "You can ask what’s planned on a day, swap a day, update foods to avoid, or confirm for the shopping list."
+                    )
+                else:
+                    chunks.append("I couldn’t select that option. Please reply with 1 or 2.")
+                continue
+
+            if action == "update_avoid":
+                repaired = payload.get("repaired_days") or []
+                base = "Got it — I updated your foods to avoid.\n\n" + _fmt_constraints(tracker_state)
+                if repaired:
+                    base += "\n\nI also updated these days to keep everything compatible: " + ", ".join(repaired)
+                chunks.append(base)
+                continue
+
+            if action == "suggest_swap_day":
+                if payload.get("suggested"):
+                    chunks.append(
+                        f"Sure! Here's an alternative meal for {argument}:\n\n"
+                        f"- {payload.get('suggested_title', 'a new recipe')}\n\n"
+                        f"Do you want me to swap {argument} to this?"
+                    )
+                else:
+                    chunks.append("I couldn’t find a good alternative for that day with your current preferences.")
+                continue
+
+            if action == "swap_day":
+                if payload.get("swapped"):
+                    chunks.append(f"Done — I swapped {argument} to: {payload.get('new_title', 'a new recipe')}.")
+                else:
+                    chunks.append("I couldn’t find a good alternative for that day with your current preferences.")
+                continue
+
+            if action == "show_day" and payload.get("details"):
+                chunks.append(_render_day_details(payload["details"]))
+                continue
+
+            if action == "confirm_plan" and payload.get("shopping_list") is not None:
+                chunks.append(_render_confirm_plan(payload, tracker_state))
+                continue
+
+            if action == "fallback":
+                phase = str((tracker_state or {}).get("phase", "") or "")
+                if phase == "CONFIRMED":
+                    chunks.append("All set — your meal plan is finalized. Type 'exit' to end, or start a new plan anytime.")
+                else:
+                    chunks.append("What would you like to do next?")
+                continue
+
+        return "\n\n".join([c for c in chunks if c]).strip()

@@ -87,7 +87,7 @@ def normalize_avoid_items(x: Any) -> Optional[List[str]]:
     if is_nullish(x):
         return None
 
-    raw: List[str] 
+    raw: List[str] = []
     if isinstance(x, list):
         raw = [str(it).strip() for it in x]
     elif isinstance(x, str):
@@ -229,6 +229,44 @@ class Tracker:
             count = self.apply_mr(input)
 
         return intent, total_slots, count
+    
+    def creation_multi(
+        self,
+        mrs: List[Dict[str, Any]],
+        history: Optional[History] = None,
+        update: bool = True,
+        ) -> Tuple[str, int, int]:
+        """
+        Multi-MR wrapper:
+        - Applies a list of MRs as one user turn.
+        - Returns (last_intent, total_slots_for_last_intent, count_slots_provided_total).
+        """
+        if not mrs:
+            if history is not None:
+                history.update_last_intent("out_of_domain")
+            return "out_of_domain", 0, 0
+
+        intents = [str(m.get("intent", "")).strip() or "out_of_domain" for m in mrs]
+        last_intent = intents[-1]
+        if last_intent not in POSSIBLE_INTENTS:
+            last_intent = "out_of_domain"
+
+        if history is not None:
+            history.update_last_intent(last_intent)
+            # store other intents for debug/trace
+            history.other_intents.clear()
+            for it in intents[:-1]:
+                if it and it != last_intent:
+                    history.insert_other_intent(it)
+
+        total_slots = self._total_slots_for_intent(last_intent)
+        count = 0
+        if update:
+            summary = self.apply_mrs(mrs)
+            count = int(summary.get("count_provided", 0))
+
+        return last_intent, total_slots, count
+
 
     def _total_slots_for_intent(self, intent: str) -> int:
         if intent == "plan":
@@ -238,7 +276,7 @@ class Tracker:
         if intent == "inspect":
             return 1
         if intent == "refine":
-            return 3
+            return 4
         if intent == "confirm":
             return 0
         return 0
@@ -317,9 +355,76 @@ class Tracker:
         self.pending_action = {"type": "SWAP_DAY", "day": day, "recipe_id": recipe_id}
 
 
-
     # -------------------------- MR application ------------------------------
+    def _apply_slots(self, mr: Dict[str, Any]) -> int:
+        """
+        Apply a single MR’s slots to state
+        """
+        intent = str(mr.get("intent", "")).strip()
+        slots = mr.get("slots", {}) or {}
 
+        count_provided = 0
+
+        if intent == "plan":
+            servings = slots.get("servings", None)
+            if not is_nullish(servings):
+                try:
+                    self.constraints["servings"] = int(servings)
+                    count_provided += 1
+                except (TypeError, ValueError):
+                    pass
+
+            time_limit = normalize_upper_enum(slots.get("time_limit", None))
+            if time_limit and time_limit in ALLOWED_TIME_LIMITS:
+                self.constraints["time_limit"] = time_limit
+                count_provided += 1
+
+            cal = normalize_upper_enum(slots.get("calorie_level", None))
+            if cal and cal in ALLOWED_CALORIE_LEVELS:
+                self.constraints["calorie_level"] = cal
+                count_provided += 1
+
+            avoid_raw = normalize_avoid_items(slots.get("avoid_items", None))
+            if avoid_raw is not None:
+                self.constraints["avoid_items"] = avoid_raw
+                count_provided += 1
+
+            return count_provided
+
+        if intent == "select_menu":
+            menu_id = slots.get("menu_id", None)
+            if not is_nullish(menu_id):
+                try:
+                    _ = int(menu_id)
+                    count_provided += 1
+                except (TypeError, ValueError):
+                    pass
+            return count_provided
+
+        if intent == "inspect":
+            day = normalize_day(slots.get("target_day", None))
+            if day and day in ALLOWED_DAYS:
+                self.last_referenced_day = day
+                count_provided += 1
+            return count_provided
+
+        if intent == "refine":
+            for k in ("refine_type", "target_day", "value", "mode"):
+                if not is_nullish(slots.get(k, None)):
+                    count_provided += 1
+
+            day = normalize_day(slots.get("target_day", None))
+            if day and day in ALLOWED_DAYS:
+                self.last_referenced_day = day
+
+            return count_provided
+
+        if intent == "confirm":
+            return 0
+
+        return 0
+
+    
     def apply_mr(self, mr: Dict[str, Any]) -> int:
         """
         Apply a single NLU MR (flat JSON with intent+slots) to state.
@@ -330,13 +435,10 @@ class Tracker:
         self.last_user_mr = {"intent": intent, "slots": copy.deepcopy(slots)}
 
         # Expire pending_action unless the user is responding to it.
-        # This prevents a later generic "yes" from accidentally applying an old suggestion.
         if self.pending_action is not None:
             if intent == "confirm":
-                # Keep it; policy/executor will decide whether confirm means "commit pending"
                 pass
             elif intent == "refine":
-                # If user issues a new refine, keep pending only if it's the same SWAP_DAY for same day
                 p = self.pending_action
                 p_type = str(p.get("type") or "").upper()
                 r_type = normalize_upper_enum(slots.get("refine_type", None)) or ""
@@ -345,79 +447,66 @@ class Tracker:
                 if not (p_type == "SWAP_DAY" and r_type == "SWAP_DAY" and r_day and r_day == p.get("day")):
                     self.pending_action = None
             else:
-                # Any other intent cancels the pending action
                 self.pending_action = None
 
+        return self._apply_slots(mr)
 
-        count_provided = 0
+    
+    
+    def apply_mrs(self, mrs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Apply multiple NLU MRs sequentially as ONE user turn.
 
-        if intent == "plan":
-            # servings
-            servings = slots.get("servings", None)
-            if not is_nullish(servings):
-                try:
-                    self.constraints["servings"] = int(servings)
-                    count_provided += 1
-                except (TypeError, ValueError):
-                    pass
+        Key difference vs calling apply_mr() in a loop:
+        - pending_action expiry is handled ONCE per turn (multi-MR-safe)
 
-            # time_limit
-            time_limit = normalize_upper_enum(slots.get("time_limit", None))
-            if time_limit and time_limit in ALLOWED_TIME_LIMITS:
-                self.constraints["time_limit"] = time_limit
-                count_provided += 1
+        Returns a small summary useful for debugging.
+        """
+        if not mrs:
+            return {"intents": [], "count_provided": 0}
 
-            # calorie_level
-            cal = normalize_upper_enum(slots.get("calorie_level", None))
-            if cal and cal in ALLOWED_CALORIE_LEVELS:
-                self.constraints["calorie_level"] = cal
-                count_provided += 1
+        # Normalize intent strings defensively
+        intents = [str(m.get("intent", "")).strip() for m in mrs]
+        intents_set = set(intents)
 
-            # avoid_items (optional; empty list is valid)
-            avoid_raw = normalize_avoid_items(slots.get("avoid_items", None))
-            if avoid_raw is not None:
-                self.constraints["avoid_items"] = avoid_raw
-                count_provided += 1
+        # ---- Multi-MR-safe pending_action expiry (runs ONCE per turn) ----
+        if self.pending_action is not None:
+            keep_pending = False
 
-            # phase stays AWAITING_PLAN until DM actually generates menus
-            return count_provided
+            # 1) If any MR is confirm, keep pending (executor/policy decides meaning)
+            if "confirm" in intents_set:
+                keep_pending = True
+            else:
+                # 2) If any MR is refine SWAP_DAY for the SAME day, keep pending
+                p = self.pending_action
+                p_type = str(p.get("type") or "").upper()
+                if p_type == "SWAP_DAY":
+                    p_day = p.get("day")
 
-        if intent == "select_menu":
-            menu_id = slots.get("menu_id", None)
-            if not is_nullish(menu_id):
-                try:
-                    _ = int(menu_id)
-                    count_provided += 1
-                    # Do NOT set_active_menu here; executor does it after policy approves.
-                except (TypeError, ValueError):
-                    pass
-            return count_provided
+                    for mr in mrs:
+                        if str(mr.get("intent", "")).strip() != "refine":
+                            continue
+                        slots = mr.get("slots", {}) or {}
+                        r_type = normalize_upper_enum(slots.get("refine_type", None)) or ""
+                        r_day = normalize_day(slots.get("target_day", None))
+                        if r_type == "SWAP_DAY" and r_day and r_day == p_day:
+                            keep_pending = True
+                            break
 
+            if not keep_pending:
+                self.pending_action = None
 
-        if intent == "inspect":
-            day = normalize_day(slots.get("target_day", None))
-            if day and day in ALLOWED_DAYS:
-                self.last_referenced_day = day
-                count_provided += 1
-            return count_provided
+        # ---- Apply each MR WITHOUT per-MR pending expiry ----
+        count_total = 0
+        for mr in mrs:
+            count_total += self._apply_slots(mr)
 
-        if intent == "refine":
-            # We don't mutate menus here; DM/domain logic will.
-            # We still record any provided fields for downstream DM logic.
-            for k in ("refine_type", "target_day", "value"):
-                if not is_nullish(slots.get(k, None)):
-                    count_provided += 1
+        # last_user_mr: keep the last MR of the turn (most recent)
+        last = mrs[-1]
+        self.last_user_mr = {
+            "intent": str(last.get("intent", "")).strip(),
+            "slots": copy.deepcopy(last.get("slots", {}) or {}),
+        }
 
-            # Update last_referenced_day opportunistically if target_day is present
-            day = normalize_day(slots.get("target_day", None))
-            if day and day in ALLOWED_DAYS:
-                self.last_referenced_day = day
+        return {"intents": intents, "count_provided": count_total}
 
-            return count_provided
-
-        if intent == "confirm":
-            # DM will enforce the selection gate and generate the shopping list.
-            return 0
-
-        # out_of_domain or unknown
-        return 0

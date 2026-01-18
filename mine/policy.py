@@ -81,10 +81,11 @@ def _join_args(args: List[str]) -> str:
 
 def _mr_requests_suggestion(intent: str, slots: Dict[str, Any]) -> bool:
     """
-    Return True if the MR indicates a non-committing 'suggest an alternative' request.
+    True if the MR indicates a non-committing 'suggest an alternative' request
+    for refine_type=SWAP_DAY.
 
-    Note: policy does not have raw user text; it can only use MR slots.
-    We support an optional signal via slots['value'] (or slots['mode']) that NLU may emit.
+    Primary signal (new standard): slots['mode'] == "SUGGEST"
+    Backward-compatible fallback: value contains "SUGGEST"/"ALTERNATIVE"/"PROPOSE"
     """
     if intent != "refine":
         return False
@@ -93,15 +94,17 @@ def _mr_requests_suggestion(intent: str, slots: Dict[str, Any]) -> bool:
     if refine_type != "SWAP_DAY":
         return False
 
-    # Optional signals from NLU (safe no-op if not present)
-    v = slots.get("value")
-    mode = slots.get("mode")
-
-    v_str = str(v).strip().upper() if not is_nullish(v) else ""
+    mode = slots.get("mode") or slots.get("swap_mode")
     m_str = str(mode).strip().upper() if not is_nullish(mode) else ""
 
-    return (v_str in {"SUGGEST", "ALTERNATIVE", "PROPOSE"} or m_str in {"SUGGEST", "PREVIEW"})
+    # New standard
+    if m_str == "SUGGEST":
+        return True
 
+    # Backward-compatible fallback (older NLU behavior)
+    v = slots.get("value")
+    v_str = str(v).strip().upper() if not is_nullish(v) else ""
+    return v_str in {"SUGGEST", "ALTERNATIVE", "PROPOSE"}
 
 
 def apply_policy(

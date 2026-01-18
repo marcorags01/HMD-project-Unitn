@@ -39,6 +39,8 @@ from dm import DM
 from policy import apply_policy
 
 from intents_schema import validate_mr
+from turn_planner import plan_steps, run_steps
+
 
 
 
@@ -327,57 +329,110 @@ class Dialogue:
 
             self.history.add_msg(user_text, "user", "input")
 
-            # 1) NLU -> MR
-            raw_mr = self.nlu(user_text)
-            vr_delta = validate_mr(raw_mr)
-            mr = vr_delta.normalized_mr # use normalized for tracker/DM/policy
-           
-            
+            # 1) NLU -> MR (dict or list[dict])
+            raw_obj = self.nlu(user_text)
 
-            # 2) Apply MR to tracker
-            intent, _, _ = self.tracker.creation(mr, self.history, update=True)
-            self.logger.info(f"Intent: {intent}")
+            if isinstance(raw_obj, dict):
+                raw_mrs = [raw_obj]
+            elif isinstance(raw_obj, list):
+                raw_mrs = [x for x in raw_obj if isinstance(x, dict)]
+            else:
+                raw_mrs = [{"intent": "out_of_domain", "slots": {}}]
 
-            # validate the effective (merged) plan state for meaningful mr_valid ---
-            vr = vr_delta  # default: keep delta validation
-            
-            # Debug prints (optional)
+            if not raw_mrs:
+                raw_mrs = [{"intent": "out_of_domain", "slots": {}}]
+
+            # 2) Validate + normalize each MR (debug/robustness)
+            validations = [validate_mr(m) for m in raw_mrs]
+            mrs = [v.normalized_mr for v in validations]  # normalized for tracker/policy/execution
+
             if DEBUG:
-                print("DEBUG raw MR:", raw_mr)
-                print("DEBUG mr_valid:", vr.valid, "errors:", vr.errors)
-                print("DEBUG normalized MR:", mr)
-                print("DEBUG tracker.constraints:", self.tracker.constraints)
-                print("DEBUG missing_plan_slots:", self.tracker.missing_plan_slots())
-                print("DEBUG tracker.phase:", self.tracker.phase)
+                print("DEBUG raw MRs:", raw_mrs)
+                for i, v in enumerate(validations):
+                    print(f"DEBUG MR[{i}] valid:", v.valid, "errors:", v.errors)
+                    print(f"DEBUG MR[{i}] normalized:", v.normalized_mr)
 
-            # 3) DM proposes action
-            proposed_action, proposed_arg, _ = self.dm(self.tracker, mr, last_action=last_action)
-            self.logger.info(f"DM proposed: {proposed_action}({proposed_arg})")
-            if DEBUG:
-                print("DEBUG DM proposed:", proposed_action, "arg:", proposed_arg)
+            # 3) Apply MR(s) to tracker
+            if len(mrs) == 1:
+                # ---- Single-MR path (keep existing behavior) ----
+                mr = mrs[0]
 
-            # 4) Policy enforces hard rules
-            action, arg, dbg = apply_policy(self.tracker, mr, proposed_action, proposed_arg)
-            if DEBUG:
-                print("DEBUG Policy final:", action, "arg:", arg, "reason:", dbg.get("policy_reason"))
+                intent, _, _ = self.tracker.creation(mr, self.history, update=True)
+                self.logger.info(f"Intent: {intent}")
 
-            self.logger.info(f"Policy final: {action}({arg}) | reason={dbg.get('policy_reason')}")
+                if DEBUG:
+                    print("DEBUG tracker.constraints:", self.tracker.constraints)
+                    print("DEBUG missing_plan_slots:", self.tracker.missing_plan_slots())
+                    print("DEBUG tracker.phase:", self.tracker.phase)
 
-            # 5) Execute action (domain services) and update tracker
-            payload = execute_action(action, arg, self.tracker, self.recipes, self.recipes_by_id)
+                # 4) DM proposes action
+                proposed_action, proposed_arg, _ = self.dm(self.tracker, mr, last_action=last_action)
+                self.logger.info(f"DM proposed: {proposed_action}({proposed_arg})")
+                if DEBUG:
+                    print("DEBUG DM proposed:", proposed_action, "arg:", proposed_arg)
 
-            # 6) NLG
-            reply = self.nlg(
-                action=action,
-                argument=arg,
-                tracker_state=self.tracker.to_state_dict(),
-                payload=payload,
-            )
+                # 5) Policy enforces hard rules
+                action, arg, dbg = apply_policy(self.tracker, mr, proposed_action, proposed_arg)
+                if DEBUG:
+                    print("DEBUG Policy final:", action, "arg:", arg, "reason:", dbg.get("policy_reason"))
+                self.logger.info(f"Policy final: {action}({arg}) | reason={dbg.get('policy_reason')}")
 
-            print(reply)
-            self.history.add_msg(reply, "assistant", action)
+                # 6) Execute action
+                payload = execute_action(action, arg, self.tracker, self.recipes, self.recipes_by_id)
 
-            last_action = action
+                # 7) NLG
+                reply = self.nlg(
+                    action=action,
+                    argument=arg,
+                    tracker_state=self.tracker.to_state_dict(),
+                    payload=payload,
+                )
+
+                print(reply)
+                self.history.add_msg(reply, "assistant", action)
+                last_action = action
+
+            else:
+                # ---- Multi-MR path (Turn Planner) ----
+                # Apply as one turn (multi-MR-safe pending_action semantics)
+                self.tracker.creation_multi(mrs, self.history, update=True)
+
+                if DEBUG:
+                    print("DEBUG tracker.constraints:", self.tracker.constraints)
+                    print("DEBUG missing_plan_slots:", self.tracker.missing_plan_slots())
+                    print("DEBUG tracker.phase:", self.tracker.phase)
+
+                # Plan + run deterministic steps
+                steps = plan_steps(self.tracker, mrs)
+
+                if DEBUG:
+                    print("DEBUG planned steps:", [(s.proposed_action, s.proposed_argument) for s in steps])
+
+                result = run_steps(
+                    tracker=self.tracker,
+                    steps=steps,
+                    apply_policy_fn=apply_policy,
+                    execute_action_fn=execute_action,
+                    nlg_fn=self.nlg,
+                    recipes=self.recipes,
+                    recipes_by_id=self.recipes_by_id,
+                )
+
+                if DEBUG:
+                    seq = [(e.final_action, e.final_argument) for e in result.executed_steps]
+                    print("DEBUG executed sequence:", seq)
+                    print("DEBUG stop_reason:", result.stop_reason)
+
+                reply = result.final_reply or ""
+                print(reply)
+                self.history.add_msg(reply, "assistant", "multi_turn")
+
+                # Keep last_action aligned with the last executed action (if any)
+                if result.executed_steps:
+                    last_action = result.executed_steps[-1].final_action
+                else:
+                    last_action = ""
+   
 
 
 def main():

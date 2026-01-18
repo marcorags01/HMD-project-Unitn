@@ -3,10 +3,10 @@
 Meal Kit Composer — NLU (LLM-based), Marina-style.
 
 Responsibilities:
-- Given user text, produce EXACTLY ONE MR in the flat JSON format:
+- Given user text, produce one or more MR in the flat JSON format:
     {"intent": "...", "slots": {...}}
 - Do not invent values; if missing, output null
-- Normalize using intents_schema.validate_mr
+- Normalize using intents_schema.normalize_mr
 - Return the normalized MR even if invalid (for robustness)
 
 Compatible with:
@@ -19,7 +19,7 @@ Compatible with:
 from __future__ import annotations
 
 import json
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Union, List
 
 from utils import generate, format_chat
 from intents_schema import INTENT_SLOTS, normalize_mr
@@ -38,10 +38,9 @@ def _safe_json(obj: Any) -> str:
 
 class NLU:
     """
-    Minimal LLM-based NLU that outputs one MR per user turn.
+    Minimal LLM-based NLU that outputs one or more MR per user turn.
 
     Design choices (aligned with your blueprint + current architecture):
-    - single intent only (no multi-intent splitting)
     - controlled vocab guidance via schema_hint
     - normalization via intents_schema.normalize_mr
     """
@@ -53,7 +52,7 @@ class NLU:
         self.args = args
         self.logger = logger
 
-    def __call__(self, user_text: str) -> Dict[str, Any]:
+    def __call__(self, user_text: str) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         # A compact but explicit schema hint helps LLM stay grounded.
         schema_hint = {
             "intents": list(INTENT_SLOTS.keys()),
@@ -66,20 +65,27 @@ class NLU:
                 "target_day": sorted(list(ALLOWED_DAYS)),
                 "refine_type": ["SWAP_DAY", "ADD_AVOID_ITEM", "REMOVE_AVOID_ITEM"],
                 "swap_value": "BEST_FIT",
+                "refine_mode": ["SUGGEST", "COMMIT"],
                 "menu_id": [1, 2],
                 "help_slot": [
                     "servings", "time_limit", "calorie_level", "avoid_items",
-                    "menu_id", "target_day", "refine_type", "value",
+                    "menu_id", "target_day", "refine_type", "value", "mode",
                     "all",
                 ],
                 "help_intent": ["plan", "select_menu", "inspect", "refine", "confirm"],
             },
     
-            "output_format": {"intent": "...", "slots": {"slot": "value_or_null"}},
+            "output_format": (
+                    "Either a single MR object: {\"intent\":\"...\",\"slots\":{...}} "
+                    "OR a JSON array of MR objects: [{\"intent\":\"...\",\"slots\":{...}}, ...]"
+                ),
+
             "rules": [
-                "Extract EXACTLY ONE intent.",
-                "Only fill slots that belong to that intent.",
-                "If a slot value is missing, set it to null.",
+                "Output MUST be valid JSON.",
+                "Output MUST be either a single MR object OR a JSON array of MR objects.",
+                "If the user expresses multiple distinct requests that map to different intents, output multiple MRs in user order.",
+                "Only fill slots that belong to each MR's intent.",
+                "If a slot value is missing, set it to null (except plan.avoid_items may be [] if explicitly none).",
                 "Do not invent new information, but DO normalize synonyms/typos into the controlled values.",
                 "Use RECENT_TURNS to resolve short answers (e.g., '1', 'fast', 'yes').",
                 "Return ONLY JSON.",
@@ -88,15 +94,18 @@ class NLU:
 
         system_prompt = (
             "You are the NLU component for a Meal Kit Composer assistant.\n"
-            "Task: extract EXACTLY ONE intent and its slot-value pairs from the user's text.\n"
+            "Task: extract ONE OR MORE intents and their slot-value pairs from the user's text.\n"
             "\n"
             "Core rules:\n"
-            "- Output MUST be valid JSON and MUST match EXACTLY: {\"intent\":\"...\",\"slots\":{...}}\n"
-            "- Extract EXACTLY ONE intent.\n"
-            "- Only fill slots that belong to that intent.\n"
+            "- Output MUST be valid JSON.\n"
+            "- Output MUST be either:\n"
+            "  (A) a single MR object: {\"intent\":\"...\",\"slots\":{...}}\n"
+            "  (B) a JSON array of MR objects: [{\"intent\":\"...\",\"slots\":{...}}, ...]\n"
+            "- If the user expresses multiple distinct requests that map to different intents, output multiple MRs in user order.\n"
+            "- Only fill slots that belong to each MR's intent.\n"
             "- If a slot value is missing, output null.\n"
             "- Do not invent values or add defaults that the user did not state.\n"
-            "- Return ONLY the JSON object. No extra text.\n"
+            "- Return ONLY JSON. No extra text.\n"
             "\n"
             "Dialogue context rules (use RECENT_TURNS):\n"
             "- If the last assistant message asked for a specific detail (e.g., servings/time/calories/menu choice/day),\n"
@@ -115,6 +124,10 @@ class NLU:
             "  If the user explicitly indicates no restrictions (e.g., 'none', 'no allergies', 'nothing to avoid', 'I eat everything'),\n"
             "  output an EMPTY LIST: [] (do NOT output null).\n"
             "\n"
+            "Refine mode rule (for refine_type=SWAP_DAY):\n"
+            "- If the user asks to suggest/propose an alternative, set slots.mode to \"SUGGEST\".\n"
+            "- If the user explicitly asks to swap/change/replace, set slots.mode to \"COMMIT\".\n"
+            "\n"
             "Examples (illustrative, not exhaustive):\n"
             "- User: \"Plan my meals for two people, fast, medium calories, no allergies.\" -> "
             "{\"intent\":\"plan\",\"slots\":{\"servings\":2,\"time_limit\":\"FAST\",\"calorie_level\":\"MED\",\"avoid_items\":[]}}\n"
@@ -122,6 +135,21 @@ class NLU:
             "{\"intent\":\"plan\",\"slots\":{\"avoid_items\":[]}}\n"
             "- User: \"Show me Tuesday.\" -> "
             "{\"intent\":\"inspect\",\"slots\":{\"target_day\":\"Tue\"}}\n"
+            "- User: \"Avoid nuts and show me Tuesday.\" -> "
+            "["
+            "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"ADD_AVOID_ITEM\",\"target_day\":null,\"value\":\"nuts\",\"mode\":null}},"
+            "{\"intent\":\"inspect\",\"slots\":{\"target_day\":\"Tue\"}}"
+            "]\n"
+            "- User: \"Option 1 and confirm.\" -> "
+            "["
+            "{\"intent\":\"select_menu\",\"slots\":{\"menu_id\":1}},"
+            "{\"intent\":\"confirm\",\"slots\":{}}"
+            "]\n"
+            "- User: \"Suggest an alternative for Tuesday and show Wednesday.\" -> "
+            "["
+            "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Tue\",\"value\":\"BEST_FIT\",\"mode\":\"SUGGEST\"}},"
+            "{\"intent\":\"inspect\",\"slots\":{\"target_day\":\"Wed\"}}"
+            "]\n"
             "\n"
             "Special help intent rule:\n"
             "- If the user asks what values/options are allowed/supported for something, use intent='help'\n"
@@ -154,19 +182,27 @@ class NLU:
         nlu_text = format_chat(self.args, system_prompt, user_payload, tokenizer=self.tokenizer)
 
         self.logger.debug(f"NLU input:\n{nlu_text}")
+        self.logger.debug(f"NLU prompt type={type(nlu_text)}")
+
 
         inputs = self.tokenizer(nlu_text, return_tensors="pt").to(self.model.device)
         out = generate(self.model, inputs, self.tokenizer, self.args).strip()
 
         self.logger.debug(f"NLU raw output: {out}")
 
-        mr = parsing_json(out)
-        if not mr or not isinstance(mr, dict):
-            # Hard fallback: keep pipeline alive
-            return {"intent": "out_of_domain", "slots": {}}
+        obj = parsing_json(out)
 
-        nm = normalize_mr(mr)
-        # Optional debug (normalization only; validation happens downstream)
-        self.logger.debug(f"NLU normalized MR: {nm}")
-        return nm
+        if isinstance(obj, dict):
+            nm = normalize_mr(obj)
+            self.logger.debug(f"NLU normalized MR: {nm}")
+            return nm
+
+        if isinstance(obj, list):
+            mrs = [normalize_mr(x) for x in obj if isinstance(x, dict)]
+            if mrs:
+                self.logger.debug(f"NLU normalized MRs: {mrs}")
+                return mrs
+
+        return {"intent": "out_of_domain", "slots": {}}
+        
 
