@@ -408,31 +408,41 @@ class Tracker:
 
     def select_next_pending_index(self) -> Optional[int]:
         """
-        Same as select_next_pending_mr() but returns the index of the selected MR
-        in pending_mrs. Returns None if a synthetic MR should be used.
+        Returns index in pending_mrs of the MR to handle next.
+        None means: synthesize an MR (e.g., request missing plan slots).
         """
         if not self.pending_mrs:
             return None
 
+        # 1) If plan is incomplete, handle plan MRs (newest-first).
         if self.missing_plan_slots():
-            for i, mr in enumerate(self.pending_mrs):
+            for i in range(len(self.pending_mrs) - 1, -1, -1):
+                mr = self.pending_mrs[i]
                 if str(mr.get("intent", "")).strip() == "plan":
                     return i
             return None  # synthetic plan
 
+        # 2) If we must select a menu, handle select_menu MRs (newest-first).
         if self.phase == "AWAITING_MENU_SELECTION" or (self.menus_exist() and not self.has_active_menu()):
-            for i, mr in enumerate(self.pending_mrs):
+            for i in range(len(self.pending_mrs) - 1, -1, -1):
+                mr = self.pending_mrs[i]
                 if str(mr.get("intent", "")).strip() == "select_menu":
                     return i
             return None  # synthetic select_menu
 
-        priority = ["refine", "inspect", "confirm", "help", "out_of_domain"]
+        # 3) Otherwise, prioritize by intent, but pick newest matching MR.
+        # Confirm should outrank refine; otherwise confirm is effectively unusable
+        # as soon as any refine exists in the backlog.
+        priority = ["confirm", "inspect", "refine", "help", "out_of_domain"]
         for p in priority:
-            for i, mr in enumerate(self.pending_mrs):
+            for i in range(len(self.pending_mrs) - 1, -1, -1):
+                mr = self.pending_mrs[i]
                 if str(mr.get("intent", "")).strip() == p:
                     return i
 
-        return 0
+        # 4) Fallback: newest MR, not oldest.
+        return len(self.pending_mrs) - 1
+
     
 
     def _intent_of(self, mr: Dict[str, Any]) -> str:
