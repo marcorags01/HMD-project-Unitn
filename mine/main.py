@@ -302,6 +302,7 @@ class Dialogue:
         self.logger = logger
 
         self.recipes, self.recipes_by_id = load_recipes(recipes_path)
+        self.turn_id = 0
 
     def start(self):
         starting = PROMPTS.get("START", "Hi. How can I help you?")
@@ -330,6 +331,7 @@ class Dialogue:
             if not raw:
                 continue
 
+            self.turn_id += 1
             self.history.add_msg(user_text, "user", "input")
 
             # 1) NLU -> MR (dict or list[dict])
@@ -353,6 +355,9 @@ class Dialogue:
             validations = [validate_mr(m) for m in raw_mrs]
             mrs = [v.normalized_mr for v in validations]  # normalized for tracker/policy/execution
 
+            for m in mrs:
+                m["_turn_id"] = self.turn_id
+
             if DEBUG:
                 print("DEBUG raw MRs:", raw_mrs)
                 for i, v in enumerate(validations):
@@ -372,6 +377,12 @@ class Dialogue:
                 self.tracker.pending_mrs = [m for m in self.tracker.pending_mrs if m.get("intent") != "plan"]
                 self.tracker.pending_mrs.append(last_plan)
 
+            keep_from = self.turn_id - 1
+            self.tracker.pending_mrs = [
+                m for m in self.tracker.pending_mrs
+                if int(m.get("_turn_id", self.turn_id)) >= keep_from
+            ]
+
             self.tracker.prune_pending()
 
             if DEBUG:
@@ -383,15 +394,19 @@ class Dialogue:
             # 4) Select ONE MR to address now
             idx = self.tracker.select_next_pending_index()
             if idx is None:
-                # synthetic MR, decide which one based on state
                 if self.tracker.missing_plan_slots():
                     selected_mr = {"intent": "plan", "slots": {}}
-                elif self.tracker.phase == "AWAITING_MENU_SELECTION" or (self.tracker.menus_exist() and not self.tracker.has_active_menu()):
+                elif self.tracker.phase == "AWAITING_MENU_SELECTION" or (
+                    self.tracker.menus_exist() and not self.tracker.has_active_menu()
+                ):
                     selected_mr = {"intent": "select_menu", "slots": {}}
                 else:
                     selected_mr = {"intent": "out_of_domain", "slots": {}}
+
+                selected_mr["_turn_id"] = self.turn_id
             else:
                 selected_mr = self.tracker.pending_mrs[idx]
+
             
             selected_mr_snapshot = copy.deepcopy(selected_mr)
                 
@@ -416,6 +431,18 @@ class Dialogue:
             # 8) Mutate tracker based on executed action
             self.tracker.update_pending_after_action(selected_mr_snapshot, action, payload)
 
+            if idx is not None:
+                for j, m in enumerate(self.tracker.pending_mrs):
+                    if m == selected_mr_snapshot:
+                        self.tracker.pending_mrs.pop(j)
+                        break
+
+            keep_from = self.turn_id - 1
+            self.tracker.pending_mrs = [
+                m for m in self.tracker.pending_mrs
+                if int(m.get("_turn_id", self.turn_id)) >= keep_from
+            ]
+            
             # 9) NLG
             reply = self.nlg(
                 action=action,
