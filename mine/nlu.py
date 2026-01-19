@@ -213,7 +213,7 @@ class NLU:
             nlu_text = str(nlu_text)
 
         # Tokenize as a batch of size 1 to avoid encode_batch type edge-cases
-        enc = self.tokenizer([nlu_text], return_tensors="pt")
+        enc = self.tokenizer(nlu_text, return_tensors="pt")
         inputs = enc.to(self.model.device)
 
         print("DEBUG tokenizer input type:", type(nlu_text), "len:", len(nlu_text))

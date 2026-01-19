@@ -412,7 +412,7 @@ class NLG:
         elif not isinstance(nlg_text, str):
             nlg_text = str(nlg_text)
 
-        enc = self.tokenizer([nlg_text], return_tensors="pt")
+        enc = self.tokenizer(nlg_text, return_tensors="pt")
         inputs = enc.to(self.model.device)
 
 
