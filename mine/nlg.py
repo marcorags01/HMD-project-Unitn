@@ -407,7 +407,15 @@ class NLG:
 
         self.logger.debug(f"NLG input:\n{nlg_text}")
 
-        inputs = self.tokenizer(nlg_text, return_tensors="pt").to(self.model.device)
+        if nlg_text is None:
+            nlg_text = ""
+        elif not isinstance(nlg_text, str):
+            nlg_text = str(nlg_text)
+
+        enc = self.tokenizer([nlg_text], return_tensors="pt")
+        inputs = enc.to(self.model.device)
+
+
         out = generate(self.model, inputs, self.tokenizer, self.args).strip()
 
         out = _strip_accidental_action_echo(out)

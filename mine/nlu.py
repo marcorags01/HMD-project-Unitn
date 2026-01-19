@@ -188,7 +188,21 @@ class NLU:
 
         print("DEBUG nlu_text type:", type(nlu_text))
         print("DEBUG nlu_text head:", repr(nlu_text)[:200])
-        inputs = self.tokenizer(nlu_text, return_tensors="pt").to(self.model.device)
+        
+        # ---- Force a guaranteed TextInputSequence and batch-of-1 for fast tokenizers ----
+        if nlu_text is None:
+            nlu_text = ""
+        elif not isinstance(nlu_text, str):
+            nlu_text = str(nlu_text)
+
+        # Tokenize as a batch of size 1 to avoid encode_batch type edge-cases
+        enc = self.tokenizer([nlu_text], return_tensors="pt")
+        inputs = enc.to(self.model.device)
+
+        print("DEBUG tokenizer input type:", type(nlu_text), "len:", len(nlu_text))
+        print("DEBUG tokenizer input first 80:", repr(nlu_text[:80]))
+
+
         out = generate(self.model, inputs, self.tokenizer, self.args).strip()
 
         self.logger.debug(f"NLU raw output: {out}")

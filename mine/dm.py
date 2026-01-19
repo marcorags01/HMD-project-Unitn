@@ -196,8 +196,16 @@ class DM:
         self.logger.debug(f"DM input:\n{dm_text}")
 
         # 5) Generate
-        dm_inputs = self.tokenizer(dm_text, return_tensors="pt").to(self.model.device)
-        dm_output = generate(self.model, dm_inputs, self.tokenizer, self.args).strip()
+        if dm_text is None:
+            dm_text = ""
+        elif not isinstance(dm_text, str):
+            dm_text = str(dm_text)
+
+        enc = self.tokenizer([dm_text], return_tensors="pt")
+        inputs = enc.to(self.model.device)
+
+
+        dm_output = generate(self.model, inputs, self.tokenizer, self.args).strip()
 
         # Many models may add trailing newlines; keep first non-empty line if present
         dm_output_line = ""
