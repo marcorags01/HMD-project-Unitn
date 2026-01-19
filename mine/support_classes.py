@@ -194,6 +194,7 @@ class Tracker:
     last_referenced_day: Optional[str] = None
     pending_action: Optional[Dict[str, Any]] = None
     pending_mrs: List[Dict[str, Any]] = field(default_factory=list)
+    turn_id: int = 0
 
     # Optional: keep last MR for debugging/logging
     last_user_mr: Optional[Dict[str, Any]] = None
@@ -353,6 +354,7 @@ class Tracker:
         self.last_user_mr = None
         self.pending_action = None
         self.pending_mrs = []
+        self.turn_id = 0
 
     def enqueue_mrs(self, mrs: List[Dict[str, Any]]) -> None:
         """
@@ -405,6 +407,79 @@ class Tracker:
             pruned.append(mr)
 
         self.pending_mrs = pruned
+
+    def _stamp_turn(self, mrs: List[Dict[str, Any]], turn_id: int) -> None:
+        for m in mrs:
+            if isinstance(m, dict):
+                m["_turn_id"] = turn_id
+
+    def prune_pending_by_turn(self, keep_last_n_turns: int = 2) -> None:
+        """
+        Keep only MRs from the current turn and (optionally) the immediately previous turn.
+        keep_last_n_turns=2 matches your prior keep_from = turn_id - 1 behavior.
+        """
+        keep_from = self.turn_id - (keep_last_n_turns - 1)
+        self.pending_mrs = [
+            m for m in self.pending_mrs
+            if int(m.get("_turn_id", self.turn_id)) >= keep_from
+        ]
+
+    def ingest_turn(self, mrs: List[Dict[str, Any]], history: Optional[History] = None) -> None:
+        """
+        Tracker-owned: advances turn, stamps, applies to state, enqueues, and prunes.
+        This is the ONLY place that should touch pending_mrs besides update_pending_after_action().
+        """
+        # 1) advance turn
+        self.turn_id += 1
+
+        # 2) stamp MRs
+        self._stamp_turn(mrs, self.turn_id)
+
+        # 3) apply MRs to state (single-turn semantics)
+        self.creation_multi(mrs, history=history, update=True)
+
+        # 4) enqueue
+        self.enqueue_mrs(mrs)
+
+        # 5) keep only the most recent pending plan MR (your old main.py logic)
+        new_plans = [m for m in self.pending_mrs if str(m.get("intent", "")).strip() == "plan"]
+        if new_plans:
+            last_plan = new_plans[-1]
+            self.pending_mrs = [m for m in self.pending_mrs if str(m.get("intent", "")).strip() != "plan"]
+            self.pending_mrs.append(last_plan)
+
+        # 6) prune by recency window
+        self.prune_pending_by_turn(keep_last_n_turns=2)
+
+        # 7) conservative prune (existing)
+        self.prune_pending()
+
+    
+    def select_next_mr(self) -> Dict[str, Any]:
+        """
+        Returns the next MR to handle.
+        If None would have been returned by select_next_pending_index(), synthesize an MR
+        based on current state. Always stamps _turn_id for consistency.
+        """
+        idx = self.select_next_pending_index()
+        if idx is None:
+            if self.missing_plan_slots():
+                mr = {"intent": "plan", "slots": {}}
+            elif self.phase == "AWAITING_MENU_SELECTION" or (self.menus_exist() and not self.has_active_menu()):
+                mr = {"intent": "select_menu", "slots": {}}
+            else:
+                mr = {"intent": "out_of_domain", "slots": {}}
+            mr["_turn_id"] = self.turn_id
+            return mr
+
+        # queued MR
+        mr = self.pending_mrs[idx]
+        # ensure it's stamped (defensive)
+        if "_turn_id" not in mr:
+            mr["_turn_id"] = self.turn_id
+        return mr
+
+
 
     def select_next_pending_index(self) -> Optional[int]:
         """
@@ -481,86 +556,79 @@ class Tracker:
         selected_mr should be the SNAPSHOT you selected in main (deepcopy),
         so equality removal works even if tracker state mutated.
         """
-        action = (action or "").strip().lower()
-        intent = self._intent_of(selected_mr)
+        try:
+            action = (action or "").strip().lower()
+            intent = self._intent_of(selected_mr)
 
-        # 0) If we asked for info, keep everything (we're waiting for user input).
-        if action == "request_info":
-            return
+            # 0) If we asked for info, keep everything (we're waiting for user input).
+            if action == "request_info":
+                pass
 
-        # 1) Fallback: remove only out_of_domain, keep the rest.
-        if action == "fallback":
-            if intent == "out_of_domain":
-                self.remove_pending(selected_mr)
-            return
+            # 1) Fallback: remove only out_of_domain, keep the rest.
+            elif action == "fallback":
+                if intent == "out_of_domain":
+                    self.remove_pending(selected_mr)
 
-        # 2) propose_menus: goal progressed, clear plan requests.
-        if action == "propose_menus":
-            # remove all pending plan MRs
-            self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "plan"]
-            # optional: if menus are now proposed, old select_menu prompts may become stale/noisy
-            # keep them if you want; or clear them and let user respond naturally.
-            # self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "select_menu"]
-            return
+            # 2) propose_menus: goal progressed, clear plan requests.
+            elif action == "propose_menus":
+                self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "plan"]
+                # optional: clear select_menu too if you want
+                # self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "select_menu"]
 
-        # 3) set_active_menu: if it worked, clear select_menu MRs
-        if action == "set_active_menu":
-            ok = bool((payload or {}).get("ok", False))
-            if ok:
-                self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "select_menu"]
+            # 3) set_active_menu: if it worked, clear select_menu MRs
+            elif action == "set_active_menu":
+                ok = bool((payload or {}).get("ok", False))
+                if ok:
+                    self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "select_menu"]
+                # else: keep as-is
+
+            # 4) show_day: if succeeded, remove the inspect MR we handled
+            elif action == "show_day":
+                if (payload or {}).get("details") is not None and not (payload or {}).get("error"):
+                    if intent == "inspect":
+                        self.remove_pending(selected_mr)
+                    else:
+                        self._remove_first_by_intent("inspect")
+
+            # 5) update_avoid: if succeeded, remove refine MR we handled (best-effort)
+            elif action == "update_avoid":
+                if not (payload or {}).get("error"):
+                    if intent == "refine":
+                        self.remove_pending(selected_mr)
+                    else:
+                        self._remove_first_by_intent("refine")
+
+            # 6) suggest_swap_day: if suggested=True, consume the refine MR
+            elif action == "suggest_swap_day":
+                if bool((payload or {}).get("suggested", False)) and not (payload or {}).get("error"):
+                    if intent == "refine":
+                        self.remove_pending(selected_mr)
+                    else:
+                        self._remove_first_by_intent("refine")
+
+            # 7) swap_day: if swapped=True, consume a refine MR (swap-type) or selected
+            elif action == "swap_day":
+                if bool((payload or {}).get("swapped", False)) and not (payload or {}).get("error"):
+                    if intent == "refine":
+                        self.remove_pending(selected_mr)
+                    else:
+                        self._remove_first_by_intent("refine")
+
+            # 8) confirm_plan: if succeeded, clear confirm (and optionally clear all)
+            elif action == "confirm_plan":
+                if (payload or {}).get("shopping_list") is not None and not (payload or {}).get("error"):
+                    self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "confirm"]
+                    # optional: clear all
+                    # self.pending_mrs.clear()
+
+            # 9) Default: if we successfully did something, remove the MR we tried to handle
             else:
-                # if invalid selection, keep the MR (user still needs to choose)
-                return
-            return
+                self.remove_pending(selected_mr)
 
-        # 4) show_day: if succeeded, remove the inspect MR we handled
-        if action == "show_day":
-            if (payload or {}).get("details") is not None and not (payload or {}).get("error"):
-                # remove the selected MR if it was inspect; otherwise remove first inspect
-                if intent == "inspect":
-                    self.remove_pending(selected_mr)
-                else:
-                    self._remove_first_by_intent("inspect")
-            return
-
-        # 5) update_avoid: if succeeded, remove refine MR we handled (best-effort)
-        if action == "update_avoid":
-            if not (payload or {}).get("error"):
-                if intent == "refine":
-                    self.remove_pending(selected_mr)
-                else:
-                    self._remove_first_by_intent("refine")
-            return
-
-        # 6) suggest_swap_day: if suggested=True, consume the refine MR (recommend consume)
-        if action == "suggest_swap_day":
-            if bool((payload or {}).get("suggested", False)) and not (payload or {}).get("error"):
-                if intent == "refine":
-                    self.remove_pending(selected_mr)
-                else:
-                    self._remove_first_by_intent("refine")
-            return
-
-        # 7) swap_day: if swapped=True, consume a refine MR (swap-type) or selected
-        if action == "swap_day":
-            if bool((payload or {}).get("swapped", False)) and not (payload or {}).get("error"):
-                if intent == "refine":
-                    self.remove_pending(selected_mr)
-                else:
-                    self._remove_first_by_intent("refine")
-            return
-
-        # 8) confirm_plan: if succeeded, clear confirm (and optionally clear all)
-        if action == "confirm_plan":
-            if (payload or {}).get("shopping_list") is not None and not (payload or {}).get("error"):
-                self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "confirm"]
-                # optional: clear all pending because flow is complete
-                # self.pending_mrs.clear()
-            return
-
-        # 9) Default: if we successfully did something, remove the MR we tried to handle
-        # (conservative; avoids repeated re-processing)
-        self.remove_pending(selected_mr)
+        finally:
+            # Always enforce recency window + conservative pruning
+            self.prune_pending_by_turn(keep_last_n_turns=2)
+            self.prune_pending()
 
 
 
