@@ -88,6 +88,7 @@ class NLU:
                 "If a slot value is missing, set it to null (except plan.avoid_items may be [] if explicitly none).",
                 "Do not invent new information, but DO normalize synonyms/typos into the controlled values.",
                 "Use RECENT_TURNS to resolve short answers (e.g., '1', 'fast', 'yes').",
+                "When extracting avoid_items, always output a JSON list (possibly empty), never a single string.",
                 "Return ONLY JSON.",
             ],
         }
@@ -111,7 +112,15 @@ class NLU:
             "- If the last assistant message asked for a specific detail (e.g., servings/time/calories/menu choice/day),\n"
             "  and the user replies with only a value (e.g., \"1\", \"two\", \"fast\", \"Tuesday\", \"menu 1\", \"yes\"),\n"
             "  interpret it as answering that question and fill the corresponding slot.\n"
-            "- If the user replies \"yes/ok/fine\" after a confirmation request, interpret as intent='confirm'.\n"
+            "- If RECENT_TURNS shows the assistant is collecting PLAN details (servings, time_limit, calorie_level, avoid_items),\n"
+            "  then interpret the user’s reply as intent=plan that fills ONLY the asked slot(s), even if the text contains verbs like ‘avoid’.\n"
+            "- If the user expresses dislike/preference about a weekday meal (e.g., \"don’t like Friday\", \"change Friday\", \"replace Friday meal’), \n"
+               "interpret as intent='refine' with refine_type='SWAP_DAY' and target_day set to that weekday; set value='BEST_FIT'. \n"
+               "Set mode='SUGGEST' unless they explicitly say change/swap/replace now (then mode='COMMIT'). \n"
+               "Do NOT treat weekdays as avoid_items. \n"
+            "- Interpret intent=\"confirm\" ONLY if the user explicitly requests confirmation/finalization (e.g., \"confirm\", \"finalize\", \"generate shopping list\")\n"
+            "  OR if the last assistant message asked an explicit yes/no confirmation question and the user replies \"yes\".\n"
+            "  Do NOT treat generic acknowledgements (\"ok\", \"fine\", \"thanks\") as confirm.\n"
             "\n"
             "Canonicalization (normalize user language into controlled values):\n"
             "- servings: output an integer 1..6 (map words one/two/three/four/five/six to 1..6).\n"
@@ -123,6 +132,8 @@ class NLU:
             "- avoid_items: output a list of strings from the controlled vocabulary.\n"
             "  If the user explicitly indicates no restrictions (e.g., 'none', 'no allergies', 'nothing to avoid', 'I eat everything'),\n"
             "  output an EMPTY LIST: [] (do NOT output null).\n"
+            "  If the user lists multiple avoid items in one turn (e.g., \"meat and nuts\", \"meat, nuts, and dairy\"), output ALL items as a list in the same order.\n"
+            "  Always output avoid_items as a JSON list; never a single string.\n"
             "\n"
             "Refine mode rule (for refine_type=SWAP_DAY):\n"
             "- If the user asks to suggest/propose an alternative, set slots.mode to \"SUGGEST\".\n"
@@ -135,11 +146,17 @@ class NLU:
             "{\"intent\":\"plan\",\"slots\":{\"avoid_items\":[]}}\n"
             "- User: \"Show me Tuesday.\" -> "
             "{\"intent\":\"inspect\",\"slots\":{\"target_day\":\"Tue\"}}\n"
-            "- User: \"Avoid nuts and show me Tuesday.\" -> "
+            "- Assistant asked about avoid items. User: \"avoid meat and nuts\" -> "
+            "{\"intent\":\"plan\",\"slots\":{\"avoid_items\":[\"meat\",\"nuts\"]}}\n"
+            "- User: \"Also avoid nuts and show me Tuesday.\" -> "
             "["
             "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"ADD_AVOID_ITEM\",\"target_day\":null,\"value\":\"nuts\",\"mode\":null}},"
             "{\"intent\":\"inspect\",\"slots\":{\"target_day\":\"Tue\"}}"
             "]\n"
+            "- User: \"I don't like Friday\" -> "
+            "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Fri\",\"value\":\"BEST_FIT\",\"mode\":\"SUGGEST\"}}\n"
+            "- User: \"Change Friday\" -> "
+            "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Fri\",\"value\":\"BEST_FIT\",\"mode\":\"COMMIT\"}}\n"
             "- User: \"Option 1 and confirm.\" -> "
             "["
             "{\"intent\":\"select_menu\",\"slots\":{\"menu_id\":1}},"

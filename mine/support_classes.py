@@ -21,11 +21,10 @@ State schema (minimal):
 """
 
 from __future__ import annotations
-
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Literal
 import copy
-
+import re
 
 Phase = Literal["AWAITING_PLAN", "AWAITING_MENU_SELECTION", "ACTIVE_MENU", "CONFIRMED"]
 
@@ -76,31 +75,58 @@ def normalize_day(x: Any) -> Optional[str]:
 
 
 
+_FILLER_PREFIX = re.compile(r"^\s*(avoid|no|without)\b\s*", re.IGNORECASE)
+
 def normalize_avoid_items(x: Any) -> Optional[List[str]]:
     """
     Accept:
     - list[str]
-    - comma-separated str
-    - single str
-    Returns a list[str] (possibly empty) or None if nullish.
+    - str (single, comma-separated, or conjunction-separated)
+    - other scalar -> str
+    Returns:
+    - list[str] (possibly empty) or None if nullish.
+    Notes:
+    - Conservative: only splits/cleans; does not infer new items.
     """
     if is_nullish(x):
         return None
 
-    raw: List[str] = []
+    # 1) Normalize input into a flat list of text chunks
+    chunks: List[str] = []
     if isinstance(x, list):
-        raw = [str(it).strip() for it in x]
+        chunks = [str(it).strip() for it in x if not is_nullish(it)]
     elif isinstance(x, str):
-        # try splitting by commas
-        raw = [p.strip() for p in x.split(",")] if "," in x else [x.strip()]
+        chunks = [x.strip()]
     else:
-        raw = [str(x).strip()]
+        chunks = [str(x).strip()]
 
     items: List[str] = []
-    for it in raw:
-        if not it:
+    seen = set()
+
+    for chunk in chunks:
+        if not chunk:
             continue
-        items.append(it.lower())
+
+        # 2) Remove leading filler (only at the start)
+        chunk = _FILLER_PREFIX.sub("", chunk).strip()
+
+        if not chunk:
+            continue
+
+        # 3) Split on separators and conjunctions.
+        #    - commas/semicolons/slashes/&
+        #    - the word 'and' as a conjunction
+        parts = re.split(r"\s*(?:,|;|/|&|\band\b)\s*", chunk, flags=re.IGNORECASE)
+
+        for p in parts:
+            p = p.strip().lower()
+            if not p:
+                continue
+
+            # 4) De-dupe while preserving order
+            if p not in seen:
+                seen.add(p)
+                items.append(p)
 
     return items
 
