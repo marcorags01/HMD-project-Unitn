@@ -29,6 +29,7 @@ ALLOWED_DM_ACTIONS = {
     "propose_menus",
     "set_active_menu",
     "show_day",
+    "show_week",
     "suggest_swap_day",
     "swap_day",
     "update_avoid",
@@ -84,8 +85,14 @@ class DM:
           Suggested order: servings -> time_limit -> calorie_level -> avoid_items.
         - If the PLAN is complete and menus are not yet proposed (no menus exist yet), output propose_menus().
         - If menus are proposed but no active menu is selected, do not show/swap/update/confirm; ask for the menu choice with request_info(menu_id).
+        - If the selected MR intent is show_week:
+          * If an active menu exists, output show_week().
+          * Else if menus exist but no active menu is selected, output request_info(menu_id).
+          * Else if the PLAN is incomplete, output request_info(<one_missing_item>).
+          * Else (PLAN complete but no menus yet), output propose_menus().
         - If an active menu exists:
         * show_day(target_day) for "what's on Tue" / "show Tue"
+        * show_week() when the user asks to see the whole weekly plan/menu again (week overview).
         * suggest_swap_day(target_day) when the user asks to "suggest/propose an alternative" for a day
             (this must NOT commit the change; the user must explicitly confirm)
         * swap_day(target_day) only when the user explicitly asks to swap/change a day

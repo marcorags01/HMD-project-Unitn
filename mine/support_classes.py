@@ -38,7 +38,7 @@ ALLOWED_AVOID_ITEMS = {
     "nuts", "dairy", "gluten", "soy", "egg", "sesame", "fish", "shellfish", "meat"
 }
 
-POSSIBLE_INTENTS = {"plan", "select_menu", "inspect", "refine", "confirm", "help", "out_of_domain"}
+POSSIBLE_INTENTS = {"plan", "select_menu", "inspect", "show_week", "refine", "confirm", "help", "out_of_domain"}
 
 
 def is_nullish(x: Any) -> bool:
@@ -307,6 +307,8 @@ class Tracker:
             return 4
         if intent == "confirm":
             return 0
+        if intent == "show_week":
+            return 0
         return 0
 
     # ------------------------- state inspection -----------------------------
@@ -534,7 +536,7 @@ class Tracker:
         # 3) Otherwise, prioritize by intent, but pick newest matching MR.
         # Confirm should outrank refine; otherwise confirm is effectively unusable
         # as soon as any refine exists in the backlog.
-        priority = ["confirm", "inspect", "refine", "help", "out_of_domain"]
+        priority = ["confirm", "show_week", "inspect", "refine", "help", "out_of_domain"]
         for p in priority:
             for i in range(len(self.pending_mrs) - 1, -1, -1):
                 mr = self.pending_mrs[i]
@@ -615,6 +617,14 @@ class Tracker:
                         self.remove_pending(selected_mr)
                     else:
                         self._remove_first_by_intent("inspect")
+
+            elif action == "show_week":
+                if not (payload or {}).get("error"):
+                    if intent == "show_week":
+                        self.remove_pending(selected_mr)
+                    else:
+                        self._remove_first_by_intent("show_week")
+
 
             # 5) update_avoid: if succeeded, remove refine MR we handled (best-effort)
             elif action == "update_avoid":
@@ -735,6 +745,10 @@ class Tracker:
                 self.last_referenced_day = day
 
             return count_provided
+        
+        if intent == "show_week":
+            return 0
+
 
         if intent == "confirm":
             return 0

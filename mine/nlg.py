@@ -46,6 +46,7 @@ General behavior:
 - Ask for only one missing detail at a time.
 - If the user confirms something (“yes”, “ok”, “that’s fine”), acknowledge and proceed naturally.
 - Use bullet points when presenting options or lists, but do not alter the provided blocks.
+- Do NOT repeat or summarize previous day details unless the action is show_day or the user explicitly asked to repeat them.
 """
 
 
@@ -67,6 +68,50 @@ def _strip_accidental_action_echo(text: str) -> str:
         # Drop first line, keep the rest (can be multi-line).
         return "\n".join(lines[1:]).strip() if len(lines) > 1 else ""
     return text.strip()
+
+
+_NEG_RE = re.compile(r"\b(no|no thanks|nah|nope|don't|do not|keep it|leave it|i don't want)\b", re.IGNORECASE)
+
+def _last_user_and_assistant_from_recent(recent: str) -> tuple[str, str]:
+    """
+    Best-effort extraction of the most recent user and assistant messages from `recent_turns`.
+    Works if recent_turns uses lines prefixed with 'user:' / 'assistant:'.
+    If the format differs, it falls back to heuristic scanning.
+    """
+    if not recent:
+        return "", ""
+
+    # Preferred: explicit prefixes
+    user_msgs = re.findall(r"(?:^|\n)user:\s*(.*)", recent, flags=re.IGNORECASE)
+    asst_msgs = re.findall(r"(?:^|\n)assistant:\s*(.*)", recent, flags=re.IGNORECASE)
+
+    last_user = user_msgs[-1].strip() if user_msgs else ""
+    last_asst = asst_msgs[-1].strip() if asst_msgs else ""
+
+    # Heuristic fallback: take last non-empty line(s)
+    if not last_user or not last_asst:
+        lines = [ln.strip() for ln in recent.splitlines() if ln.strip()]
+        # If we cannot parse roles, at least return the last line as "user"
+        if lines:
+            last_user = last_user or lines[-1]
+            # and try to find a prior line that contains the swap question
+            for ln in reversed(lines[:-1]):
+                if "Do you want me to swap" in ln:
+                    last_asst = ln
+                    break
+
+    return last_user, last_asst
+
+
+def _extract_swap_day_from_text(text: str) -> str:
+    """
+    Extract Mon/Tue/Wed/Thu/Fri if present.
+    """
+    m = re.search(r"\bswap\s+(Mon|Tue|Wed|Thu|Fri)\b", text)
+    if m:
+        return m.group(1)
+    return ""
+
 
 # ------------------------- Deterministic renderers -------------------------
 
@@ -181,6 +226,52 @@ def _render_menus(menu1_pretty: Dict[str, str], menu2_pretty: Dict[str, str]) ->
         "Which option do you prefer—1 or 2?"
     )
 
+def _render_week_overview(payload: Dict[str, Any], tracker_state: Dict[str, Any]) -> str:
+    """
+    Compact week view (Mon–Fri), similar in spirit to menu options:
+    day + recipe title + calorie level + prep time + avoid items (and optional conflicts).
+    """
+    rows = payload.get("week_overview") or []
+    if not isinstance(rows, list) or not rows:
+        return "I couldn’t show the weekly plan. Do you want option 1 or option 2?"
+
+    cal_map = {"LOW": "Lighter", "MED": "Balanced", "HIGH": "More filling"}
+
+    header = "Here’s your week plan (Mon–Fri):\n\n" + _fmt_constraints(tracker_state) + "\n\n"
+
+    lines: list[str] = []
+    for r in rows:
+        if not isinstance(r, dict):
+            continue
+
+        day = str(r.get("day", "") or "").strip()
+        title = str(r.get("title", "") or "").strip()
+
+        time_min = r.get("time_min", None)
+        cal = str(r.get("calorie_level", "") or "").upper()
+
+        avoid_hits = r.get("avoid_hits") or []
+        if not isinstance(avoid_hits, list):
+            avoid_hits = []
+
+        # Render a compact single-line summary per day
+        meta_parts: list[str] = []
+        if time_min is not None and str(time_min).strip() != "":
+            meta_parts.append(f"{time_min} min")
+        if cal:
+            meta_parts.append(cal_map.get(cal, cal.title()))
+
+        meta = f" ({', '.join(meta_parts)})" if meta_parts else ""
+        line = f"- {day}: {title}{meta}"
+
+        # Optional: surface conflicts if present
+        if avoid_hits:
+            line += f" — note: contains {', '.join(avoid_hits)}"
+
+        lines.append(line)
+
+    return (header + "\n".join(lines)).strip()
+
 
 
 def _render_shopping_list(items: list[Dict[str, Any]]) -> str:
@@ -284,6 +375,20 @@ class NLG:
         if action == "fallback" and phase == "CONFIRMED":
             return "All set — your meal plan is finalized. Type 'exit' to end, or start a new plan anytime."
 
+        # ------------------------- Swap-rejection acknowledgement -------------------------
+        # If the assistant just asked to confirm a swap suggestion and the user refused,
+        # NLU will output out_of_domain -> policy fallback. Make fallback user-friendly here.
+        if action == "fallback" and phase != "CONFIRMED" and self.history is not None:
+            recent2 = self.history.last_iterations(last_n=2)  # small window is enough
+            last_user, last_asst = _last_user_and_assistant_from_recent(recent2)
+
+            if "do you want me to swap" in (last_asst or "").lower() and _NEG_RE.search(last_user or ""):
+                day = _extract_swap_day_from_text(last_asst) or "that day"
+                if day == "that day":
+                    return "Okay — I won’t make the swap. What would you like to do next?"
+                return f"Okay — I’ll keep {day} as-is. What would you like to do next?"
+
+
         # ------------------------- Build verbatim factual blocks -------------------------
         menu_block = ""
         day_block = ""
@@ -291,7 +396,9 @@ class NLG:
         fact_block = ""
 
         # If executor produced a direct message (e.g., help), treat it as factual content.
-        if payload.get("message") and action != "provide_info" :
+        if payload.get("message") and action not in {
+            "provide_info", "suggest_swap_day", "swap_day", "show_day", "propose_menus", "confirm_plan"
+        }:
             fact_block = str(payload["message"]).strip()
 
         # Request questions are best kept deterministic (but wrapped by LLM).
@@ -318,6 +425,13 @@ class NLG:
                 return _render_day_details(details)
             # Defensive fallback if details missing
             return "I couldn’t show that day. Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?"         
+
+        if action == "show_week":
+            # Expect executor to supply payload["week_overview"]
+            if payload.get("week_overview") is not None:
+                return _render_week_overview(payload, tracker_state)
+            return "I couldn’t show the weekly plan right now. Try: “show the week plan again”."
+
 
         # Shopping list
         if action == "confirm_plan" and payload.get("shopping_list") is not None:
@@ -376,10 +490,10 @@ class NLG:
         # Recent turns (optional)
         recent = ""
         if self.history is not None:
-            if last_n_turns is None:
-                recent = self.history.last_iterations()
+            if action in {"suggest_swap_day", "swap_day"}:
+                recent = "(none)"
             else:
-                recent = self.history.last_iterations(last_n=last_n_turns)
+                recent = self.history.last_iterations()if last_n_turns is None else self.history.last_iterations(last_n=last_n_turns)
 
         # Provide the model everything needed deterministically
         bundle = {

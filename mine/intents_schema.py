@@ -41,6 +41,7 @@ INTENT_SLOTS: Dict[str, List[str]] = {
     "inspect": ["target_day"],
     "refine": ["refine_type", "target_day", "value", "mode"],
     "confirm": [],
+    "show_week": [],
     "help": ["intent", "slot"],
     "out_of_domain": [],
     
@@ -53,6 +54,7 @@ REQUIRED_SLOTS: Dict[str, List[str]] = {
     "inspect": ["target_day"],
     "refine": ["refine_type", "value"],  # target_day depends on refine_type
     "confirm": [],
+    "show_week": [],
     "help": ["intent"],
     "out_of_domain": [],
 }
@@ -164,6 +166,9 @@ def normalize_mr(mr: Dict[str, Any]) -> Dict[str, Any]:
             slots_out["slot"] = str(slots_out["slot"]).strip()
         else:
             slots_out["slot"] = None
+
+    elif intent == "show_week":
+     pass
 
 
     return {"intent": intent, "slots": slots_out}
@@ -305,6 +310,9 @@ def validate_mr(mr: Dict[str, Any]) -> ValidationResult:
                         )
                     else:
                         slots["slot"] = hs_norm  # canonical
+
+    elif intent == "show_week":
+     pass
 
 
     valid = len(errors) == 0

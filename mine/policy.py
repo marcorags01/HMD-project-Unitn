@@ -19,6 +19,7 @@ Action set (must match DM prompt + NLG expectations):
 - propose_menus()
 - set_active_menu(menu_id)
 - show_day(target_day)
+- show_week()
 - swap_day(target_day)
 - suggest_swap_day(target_day)
 - update_avoid(op, value)
@@ -45,6 +46,7 @@ ALLOWED_DM_ACTIONS = {
     "propose_menus",
     "set_active_menu",
     "show_day",
+    "show_week",
     "suggest_swap_day",
     "swap_day",
     "update_avoid",
@@ -64,7 +66,7 @@ REQUESTABLE_SLOTS = {
     "all",
 }
 
-PROVIDE_INFO_INTENTS = {"plan", "select_menu", "inspect", "refine", "confirm"}
+PROVIDE_INFO_INTENTS = {"plan", "select_menu", "inspect", "refine", "confirm", "show_week"}
 
 
 def _split_args(arg_str: str) -> List[str]:
@@ -220,7 +222,7 @@ def apply_policy(
         )
 
 
-    menu_dependent_actions = {"set_active_menu", "show_day", "suggest_swap_day","swap_day", "update_avoid", "confirm_plan"}
+    menu_dependent_actions = {"set_active_menu", "show_day", "show_week", "suggest_swap_day","swap_day", "update_avoid", "confirm_plan"}
 
     if not menus_exist:
         # If DM tries anything that implies menus exist, force propose_menus()
@@ -245,9 +247,24 @@ def apply_policy(
                 "need_menus_before_menu_id",
             )
 
+    # 2b) show_week intent routing (deterministic)
+    if intent == "show_week":
+        if missing_plan:
+            # (This will usually be handled by the earlier missing_plan gate,
+            # but keeping it here makes the intent self-contained.)
+            return _final("request_info", missing_plan[0], nm, proposed_action, proposed_argument, "show_week->missing_plan")
+
+        if not menus_exist:
+            return _final("propose_menus", "", nm, proposed_action, proposed_argument, "show_week->need_menus")
+
+        if not has_active:
+            return _final("request_info", "menu_id", nm, proposed_action, proposed_argument, "show_week->need_active_menu")
+
+        return _final("show_week", "", nm, proposed_action, proposed_argument, "show_week->ok")
+
 
     # 3) Menu selection gate: must have an active menu before show/swap/update/confirm
-    active_required_actions = {"show_day", "suggest_swap_day", "swap_day", "update_avoid", "confirm_plan"}
+    active_required_actions = {"show_day", "show_week", "suggest_swap_day", "swap_day", "update_avoid", "confirm_plan"}
     if not has_active and proposed_action in active_required_actions:
         return _final("request_info", "menu_id", nm, proposed_action, proposed_argument, "menu_gate_action")
 
@@ -336,7 +353,7 @@ def sanitize_proposed_action(
             return "request_info", "value"
         return "update_avoid", _join_args([op, val])
 
-    if a in {"propose_menus", "confirm_plan", "fallback"}:
+    if a in {"propose_menus", "show_week", "confirm_plan", "fallback"}:
         return a, ""
 
     return "fallback", ""

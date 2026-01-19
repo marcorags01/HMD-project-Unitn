@@ -72,7 +72,7 @@ class NLU:
                     "menu_id", "target_day", "refine_type", "value", "mode",
                     "all",
                 ],
-                "help_intent": ["plan", "select_menu", "inspect", "refine", "confirm"],
+                "help_intent": ["plan", "select_menu", "inspect", "refine", "confirm", "show_week"],
             },
     
             "output_format": (
@@ -112,12 +112,20 @@ class NLU:
             "- If the last assistant message asked for a specific detail (e.g., servings/time/calories/menu choice/day),\n"
             "  and the user replies with only a value (e.g., \"1\", \"two\", \"fast\", \"Tuesday\", \"menu 1\", \"yes\"),\n"
             "  interpret it as answering that question and fill the corresponding slot.\n"
+            "- If the user asks to see the whole weekly plan/menu again (e.g., \"show the week plan\", \"show the weekly plan\", \n"
+            "  \"show the week again\", \"show me the plan again\", \"weekly menu\", \"week overview\"), interpret as:\n"
+            "  {\"intent\":\"show_week\",\"slots\":{}}\n"
             "- If RECENT_TURNS shows the assistant is collecting PLAN details (servings, time_limit, calorie_level, avoid_items),\n"
-            "  then interpret the user’s reply as intent=plan that fills ONLY the asked slot(s), even if the text contains verbs like ‘avoid’.\n"
-            "- If the user expresses dislike/preference about a weekday meal (e.g., \"don’t like Friday\", \"change Friday\", \"replace Friday meal’), \n"
-               "interpret as intent='refine' with refine_type='SWAP_DAY' and target_day set to that weekday; set value='BEST_FIT'. \n"
-               "Set mode='SUGGEST' unless they explicitly say change/swap/replace now (then mode='COMMIT'). \n"
-               "Do NOT treat weekdays as avoid_items. \n"
+            "  then interpret the user’s reply as intent=plan that fills ONLY the asked slot(s), even if the text contains verbs like \"avoid\".\n"
+            "- If the user expresses dislike/preference about a weekday meal (e.g., \"don’t like Friday\", \"change Friday\", \"replace Friday meal\"), \n"
+            "  interpret as intent='refine' with refine_type='SWAP_DAY' and target_day set to that weekday; set value='BEST_FIT'. \n"
+            "  Set mode='SUGGEST' unless they explicitly say change/swap/replace now (then mode='COMMIT'). \n"
+            "  Do NOT treat weekdays as avoid_items. \n"
+            "  Do NOT output multiple inspect intents for Mon–Fri in this case.\n"
+            "- If the last assistant message asked to confirm a suggested swap (e.g., contains \"Do you want me to swap\"),\n"
+            "  then interpret short replies as follows:\n"
+            " - If the user replies with acceptance (e.g., \"yes\", \"ok\", \"do it\", \"swap it\", \"go ahead\") -> {\"intent\":\"confirm\",\"slots\":{}}\n"
+            " - If the user replies with refusal (e.g., \"no\", \"no thanks\", \"nope\", \"nah\", \"don't\", \"don't swap\", \"keep it\", \"leave it\", \"never mind\", \"cancel\") -> {\"intent\":\"out_of_domain\",\"slots\":{}}\n"
             "- Interpret intent=\"confirm\" ONLY if the user explicitly requests confirmation/finalization (e.g., \"confirm\", \"finalize\", \"generate shopping list\")\n"
             "  OR if the last assistant message asked an explicit yes/no confirmation question and the user replies \"yes\".\n"
             "  Do NOT treat generic acknowledgements (\"ok\", \"fine\", \"thanks\") as confirm.\n"
@@ -128,6 +136,7 @@ class NLU:
             "- calorie_level: output LOW, MED, or HIGH (map medium/balanced/average to MED).\n"
             "- target_day: output one of Mon,Tue,Wed,Thu,Fri (map full names like Monday->Mon).\n"
             "- menu_id: output 1 or 2.\n"
+            "- show_week: output {\"intent\":\"show_week\",\"slots\":{}} (slots must be an empty object).\n"
             "- If there is an obvious typo and confidence is high (e.g., \"fats\"->FAST), correct it.\n"
             "- avoid_items: output a list of strings from the controlled vocabulary.\n"
             "  If the user explicitly indicates no restrictions (e.g., 'none', 'no allergies', 'nothing to avoid', 'I eat everything'),\n"
@@ -153,10 +162,18 @@ class NLU:
             "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"ADD_AVOID_ITEM\",\"target_day\":null,\"value\":\"nuts\",\"mode\":null}},"
             "{\"intent\":\"inspect\",\"slots\":{\"target_day\":\"Tue\"}}"
             "]\n"
+            "- User: \"Can you show me the week plan again?\" -> {\"intent\":\"show_week\",\"slots\":{}}\n"
+            "- User: \"Show the weekly menu\" -> {\"intent\":\"show_week\",\"slots\":{}}\n"
+            "- User: \"Show the week plan and swap Tue\" -> [\n"
+            "  {\"intent\":\"show_week\",\"slots\":{}},\n"
+            "  {\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Tue\",\"value\":\"BEST_FIT\",\"mode\":\"COMMIT\"}}\n"
+            "]\n"
             "- User: \"I don't like Friday\" -> "
             "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Fri\",\"value\":\"BEST_FIT\",\"mode\":\"SUGGEST\"}}\n"
             "- User: \"Change Friday\" -> "
             "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Fri\",\"value\":\"BEST_FIT\",\"mode\":\"COMMIT\"}}\n"
+            "- Assistant: \"Do you want me to swap Mon to this?\" User: \"no thanks\" -> "
+            "{\"intent\":\"out_of_domain\",\"slots\":{}}\n"
             "- User: \"Option 1 and confirm.\" -> "
             "["
             "{\"intent\":\"select_menu\",\"slots\":{\"menu_id\":1}},"
