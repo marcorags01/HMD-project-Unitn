@@ -443,7 +443,22 @@ class Tracker:
         # 4) Fallback: newest MR, not oldest.
         return len(self.pending_mrs) - 1
 
-    
+    def _get_avoid_set(self) -> set[str]:
+        cur = self.constraints.get("avoid_items", None)
+        if cur is None:
+            return set()
+        if isinstance(cur, list):
+            return {str(x).strip().lower() for x in cur if str(x).strip()}
+        return set()
+
+    def _set_avoid_set(self, s: set[str]) -> None:
+        # Keep stable ordering for determinism (optional but recommended)
+        self.constraints["avoid_items"] = sorted(s)
+
+    def _can_coerce_refine_to_plan_avoid(self) -> bool:
+        # Coerce only while plan is incomplete and avoid_items is still missing
+        return "avoid_items" in self.missing_plan_slots() and self.phase == "AWAITING_PLAN"
+
 
     def _intent_of(self, mr: Dict[str, Any]) -> str:
         return str((mr or {}).get("intent", "")).strip() or "out_of_domain"
@@ -584,11 +599,21 @@ class Tracker:
 
             avoid_raw = normalize_avoid_items(slots.get("avoid_items", None))
             if avoid_raw is not None:
-                self.constraints["avoid_items"] = avoid_raw
-                count_provided += 1
-
+                if avoid_raw == []:
+                    # "no" / "none": only counts as providing the slot if it was previously missing
+                    if self.constraints.get("avoid_items", None) is None:
+                        self.constraints["avoid_items"] = []
+                        count_provided += 1
+                     # else: already had an avoid list; "no" means no change, no increment
+                else:
+                    cur = self._get_avoid_set()
+                    for x in avoid_raw:
+                        if str(x).strip():
+                            cur.add(str(x).strip().lower())
+                    self._set_avoid_set(cur)
+                    count_provided += 1
             return count_provided
-
+                
         if intent == "select_menu":
             menu_id = slots.get("menu_id", None)
             if not is_nullish(menu_id):
@@ -693,6 +718,38 @@ class Tracker:
 
             if not keep_pending:
                 self.pending_action = None
+
+        # ---- Coerce refine avoid-items into plan slot filling when collecting plan ----
+        if self._can_coerce_refine_to_plan_avoid():
+            avoid_set = self._get_avoid_set()
+            coerced_any = False
+
+            for mr in mrs:
+                if str(mr.get("intent", "")).strip() != "refine":
+                    continue
+                slots = mr.get("slots", {}) or {}
+                r_type = normalize_upper_enum(slots.get("refine_type", None)) or ""
+                value = slots.get("value", None)
+                value_norm = normalize_avoid_items([value]) if value is not None else None
+                # normalize_avoid_items returns list or None; we want single item
+                item = None
+                if isinstance(value_norm, list) and value_norm:
+                    item = str(value_norm[0]).strip().lower()
+
+                if not item:
+                    continue
+
+                if r_type == "ADD_AVOID_ITEM":
+                    avoid_set.add(item)
+                    coerced_any = True
+                elif r_type == "REMOVE_AVOID_ITEM":
+                    if item in avoid_set:
+                        avoid_set.remove(item)
+                        coerced_any = True
+
+            if coerced_any:
+                self._set_avoid_set(avoid_set)
+
 
         # ---- Apply each MR WITHOUT per-MR pending expiry ----
         count_total = 0
