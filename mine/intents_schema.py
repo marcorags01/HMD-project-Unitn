@@ -49,7 +49,7 @@ INTENT_SLOTS: Dict[str, List[str]] = {
 
 # Required slots per intent (minimal configuration)
 REQUIRED_SLOTS: Dict[str, List[str]] = {
-    "plan": ["servings", "time_limit", "calorie_level", "avoid_items"],
+    "plan": [],
     "select_menu": ["menu_id"],
     "inspect": ["target_day"],
     "refine": ["refine_type", "value"],  # target_day depends on refine_type
@@ -115,61 +115,76 @@ def normalize_mr(mr: Dict[str, Any]) -> Dict[str, Any]:
         intent = "out_of_domain"
 
     slots_in = mr.get("slots", {}) or {}
-    slots_out: Dict[str, Any] = {}
+    if not isinstance(slots_in, dict):
+        slots_in = {}
 
-    for k in INTENT_SLOTS.get(intent, []):
-        slots_out[k] = slots_in.get(k, None)
+    allowed = set(INTENT_SLOTS.get(intent, []))
+    # Keep ONLY keys the model actually provided (and that are allowed for the intent)
+    slots_out: Dict[str, Any] = {k: v for k, v in slots_in.items() if k in allowed}
+
 
     if intent == "plan":
         # servings
-        if not is_nullish(slots_out.get("servings")):
+        if "servings" in slots_out and not is_nullish(slots_out.get("servings")):
             try:
                 slots_out["servings"] = int(slots_out["servings"])
             except Exception:
                 pass
+
         # enums
-        slots_out["time_limit"] = _upper(slots_out.get("time_limit"))
-        slots_out["calorie_level"] = _upper(slots_out.get("calorie_level"))
-        # avoid list
-        avoid_norm = normalize_avoid_items(slots_out.get("avoid_items"))
+        if "time_limit" in slots_out:
+            slots_out["time_limit"] = _upper(slots_out.get("time_limit"))
+        if "calorie_level" in slots_out:
+            slots_out["calorie_level"] = _upper(slots_out.get("calorie_level"))
 
-        # If user explicitly means "no avoids", canonicalize to empty list []
-        if avoid_norm is None:
-            raw = slots_out.get("avoid_items")
-            if isinstance(raw, str) and raw.strip().lower() in {"none", "no", "nothing", "nope", "n/a", "na"}:
-                avoid_norm = []
+        # avoid list (only if user provided it)
+        if "avoid_items" in slots_out:
+            avoid_norm = normalize_avoid_items(slots_out.get("avoid_items"))
 
-        slots_out["avoid_items"] = avoid_norm
+            # If user explicitly means "no avoids", canonicalize to empty list []
+            if avoid_norm is None:
+                raw = slots_out.get("avoid_items")
+                if isinstance(raw, str) and raw.strip().lower() in {"none", "no", "nothing", "nope", "n/a", "na"}:
+                    avoid_norm = []
+
+            slots_out["avoid_items"] = avoid_norm
+
 
     elif intent == "select_menu":
-        if not is_nullish(slots_out.get("menu_id")):
+        if "menu_id" in slots_out and not is_nullish(slots_out.get("menu_id")):
             try:
                 slots_out["menu_id"] = int(slots_out["menu_id"])
             except Exception:
                 pass
 
     elif intent == "inspect":
-        slots_out["target_day"] = normalize_day(slots_out.get("target_day"))
+        if "target_day" in slots_out:
+            slots_out["target_day"] = normalize_day(slots_out.get("target_day"))
 
     elif intent == "refine":
-        slots_out["refine_type"] = _upper(slots_out.get("refine_type"))
-        slots_out["target_day"] = normalize_day(slots_out.get("target_day"))
-        slots_out["mode"] = _upper(slots_out.get("mode"))  # NEW
-        # value: keep raw string for now; validation will interpret based on refine_type
-        if not is_nullish(slots_out.get("value")):
+        if "refine_type" in slots_out:
+            slots_out["refine_type"] = _upper(slots_out.get("refine_type"))
+        if "target_day" in slots_out:
+            slots_out["target_day"] = normalize_day(slots_out.get("target_day"))
+        if "mode" in slots_out:
+            slots_out["mode"] = _upper(slots_out.get("mode"))
+        if "value" in slots_out and not is_nullish(slots_out.get("value")):
             slots_out["value"] = str(slots_out["value"]).strip()
 
 
     elif intent == "help":
-        slots_out["intent"] = _lower(slots_out.get("intent"))  # keep lowercase for matching keys
-        if not is_nullish(slots_out.get("slot")):
+        if "intent" in slots_out:
+            slots_out["intent"] = _lower(slots_out.get("intent"))
+        if "slot" in slots_out and not is_nullish(slots_out.get("slot")):
             slots_out["slot"] = str(slots_out["slot"]).strip()
-        else:
-            slots_out["slot"] = None
 
     elif intent == "show_week":
      pass
 
+    # Drop explicit null-like values so partial/delta MRs stay sparse
+    for k in list(slots_out.keys()):
+        if is_nullish(slots_out.get(k)):
+            del slots_out[k]
 
     return {"intent": intent, "slots": slots_out}
 

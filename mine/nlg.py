@@ -103,14 +103,84 @@ def _last_user_and_assistant_from_recent(recent: str) -> tuple[str, str]:
     return last_user, last_asst
 
 
+_DAY_ALIASES = {
+    "monday": "Mon", "mon": "Mon",
+    "tuesday": "Tue", "tue": "Tue", "tues": "Tue",
+    "wednesday": "Wed", "wed": "Wed",
+    "thursday": "Thu", "thu": "Thu", "thurs": "Thu",
+    "friday": "Fri", "fri": "Fri",
+}
+
 def _extract_swap_day_from_text(text: str) -> str:
+    # allow “swap Mon”, “swap: Mon”, “swap Monday”, case-insensitive
+    m = re.search(r"\bswap\b\s*[:\-]?\s*(mon|tue|tues|wed|thu|thurs|fri|monday|tuesday|wednesday|thursday|friday)\b",
+                  text, flags=re.IGNORECASE)
+    if not m:
+        return ""
+    return _DAY_ALIASES.get(m.group(1).lower(), "")
+
+
+
+def _has_unfulfilled_user_intents(tracker_state: Dict[str, Any]) -> bool:
     """
-    Extract Mon/Tue/Wed/Thu/Fri if present.
+    True if there are still pending (non out_of_domain) user intents to fulfill.
+    Assumes tracker_state may contain pending_mrs as a list of MRs.
     """
-    m = re.search(r"\bswap\s+(Mon|Tue|Wed|Thu|Fri)\b", text)
-    if m:
-        return m.group(1)
-    return ""
+    pending = (tracker_state or {}).get("pending_mrs") or []
+    if not isinstance(pending, list):
+        return False
+
+    for mr in pending:
+        if not isinstance(mr, dict):
+            continue
+        it = str(mr.get("intent", "") or "").strip()
+        if it and it != "out_of_domain":
+            return True
+
+    return False
+
+
+def _should_offer_next_steps(action: str, tracker_state: Dict[str, Any]) -> bool:
+    """
+    Offer next-steps prompt after fulfilling inspect/refine/show_week,
+    only if nothing else is pending and plan isn't confirmed.
+    """
+    phase = str((tracker_state or {}).get("phase", "") or "")
+    if phase == "CONFIRMED":
+        return False
+
+    # Eligible "completed" actions
+    if action not in {"show_day", "swap_day", "update_avoid", "show_week"}:
+        return False
+
+    # If we're waiting for swap confirmation (after suggest_swap_day), do not offer finalize prompt
+    pending_action = (tracker_state or {}).get("pending_action")
+    if isinstance(pending_action, dict) and pending_action.get("type"):
+        return False
+
+    # If there are other pending intents, don't prompt yet
+    if _has_unfulfilled_user_intents(tracker_state):
+        return False
+
+    return True
+
+
+def _append_next_steps_prompt(text: str) -> str:
+    """
+    Append a single, consistent follow-up prompt, avoiding duplication.
+    """
+    if not isinstance(text, str):
+        return str(text)
+
+    low = text.lower()
+    if "what else can i do for you" in low or "finalize the plan" in low:
+        return text
+
+    follow = (
+        "What else can I do for you? If everything looks good, you can confirm to finalize the plan and get the shopping list."
+    )
+    return (text.rstrip() + "\n\n" + follow).strip()
+
 
 
 # ------------------------- Deterministic renderers -------------------------
@@ -422,15 +492,21 @@ class NLG:
         if action == "show_day":
             details = payload.get("details")
             if isinstance(details, dict) and details:
-                return _render_day_details(details)
-            # Defensive fallback if details missing
-            return "I couldn’t show that day. Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?"         
+                msg = _render_day_details(details)
+                if _should_offer_next_steps(action, tracker_state):
+                    msg = _append_next_steps_prompt(msg)
+                return msg
+            return "I couldn’t show that day. Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?"
+            
 
         if action == "show_week":
-            # Expect executor to supply payload["week_overview"]
             if payload.get("week_overview") is not None:
-                return _render_week_overview(payload, tracker_state)
+                msg = _render_week_overview(payload, tracker_state)
+                if _should_offer_next_steps(action, tracker_state):
+                    msg = _append_next_steps_prompt(msg)
+                return msg
             return "I couldn’t show the weekly plan right now. Try: “show the week plan again”."
+
 
 
         # Shopping list
@@ -534,8 +610,10 @@ class NLG:
 
         out = _strip_accidental_action_echo(out)
         if not out:
-            # safety fallback
             return "Sorry—something went wrong while generating the response. Could you repeat that?"
+
+        if _should_offer_next_steps(action, tracker_state):
+            out = _append_next_steps_prompt(out)
 
         return out
     
@@ -551,7 +629,8 @@ class NLG:
         tracker_state = tracker_state or {}
 
         chunks: List[str] = []
-
+        last_rendered_action = ""
+        
         # Defensive: ensure confirm_plan is rendered last if present
         def is_confirm(step: Any) -> bool:
             return getattr(step, "final_action", "") == "confirm_plan"
@@ -576,6 +655,7 @@ class NLG:
 
             if action == "provide_info":
                 chunks.append(_render_provide_info(payload, tracker_state))
+                last_rendered_action = action
                 continue
 
             if action == "propose_menus" and payload.get("menu1_pretty") and payload.get("menu2_pretty"):
@@ -600,6 +680,7 @@ class NLG:
                 if repaired:
                     base += "\n\nI also updated these days to keep everything compatible: " + ", ".join(repaired)
                 chunks.append(base)
+                last_rendered_action = action
                 continue
 
             if action == "suggest_swap_day":
@@ -618,10 +699,17 @@ class NLG:
                     chunks.append(f"Done — I swapped {argument} to: {payload.get('new_title', 'a new recipe')}.")
                 else:
                     chunks.append("I couldn’t find a good alternative for that day with your current preferences.")
+                last_rendered_action = action
                 continue
 
             if action == "show_day" and payload.get("details"):
                 chunks.append(_render_day_details(payload["details"]))
+                last_rendered_action = action
+                continue
+
+            if action == "show_week" and payload.get("week_overview") is not None:
+                chunks.append(_render_week_overview(payload, tracker_state))
+                last_rendered_action = action
                 continue
 
             if action == "confirm_plan" and payload.get("shopping_list") is not None:
@@ -636,4 +724,10 @@ class NLG:
                     chunks.append("What would you like to do next?")
                 continue
 
-        return "\n\n".join([c for c in chunks if c]).strip()
+        final = "\n\n".join([c for c in chunks if c]).strip()
+
+        if final and _should_offer_next_steps(last_rendered_action, tracker_state):
+            final = _append_next_steps_prompt(final)
+
+        return final
+
