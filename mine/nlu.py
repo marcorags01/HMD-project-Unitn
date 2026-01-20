@@ -85,10 +85,10 @@ class NLU:
                 "Output MUST be either a single MR object OR a JSON array of MR objects.",
                 "If the user expresses multiple distinct requests that map to different intents, output multiple MRs in user order.",
                 "Only fill slots that belong to each MR's intent.",
-                "If a slot value is missing, set it to null (except plan.avoid_items may be [] if explicitly none).",
+                "Only include slots that are relevant to what the user provided in this turn (no extra null slots).",
                 "Do not invent new information, but DO normalize synonyms/typos into the controlled values.",
                 "Use RECENT_TURNS to resolve short answers (e.g., '1', 'fast', 'yes').",
-                "When extracting avoid_items, always output a JSON list (possibly empty), never a single string.",
+                "When extracting avoid_items, output a JSON list when confident; otherwise output null. Never output a single string.",
                 "Return ONLY JSON.",
             ],
         }
@@ -104,7 +104,8 @@ class NLU:
             "  (B) a JSON array of MR objects: [{\"intent\":\"...\",\"slots\":{...}}, ...]\n"
             "- If the user expresses multiple distinct requests that map to different intents, output multiple MRs in user order.\n"
             "- Only fill slots that belong to each MR's intent.\n"
-            "- If a slot value is missing, output null.\n"
+            "- Only include slots that are relevant to what the user provided in this turn.\n"
+            "  Exception: when outputting a full plan MR in one turn, include all plan slots.\n"
             "- Do not invent values or add defaults that the user did not state.\n"
             "- Return ONLY JSON. No extra text.\n"
             "\n"
@@ -117,6 +118,9 @@ class NLU:
             "  {\"intent\":\"show_week\",\"slots\":{}}\n"
             "- If RECENT_TURNS shows the assistant is collecting PLAN details (servings, time_limit, calorie_level, avoid_items),\n"
             "  then interpret the user’s reply as intent=plan that fills ONLY the asked slot(s), even if the text contains verbs like \"avoid\".\n"
+            "- When replying to a plan question (RECENT_TURNS indicates which slot was asked):\n"
+            "  - Output ONLY that plan slot in slots (plus avoid_items as [] if explicitly none).\n"
+            "  - Do NOT include other plan plan slots with null in that MR.\n"
             "- If the user expresses dislike/preference about a weekday meal (e.g., \"don’t like Friday\", \"change Friday\", \"replace Friday meal\"), \n"
             "  interpret as intent='refine' with refine_type='SWAP_DAY' and target_day set to that weekday; set value='BEST_FIT'. \n"
             "  Set mode='SUGGEST' unless they explicitly say change/swap/replace now (then mode='COMMIT'). \n"
@@ -142,7 +146,29 @@ class NLU:
             "  If the user explicitly indicates no restrictions (e.g., 'none', 'no allergies', 'nothing to avoid', 'I eat everything'),\n"
             "  output an EMPTY LIST: [] (do NOT output null).\n"
             "  If the user lists multiple avoid items in one turn (e.g., \"meat and nuts\", \"meat, nuts, and dairy\"), output ALL items as a list in the same order.\n"
-            "  Always output avoid_items as a JSON list; never a single string.\n"
+            "avoid_items strict rules:\n"
+            "- avoid_items MUST ONLY contain tokens from this exact set:\n"
+            "  [\"dairy\",\"egg\",\"fish\",\"gluten\",\"meat\",\"nuts\",\"sesame\",\"shellfish\",\"soy\"].\n"
+            "- If the user says a plural, output the singular form used in the set (e.g., \"eggs\" -> \"egg\").\n"
+            "- If the user uses a synonym, map it to the closest controlled token:\n"
+            " - \"seafood\" -> \"fish\" (or \"shellfish\" if explicitly shrimp/crab/lobster; if unclear prefer \"fish\")\n"
+            " - \"milk/cheese/butter\" -> \"dairy\"\n"
+            " - \"bread/pasta/flour/wheat\" -> \"gluten\"\n"
+            "- If the user gives an avoid item that does not map confidently to the controlled set, DO NOT guess.\n"
+            "  Output null for avoid_items (if the slot is required by context) and let the DM ask again.\n"           
+            "  If avoid_items is present, it MUST be either a JSON list or null.\n"
+            "  Prefer a JSON list whenever mapping is confident.\n"
+            "  Avoid mapping table (examples):\n"
+            "  - eggs, omelette -> egg\n"
+            "  - peanuts, almonds, hazelnuts, walnuts -> nuts\n"
+            "  - steak, beef, pork, chicken -> meat\n"
+            "  - shrimp, crab, lobster -> shellfish\n"
+            "  - salmon, tuna, cod -> fish\n"
+            "  - soy sauce, tofu -> soy\n"
+            "  avoid_items output rules:\n"
+            "  - If the user provides at least one avoid item: output avoid_items as a non-empty list.\n"
+            "  - If the user explicitly says no restrictions: output [].\n"
+            "  - If the user response is ambiguous or contains items that do not map confidently to the controlled set: output null.\n"
             "\n"
             "Refine mode rule (for refine_type=SWAP_DAY):\n"
             "- If the user asks to suggest/propose an alternative, set slots.mode to \"SUGGEST\".\n"
@@ -168,6 +194,15 @@ class NLU:
             "  {\"intent\":\"show_week\",\"slots\":{}},\n"
             "  {\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Tue\",\"value\":\"BEST_FIT\",\"mode\":\"COMMIT\"}}\n"
             "]\n"
+            "- Assistant asked about avoid items. User: \"avoid eggs\" -> "
+            "{\"intent\":\"plan\",\"slots\":{\"avoid_items\":[\"egg\"]}}\n"
+            "\n"
+            "- Assistant asked about avoid items. User: \"avoid seafood\" -> "
+            "{\"intent\":\"plan\",\"slots\":{\"avoid_items\":[\"fish\"]}}\n"
+            "\n"
+            "- Assistant asked about avoid items. User: \"avoid mango\" -> "
+            "{\"intent\":\"plan\",\"slots\":{\"avoid_items\":null}}\n"
+            "\n"
             "- User: \"I don't like Friday\" -> "
             "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Fri\",\"value\":\"BEST_FIT\",\"mode\":\"SUGGEST\"}}\n"
             "- User: \"Change Friday\" -> "

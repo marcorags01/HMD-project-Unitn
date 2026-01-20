@@ -74,6 +74,37 @@ def normalize_day(x: Any) -> Optional[str]:
     return s3 if s3 in ALLOWED_DAYS else None
 
 
+# --- Avoid-item canonicalization (conservative) ---
+# Map common surface forms to the controlled vocabulary tokens.
+_AVOID_ALIASES: Dict[str, str] = {
+    "eggs": "egg",
+    "nut": "nuts",
+    "meats": "meat",
+    "shell fish": "shellfish", 
+    "seafood": "fish",
+}
+
+_TRAIL_PUNCT = re.compile(r"[.,;:!?]+$")
+
+
+def _canon_avoid_token(x: Any) -> str:
+    """
+    Canonicalize a single token:
+    - lower/strip
+    - strip trailing punctuation
+    - apply a small alias map
+    Does NOT invent new items.
+    """
+    if is_nullish(x):
+        return ""
+    s = str(x).strip().lower()
+    if not s:
+        return ""
+    s = _TRAIL_PUNCT.sub("", s).strip()
+    if not s:
+        return ""
+    return _AVOID_ALIASES.get(s, s)
+
 
 _FILLER_PREFIX = re.compile(r"^\s*(avoid|no|without)\b\s*", re.IGNORECASE)
 
@@ -119,7 +150,7 @@ def normalize_avoid_items(x: Any) -> Optional[List[str]]:
         parts = re.split(r"\s*(?:,|;|/|&|\band\b)\s*", chunk, flags=re.IGNORECASE)
 
         for p in parts:
-            p = p.strip().lower()
+            p = _canon_avoid_token(p)
             if not p:
                 continue
 
@@ -551,12 +582,19 @@ class Tracker:
         if cur is None:
             return set()
         if isinstance(cur, list):
-            return {str(x).strip().lower() for x in cur if str(x).strip()}
+            out: set[str] = set()
+            for x in cur:
+                tok = _canon_avoid_token(x)
+                if tok and tok in ALLOWED_AVOID_ITEMS:
+                    out.add(tok)
+            return out
         return set()
 
+
     def _set_avoid_set(self, s: set[str]) -> None:
-        # Keep stable ordering for determinism (optional but recommended)
-        self.constraints["avoid_items"] = sorted(s)
+        # Keep stable ordering for determinism; store only allowed tokens.
+        self.constraints["avoid_items"] = sorted([x for x in s if x in ALLOWED_AVOID_ITEMS])
+
 
     def _can_coerce_refine_to_plan_avoid(self) -> bool:
         # Coerce only while plan is incomplete and avoid_items is still missing
@@ -708,15 +746,28 @@ class Tracker:
                     if self.constraints.get("avoid_items", None) is None:
                         self.constraints["avoid_items"] = []
                         count_provided += 1
-                     # else: already had an avoid list; "no" means no change, no increment
+                    # else: already had an avoid list; "no" means no change, no increment
                 else:
+                    # Only accept allowed items; ignore unknowns.
                     cur = self._get_avoid_set()
+                    before = len(cur)
+
                     for x in avoid_raw:
-                        if str(x).strip():
-                            cur.add(str(x).strip().lower())
-                    self._set_avoid_set(cur)
-                    count_provided += 1
+                        tok = _canon_avoid_token(x)
+                        if tok and tok in ALLOWED_AVOID_ITEMS:
+                            cur.add(tok)
+
+                    if len(cur) > before:
+                        self._set_avoid_set(cur)
+                        count_provided += 1
+                    else:
+                        # If user provided only unknown avoids and avoid_items was missing,
+                        # keep it missing so missing_plan_slots() continues to ask.
+                        if self.constraints.get("avoid_items", None) is None:
+                            self.constraints["avoid_items"] = None
+        
             return count_provided
+
                 
         if intent == "select_menu":
             menu_id = slots.get("menu_id", None)
@@ -842,9 +893,9 @@ class Tracker:
                 # normalize_avoid_items returns list or None; we want single item
                 item = None
                 if isinstance(value_norm, list) and value_norm:
-                    item = str(value_norm[0]).strip().lower()
+                    item = _canon_avoid_token(value_norm[0])
 
-                if not item:
+                if not item or item not in ALLOWED_AVOID_ITEMS:
                     continue
 
                 if r_type == "ADD_AVOID_ITEM":
@@ -854,6 +905,7 @@ class Tracker:
                     if item in avoid_set:
                         avoid_set.remove(item)
                         coerced_any = True
+
 
             if coerced_any:
                 self._set_avoid_set(avoid_set)
