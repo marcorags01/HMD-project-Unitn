@@ -19,9 +19,8 @@ Compatible with:
 from __future__ import annotations
 
 import json
-from multiprocessing.util import DEBUG
-from typing import Any, Dict, Union, List
-
+import re
+from typing import Any, Dict, Union, List, Optional
 from utils import generate, format_chat
 from intents_schema import INTENT_SLOTS, normalize_mr
 from support_fn import parsing_json
@@ -35,6 +34,117 @@ from support_classes import (
 
 def _safe_json(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True, default=str)
+
+
+# --- Evidence-gate helpers (Option B) ----------------------------------------
+
+_WORD_NUMS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
+
+_YES_TOKENS = ("yes", "yep", "yeah", "ok", "okay", "sure", "do it", "go ahead", "swap it")
+_NO_TOKENS  = ("no", "nope", "nah", "no thanks", "don't", "do not", "keep it", "leave it", "cancel", "never mind")
+
+def _last_assistant_line(recent: str) -> str:
+    """Extract the last assistant message from RECENT_TURNS (best-effort)."""
+    if not recent:
+        return ""
+    lines = [ln.strip() for ln in recent.splitlines() if ln.strip()]
+    # try common prefixes
+    for i in range(len(lines) - 1, -1, -1):
+        ln = lines[i]
+        if ln.lower().startswith("assistant:"):
+            return ln[len("assistant:"):].strip()
+    # fallback: just return last line
+    return lines[-1] if lines else ""
+
+def _infer_awaited_slot(recent: str) -> str:
+    """
+    Heuristic: infer which controlled slot is being asked based on the last assistant utterance.
+    Returns: servings|time_limit|calorie_level|avoid_items|menu_id|yes_no_swap|""
+    """
+    s = (recent or "").lower()
+
+    if "how many servings" in s:
+        return "servings"
+    if "quick meals" in s or "prep time" in s:
+        return "time_limit"
+    if "lighter meals" in s or "balanced" in s or "more filling" in s:
+        return "calorie_level"
+    if "allerg" in s or "foods you want to avoid" in s:
+        return "avoid_items"
+    if ("which option do you prefer" in s) or (("option 1" in s) and ("option 2" in s)):
+        return "menu_id"
+    if "do you want me to swap" in s:
+        return "yes_no_swap"
+
+    return ""
+
+def _text_has_servings_evidence(user_text: str) -> bool:
+    t = (user_text or "").lower()
+    if re.search(r"\b[1-6]\b", t):
+        return True
+    return any(re.search(rf"\b{w}\b", t) for w in _WORD_NUMS.keys())
+
+def _text_has_time_limit_evidence(user_text: str, val: str) -> bool:
+    t = (user_text or "").lower()
+    if val == "FAST":
+        return any(k in t for k in ("fast", "quick", "short", "asap"))
+    if val == "NORMAL":
+        return any(k in t for k in ("normal", "regular", "standard", "ok", "okay"))
+    return False
+
+def _text_has_calorie_level_evidence(user_text: str, val: str) -> bool:
+    t = (user_text or "").lower()
+    if val == "LOW":
+        return any(k in t for k in ("low", "light", "lighter"))
+    if val == "MED":
+        return any(k in t for k in ("med", "medium", "balanced", "average"))
+    if val == "HIGH":
+        return any(k in t for k in ("high", "filling", "hearty", "more"))
+    return False
+
+def _text_has_menu_id_evidence(user_text: str, mid: int) -> bool:
+    t = (user_text or "").lower()
+    if mid == 1:
+        return bool(re.search(r"\b1\b", t) or re.search(r"\bone\b", t) or "option 1" in t or "menu 1" in t)
+    if mid == 2:
+        return bool(re.search(r"\b2\b", t) or re.search(r"\btwo\b", t) or "option 2" in t or "menu 2" in t)
+    return False
+
+def _text_has_yes_no_evidence(user_text: str) -> Optional[bool]:
+    """Return True for yes, False for no, None for neither."""
+    t = (user_text or "").strip().lower()
+    if not t:
+        return None
+    # allow exact/starts-with matches for short replies
+    if any(t == y or t.startswith(y + " ") for y in _YES_TOKENS):
+        return True
+    if any(t == n or t.startswith(n + " ") for n in _NO_TOKENS):
+        return False
+    return None
+
+def _text_has_avoid_items_evidence(user_text: str, items: List[str]) -> bool:
+    """
+    Minimal evidence check:
+    - require that each controlled token (or a close synonym) appears somewhere in the user text.
+    This avoids accepting hallucinated ["nuts"] for 'kuku'.
+    """
+    t = (user_text or "").lower()
+    syn = {
+        "dairy": ("dairy", "milk", "cheese", "butter", "yogurt"),
+        "egg": ("egg", "eggs", "omelette"),
+        "fish": ("fish", "salmon", "tuna", "cod", "seafood"),
+        "gluten": ("gluten", "wheat", "flour", "bread", "pasta"),
+        "meat": ("meat", "beef", "pork", "chicken", "steak"),
+        "nuts": ("nuts", "peanut", "almond", "walnut", "hazelnut"),
+        "sesame": ("sesame",),
+        "shellfish": ("shellfish", "shrimp", "crab", "lobster"),
+        "soy": ("soy", "tofu", "soy sauce"),
+    }
+    for it in items:
+        keys = syn.get(it, (it,))
+        if not any(k in t for k in keys):
+            return False
+    return True
 
 
 class NLU:
@@ -135,6 +245,7 @@ class NLU:
             "- Interpret intent=\"confirm\" ONLY if the user explicitly requests confirmation/finalization (e.g., \"confirm\", \"finalize\", \"generate shopping list\")\n"
             "  OR if the last assistant message asked an explicit yes/no confirmation question and the user replies \"yes\".\n"
             "  Do NOT treat generic acknowledgements (\"ok\", \"fine\", \"thanks\") as confirm.\n"
+            "- If the user reply does NOT contain evidence for a controlled value (servings/time_limit/calorie_level/avoid_items/menu_id/yes-no), output intent=\"out_of_domain\" with slots={\"ood_type\":\"INVALID_ANSWER\"} (do NOT guess).\n"
             "\n"
             "Canonicalization (normalize user language into controlled values):\n"
             "- servings: output an integer 1..6 (map words one/two/three/four/five/six to 1..6).\n"
@@ -279,7 +390,6 @@ class NLU:
         enc = self.tokenizer([nlu_text], return_tensors="pt")
         inputs = enc.to(self.model.device)
 
-        inputs = enc.to(self.model.device)
 
         if DEBUG:
             print("DEBUG tokenizer input type:", type(nlu_text), "len:", len(nlu_text))
@@ -291,6 +401,69 @@ class NLU:
         self.logger.debug(f"NLU raw output: {out}")
 
         obj = parsing_json(out)
+
+        # --- Evidence gate (prevents "uga" -> FAST, etc.) ---------------------
+        awaited = _infer_awaited_slot(recent)
+
+        def _invalid_answer():
+            return {"intent": "out_of_domain", "slots": {"ood_type": "INVALID_ANSWER"}}
+
+        # If we are in a controlled-slot Q/A moment, require evidence in USER_INPUT
+        if awaited == "servings":
+            # accept only if user text looks like a servings answer
+            if not _text_has_servings_evidence(user_text):
+                return _invalid_answer()
+
+        elif awaited == "time_limit":
+            # If LLM filled time_limit, require evidence for that specific value
+            if isinstance(obj, dict):
+                slots = obj.get("slots") or {}
+                if obj.get("intent") == "plan" and "time_limit" in slots:
+                    val = slots.get("time_limit")
+                    if isinstance(val, str) and val in ALLOWED_TIME_LIMITS:
+                        if not _text_has_time_limit_evidence(user_text, val):
+                            return _invalid_answer()
+
+        elif awaited == "calorie_level":
+            if isinstance(obj, dict):
+                slots = obj.get("slots") or {}
+                if obj.get("intent") == "plan" and "calorie_level" in slots:
+                    val = slots.get("calorie_level")
+                    if isinstance(val, str) and val in ALLOWED_CALORIE_LEVELS:
+                        if not _text_has_calorie_level_evidence(user_text, val):
+                            return _invalid_answer()
+
+        elif awaited == "avoid_items":
+            if isinstance(obj, dict):
+                slots = obj.get("slots") or {}
+                if obj.get("intent") == "plan" and "avoid_items" in slots:
+                    val = slots.get("avoid_items")
+                    # if non-empty list, require evidence for each item
+                    if isinstance(val, list) and val:
+                        if not _text_has_avoid_items_evidence(user_text, [str(x) for x in val]):
+                            return _invalid_answer()
+                    # if [] (explicit none) you can accept; if null/None accept (DM will re-ask)
+
+        elif awaited == "menu_id":
+            if isinstance(obj, dict):
+                slots = obj.get("slots") or {}
+                if obj.get("intent") == "select_menu" and "menu_id" in slots:
+                    mid = slots.get("menu_id")
+                    if isinstance(mid, int) and mid in (1, 2):
+                        if not _text_has_menu_id_evidence(user_text, mid):
+                            return _invalid_answer()
+
+        elif awaited == "yes_no_swap":
+            yn = _text_has_yes_no_evidence(user_text)
+            if yn is True:
+                # force confirm regardless of LLM output
+                obj = {"intent": "confirm", "slots": {}}
+            elif yn is False:
+                # force REFUSE_PENDING regardless of LLM output
+                obj = {"intent": "out_of_domain", "slots": {"ood_type": "REFUSE_PENDING"}}
+            else:
+                return _invalid_answer()
+
 
         if isinstance(obj, dict):
             nm = normalize_mr(obj)

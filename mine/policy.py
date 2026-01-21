@@ -177,6 +177,38 @@ def apply_policy(
                 proposed_argument,
                 "ood_refuse_pending->fallback",
             )
+        
+        if ood_type == "INVALID_ANSWER":
+            # Always reprompt the awaited slot deterministically (except in CONFIRMED).
+            if phase != "CONFIRMED" and awaiting_slot in REQUESTABLE_SLOTS:
+                return _final(
+                    "request_info",
+                    awaiting_slot,
+                    nm,
+                    proposed_action,
+                    proposed_argument,
+                    f"ood_invalid_answer->reprompt_awaiting:{awaiting_slot}",
+                )
+            # If we are waiting for menu selection but awaiting_slot isn't set, reprompt menu_id.
+            if phase == "AWAITING_MENU_SELECTION" and not has_active:
+                return _final(
+                    "request_info",
+                    "menu_id",
+                    nm,
+                    proposed_action,
+                    proposed_argument,
+                    "ood_invalid_answer->reprompt_menu_id",
+                )
+            return _final(
+                "fallback",
+                "",
+                nm,
+                proposed_action,
+                proposed_argument,
+                "ood_invalid_answer->fallback",
+            )
+
+
         if phase in {"AWAITING_MENU_SELECTION", "ACTIVE_MENU", "CONFIRMED"} and proposed_action in ALLOWED_DM_ACTIONS and proposed_action != "fallback":
             # Continue to normal guard rails below.
             pass
