@@ -20,7 +20,7 @@ import argparse
 from argparse import Namespace
 from typing import Tuple, Callable, Dict, Optional, Any
 from functools import partial
-
+import re
 
 from models import qwen3  # ensure models/__init__.py exists
 
@@ -122,6 +122,43 @@ Do not output the action string. Output ONLY the message to the user.
 
     "NLG_END": """Return ONLY the user-facing message. No extra text.""",
 }
+
+
+
+def extract_action_and_argument(input_string: str) -> Optional[Tuple[str, str]]:
+    """
+    Parse a DM “function-call string” like:
+      ASK_MISSING_PLAN_SLOTS(servings,time_limit)
+      SET_ACTIVE_MENU(menu_id=1)
+      SWAP_DAY(day=Tue)
+      CONFIRM()
+
+    Returns (action, argument_string). If there's no argument, returns ("CONFIRM", "").
+
+    This mirrors the spirit of Marina’s helper but stays minimal and safe.
+    """
+    if not input_string:
+        return None
+
+    s = input_string.strip()
+    # Remove common quoting artifacts
+    s = s.replace("`", "").replace("\"", "").replace("'", "")
+
+    match = re.match(r"(\w+)\((.*?)\)\s*$", s)
+    if not match:
+        return None
+
+    action = match.group(1)
+    arg = match.group(2).strip()
+
+    # If it's "key=value", keep only the value (like Marina)
+    if "=" in arg:
+        # Keep right-hand side of the first "="
+        arg = arg.split("=", 1)[1].strip()
+
+    return action, arg
+
+
 
 
 # ------------------------- Model registry + templates -------------------------

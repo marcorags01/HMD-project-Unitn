@@ -16,10 +16,10 @@ Non-responsibilities (handled elsewhere, per compartmentalization plan):
 from __future__ import annotations
 
 import json
+import copy
 from typing import Any, Dict, Optional, Tuple
 
-from utils import PROMPTS, generate, format_chat
-from support_fn import extract_action_and_argument
+from utils import PROMPTS, generate, format_chat, extract_action_and_argument
 from intents_schema import normalize_mr
 
 
@@ -100,6 +100,12 @@ class DM:
             output swap_day(<the pending day>) to commit it
         * update_avoid(ADD_AVOID_ITEM, item) or update_avoid(REMOVE_AVOID_ITEM, item) for avoid changes
         * confirm_plan() when the user asks to finalize / shopping list and there is no pending suggested change
+        - If selected_intent is out_of_domain, use the tracker state and RECENT_TURNS to interpret it:
+            * If awaiting_slot is set, output request_info(awaiting_slot).
+            * Else if menus_exist and NOT has_active_menu, output request_info(menu_id) (unless the user clearly chose 1 or 2).
+            * Else if has_active_menu and pending_action is SWAP_DAY and the user affirms ("yes/ok/do it"), output swap_day(pending_action.day).
+            * Else if has_active_menu and the user asks to finalize / shopping list, output confirm_plan().
+            * Otherwise output fallback().
 
 
         STYLE (for request_info arguments):
@@ -114,6 +120,11 @@ class DM:
         - Output exactly one line: action(arg1, arg2) or action() if no args.
         - Use POSITIONAL arguments only. Do NOT use key=value.
         - Do NOT add quotes, backticks, code fences, or any other text.
+
+        ARGUMENT NORMALIZATION:
+        - Days must be exactly one of: Mon, Tue, Wed, Thu, Fri
+        - For update_avoid, output: update_avoid(ADD_AVOID_ITEM, nuts) or update_avoid(REMOVE_AVOID_ITEM, dairy)
+
         """
 
 
@@ -153,6 +164,8 @@ class DM:
         tracker_state = tracker.to_state_dict() if hasattr(tracker, "to_state_dict") else {}
         if isinstance(tracker_state, dict):
             tracker_state.pop("pending_mrs", None)  # avoid duplicating / flooding
+            tracker_state.pop("menus", None)        # remove heavy payload
+            tracker_state.pop("active_menu", None)  # remove heavy payload
 
         ds = {
             # Selected MR (the one main.py chose to address now)
@@ -164,8 +177,17 @@ class DM:
             "pending_count": len(pending_mrs),
             "pending_intents": pending_intents,
 
+            "phase": getattr(tracker, "phase", ""),
+            "awaiting_slot": getattr(tracker, "awaiting_slot", None),
+            "reprompt_count": getattr(tracker, "reprompt_count", 0),
+            "pending_action": copy.deepcopy(getattr(tracker, "pending_action", None)),
+
             # (Optional but useful) include only a tiny “head” sample, not full queue
-            "pending_head": pending_mrs[:3],
+            "pending_head": [
+                {"intent": str(m.get("intent", "")).strip() or "out_of_domain"}
+                for m in pending_mrs[:3]
+                if isinstance(m, dict)
+            ],
 
             # Existing state signals
             "menus_exist": tracker.menus_exist() if hasattr(tracker, "menus_exist") else False,

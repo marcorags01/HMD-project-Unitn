@@ -365,6 +365,17 @@ class Dialogue:
             user_text = input().strip()
             raw = (user_text or "").strip()
             low = raw.lower()
+            # Deterministic restart/reset escape hatch
+            if low in {"restart", "reset", "start over"}:
+                self.tracker.clear()
+                self.history.clear()
+                last_action = ""
+
+                starting = PROMPTS.get("START", "Hi. How can I help you?")
+                print(starting)
+                self.history.add_msg(starting, "assistant", "start")
+                continue
+
 
             if low in {"exit", "quit", "q"}:
                 print("Goodbye.")
@@ -433,6 +444,13 @@ class Dialogue:
 
             # 6) Policy enforces hard rules (still against selected MR)
             action, arg, dbg = apply_policy(self.tracker, selected_mr, proposed_action, proposed_arg)
+            # 6b) Track slot-filling context for robust fallback/reprompt behavior
+            if action == "request_info":
+                self.tracker.note_request_info(arg)
+            elif action != "fallback":
+                # We are moving on from slot-filling; clear reprompt context.
+                self.tracker.clear_awaiting()
+
             if DEBUG:
                 print("DEBUG Policy final:", action, "arg:", arg, "reason:", dbg.get("policy_reason"))
             self.logger.info(f"Policy final: {action}({arg}) | reason={dbg.get('policy_reason')}")

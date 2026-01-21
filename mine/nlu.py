@@ -19,6 +19,7 @@ Compatible with:
 from __future__ import annotations
 
 import json
+from multiprocessing.util import DEBUG
 from typing import Any, Dict, Union, List
 
 from utils import generate, format_chat
@@ -69,7 +70,7 @@ class NLU:
                 "menu_id": [1, 2],
                 "help_slot": [
                     "servings", "time_limit", "calorie_level", "avoid_items",
-                    "menu_id", "target_day", "refine_type", "value", "mode",
+                    "menu_id", "target_day", "refine_type", "value", 
                     "all",
                 ],
                 "help_intent": ["plan", "select_menu", "inspect", "refine", "confirm", "show_week"],
@@ -228,6 +229,8 @@ class NLU:
         )
 
 
+        DEBUG = bool(getattr(self.args, "debug", False))
+
         # Dialogue context to resolve short/elliptical answers (e.g., "1", "yes", "ok").
         recent = ""
         if self.history is not None:
@@ -255,8 +258,9 @@ class NLU:
         self.logger.debug(f"NLU input:\n{nlu_text}")
         self.logger.debug(f"NLU prompt type={type(nlu_text)}")
 
-        print("DEBUG nlu_text type:", type(nlu_text))
-        print("DEBUG nlu_text head:", repr(nlu_text)[:200])
+        if DEBUG:
+            print("DEBUG nlu_text type:", type(nlu_text))
+            print("DEBUG nlu_text head:", repr(nlu_text)[:200])
         
         # ---- Force a guaranteed TextInputSequence and batch-of-1 for fast tokenizers ----
         if nlu_text is None:
@@ -268,8 +272,9 @@ class NLU:
         enc = self.tokenizer(nlu_text, return_tensors="pt")
         inputs = enc.to(self.model.device)
 
-        print("DEBUG tokenizer input type:", type(nlu_text), "len:", len(nlu_text))
-        print("DEBUG tokenizer input first 80:", repr(nlu_text[:80]))
+        if DEBUG:
+            print("DEBUG tokenizer input type:", type(nlu_text), "len:", len(nlu_text))
+            print("DEBUG tokenizer input first 80:", repr(nlu_text[:80]))
 
 
         out = generate(self.model, inputs, self.tokenizer, self.args).strip()

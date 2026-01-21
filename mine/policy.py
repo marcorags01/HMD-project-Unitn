@@ -150,6 +150,9 @@ def apply_policy(
         )
 
     phase = getattr(tracker, "phase", "")
+    awaiting_slot = getattr(tracker, "awaiting_slot", None)
+    awaiting_slot = str(awaiting_slot).strip() if not is_nullish(awaiting_slot) else ""
+
 
     #--Post confirmation behavior--
     # If the plan is already confirmed and the user confirms again (e.g., "finalize", "done"),
@@ -168,7 +171,20 @@ def apply_policy(
             # Continue to normal guard rails below.
             pass
         else:
+            # If we are awaiting a specific slot (slot-filling context), do not drop to generic fallback.
+            # Reprompt the same slot deterministically (except in CONFIRMED).
+            if phase != "CONFIRMED" and awaiting_slot in REQUESTABLE_SLOTS:
+                return _final(
+                    "request_info",
+                    awaiting_slot,
+                    nm,
+                    proposed_action,
+                    proposed_argument,
+                    f"intent=out_of_domain->reprompt_awaiting:{awaiting_slot}",
+                )
+
             return _final("fallback", "", nm, proposed_action, proposed_argument, "intent=out_of_domain")
+
 
     # 1) PLAN slot completion gate (hard rule, but let DM choose WHICH missing field to ask next)
     missing_plan: List[str] = []
@@ -296,7 +312,21 @@ def apply_policy(
     
     # 5) Otherwise: accept DM proposal, just sanitize action/args minimally
     safe_action, safe_arg = sanitize_proposed_action(tracker, intent, slots, proposed_action, proposed_argument)
+
+    # If sanitization collapses to fallback while we are awaiting a slot, reprompt that slot deterministically
+    # (except in CONFIRMED, where we keep the closure behavior).
+    if safe_action == "fallback" and phase != "CONFIRMED" and awaiting_slot in REQUESTABLE_SLOTS:
+        return _final(
+            "request_info",
+            awaiting_slot,
+            nm,
+            proposed_action,
+            proposed_argument,
+            f"sanitize_fallback->reprompt_awaiting:{awaiting_slot}",
+        )
+
     return _final(safe_action, safe_arg, nm, proposed_action, proposed_argument, "guardrail_accept_or_sanitize")
+
 
 
 def sanitize_proposed_action(

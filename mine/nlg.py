@@ -199,6 +199,101 @@ _REQUEST_QUESTIONS = {
     "all": "What would you like to do next?",
 }
 
+
+
+def _render_request_info(slot: str, tracker_state: Dict[str, Any]) -> str:
+    """
+    Deterministic slot reprompt with escalation based on tracker_state:
+    - reprompt_count = 0: base question
+    - reprompt_count = 1: repair + examples / allowed values
+    - reprompt_count >= 2: repair + help/restart hint + repeat question
+    Escalation only applies when tracker_state.awaiting_slot matches `slot`.
+    """
+    slot = str(slot or "").strip()
+    base = _REQUEST_QUESTIONS.get(slot, _REQUEST_QUESTIONS.get("all", "What would you like to do next?"))
+
+    awaiting = str((tracker_state or {}).get("awaiting_slot") or "").strip()
+
+    try:
+        reprompt_count = int((tracker_state or {}).get("reprompt_count") or 0)
+    except Exception:
+        reprompt_count = 0
+
+    # Only escalate when we are *actually* awaiting this same slot.
+    if not awaiting or awaiting != slot:
+        reprompt_count = 0
+
+    examples = {
+        "servings": "For example: 1, 2, 4, or 6.",
+        "time_limit": "Reply “quick” or “normal”.",
+        "calorie_level": "Reply “lighter”, “balanced”, or “more filling”.",
+        "avoid_items": "For example: nuts, dairy, gluten — or “none”.",
+        "menu_id": "Reply with 1 or 2.",
+        "target_day": "Reply with Mon, Tue, Wed, Thu, or Fri.",
+        "refine_type": "Reply “swap a day” or “update foods to avoid”.",
+        "value": "For example: “add nuts” or “remove dairy”.",
+    }
+
+    ex = examples.get(slot, "")
+
+    if reprompt_count <= 0:
+        return base
+
+    if reprompt_count == 1:
+        # Second attempt: repair + examples + repeat the question (keeps it clear and deterministic)
+        tail = f" {ex}" if ex else ""
+        return f"Sorry — I didn’t catch that.{tail}\n\n{base}".strip()
+
+    # Third+ attempt: help/restart hint + repeat question
+    tail = f"\n\n{ex}" if ex else ""
+    return (
+        "I’m still missing that detail. "
+        "Type “help” for examples, or “restart” to start over.\n\n"
+        f"{base}{tail}"
+    ).strip()
+
+def _render_phase_aware_fallback(tracker_state: Dict[str, Any]) -> str:
+    """
+    Deterministic fallback copy that is phase-aware and not over-informative.
+    Slot-aware behavior is handled by the caller (awaiting_slot check).
+    """
+    phase = str((tracker_state or {}).get("phase", "") or "")
+
+    if phase == "ACTIVE_MENU":
+        return (
+            "I didn’t quite get that. You can:\n"
+            "- ask what’s planned on a day (e.g., “What’s on Tue?”)\n"
+            "- swap a day (e.g., “Swap Wed”)\n"
+            "- add/remove foods to avoid (e.g., “Avoid nuts”)\n"
+            "- confirm to get the shopping list\n"
+            "What would you like to do?"
+        )
+
+    if phase == "AWAITING_MENU_SELECTION":
+        return "Which option do you prefer—1 or 2?"
+
+    if phase == "AWAITING_PLAN":
+        # Deterministic “collapse back to slot filling” without needing extra state:
+        # pick the first missing constraint in a fixed order.
+        c = (tracker_state or {}).get("constraints") or {}
+        if c.get("servings") in (None, ""):
+            return _render_request_info("servings", tracker_state)
+        if str(c.get("time_limit") or "").strip() == "":
+            return _render_request_info("time_limit", tracker_state)
+        if str(c.get("calorie_level") or "").strip() == "":
+            return _render_request_info("calorie_level", tracker_state)
+        avoid_items = c.get("avoid_items")
+        if avoid_items is None or avoid_items == "":
+            return _render_request_info("avoid_items", tracker_state)
+
+        # If everything looks filled but we’re still in AWAITING_PLAN, be minimally helpful:
+        return "Tell me your preferences for servings, prep time, calories, and any foods to avoid."
+
+    # Default generic fallback (only when no better deterministic guidance exists)
+    return "What would you like to do next?"
+
+
+
 def _render_provide_info(payload: Dict[str, Any], tracker_state: Dict[str, Any]) -> str:
     # Prefer payload values (executor-supplied), fall back to tracker_state
     help_intent = str(payload.get("help_intent", "plan") or "plan").strip().lower() # (Currently unused; reserved for future intent-specific help variations.)
@@ -342,6 +437,14 @@ def _render_week_overview(payload: Dict[str, Any], tracker_state: Dict[str, Any]
 
     return (header + "\n".join(lines)).strip()
 
+def _fmt_qty(q: Any) -> str:
+    if q is None or q == "":
+        return ""
+    try:
+        f = float(q)
+        return str(int(f)) if abs(f - int(f)) < 1e-9 else str(f)
+    except Exception:
+        return str(q).strip()
 
 
 def _render_shopping_list(items: list[Dict[str, Any]]) -> str:
@@ -377,19 +480,32 @@ def _render_shopping_list(items: list[Dict[str, Any]]) -> str:
 
 
 def _render_day_details(details: Dict[str, Any]) -> str:
-    day = details.get("day", "")
-    title = details.get("title", "")
+    day = str(details.get("day", "") or "").strip()
+    title = str(details.get("title", "") or "").strip()
     time_min = details.get("time_min", "")
     cal = str(details.get("calorie_level", "") or "").upper()
     avoid_check = bool(details.get("avoid_check", False))
+
+    servings = details.get("servings", None)
     ings = details.get("ingredients", []) or []
+    steps = details.get("steps", []) or []
 
     cal_map = {"LOW": "Lighter", "MED": "Balanced", "HIGH": "More filling"}
 
-    lines = [
-        f"{day} — {title}",
-        f"- Time: {time_min} min",
-    ]
+    lines: List[str] = []
+
+    # Lead-in you requested
+    if day:
+        lines.append(f"Sure — here is all the information about {day}:")
+        lines.append("")
+
+    # Header (NO recipe_id)
+    header = f"{day} — {title}".strip(" —")
+    lines.append(header)
+
+    if str(time_min).strip() != "":
+        lines.append(f"- Time: {time_min} min")
+
     if cal:
         lines.append(f"- Calories: {cal_map.get(cal, cal.title())}")
 
@@ -397,14 +513,37 @@ def _render_day_details(details: Dict[str, Any]) -> str:
         lines.append("- Note: this includes something you asked to avoid.")
 
     lines.append("")
-    lines.append("Ingredients (scaled):")
+
+    # Ingredients section
+    if servings is not None and str(servings).strip() != "":
+        lines.append(f"Ingredients (scaled for {servings} servings):")
+    else:
+        lines.append("Ingredients (scaled):")
+
     for ing in ings:
-        name = str(ing.get("name", "")).strip()
-        qty = ing.get("qty", "")
-        unit = str(ing.get("unit", "")).strip()
-        lines.append(f"- {qty} {unit} {name}".strip())
+        name = str(ing.get("name", "") or "").strip()
+        qty_txt = _fmt_qty(ing.get("qty", ""))
+        unit = str(ing.get("unit", "") or "").strip()
+
+        left = " ".join([t for t in [qty_txt, unit] if t]).strip()
+        if left and name:
+            lines.append(f"- {left} {name}".strip())
+        elif name:
+            lines.append(f"- {name}")
+        else:
+            # Defensive: skip malformed ingredient items
+            continue
+
+    # Steps section
+    steps_clean = [str(s).strip() for s in steps if str(s).strip()]
+    if steps_clean:
+        lines.append("")
+        lines.append("Steps:")
+        for i, s in enumerate(steps_clean, 1):
+            lines.append(f"{i}) {s}")
 
     return "\n".join(lines).strip()
+
 
 def _render_confirm_plan(payload: Dict[str, Any], tracker_state: Dict[str, Any]) -> str:
     header = "Shopping list (Mon–Fri):\n\n" + _fmt_constraints(tracker_state) + "\n\n"
@@ -473,9 +612,7 @@ class NLG:
 
         # Request questions are best kept deterministic (but wrapped by LLM).
         if action == "request_info":
-            q = _REQUEST_QUESTIONS.get((argument or "").strip(), "")
-            if q:
-                return q if q else "What would you like to do next?"
+            return _render_request_info(argument, tracker_state)
             
         # Deterministic high-risk actions 
         if action == "propose_menus":
@@ -553,7 +690,23 @@ class NLG:
                 base += "\n\nI also updated these days to keep everything compatible: " + ", ".join(repaired)
             fact_block = base
    
+        if action in {"set_active_menu", "suggest_swap_day", "swap_day", "update_avoid"}:
+            if fact_block:
+                msg = fact_block.strip()
+                if _should_offer_next_steps(action, tracker_state):
+                    msg = _append_next_steps_prompt(msg)
+                return msg
 
+        if action == "fallback" and phase != "CONFIRMED":
+            # swap rejection special-case already handled above
+
+            awaiting = str((tracker_state or {}).get("awaiting_slot") or "").strip()
+            if awaiting:
+                return _render_request_info(awaiting, tracker_state)
+
+            return _render_phase_aware_fallback(tracker_state)
+
+        
         # Build system prompt
         system_prompt = (
             PROMPTS["NLG_START"]
@@ -650,9 +803,8 @@ class NLG:
 
             # Hard stop: request_info should be the final output immediately
             if action == "request_info":
-                q = _REQUEST_QUESTIONS.get((argument or "").strip(), "")
-                return q if q else "What would you like to do next?"
-
+                return _render_request_info(argument, tracker_state)
+            
             if action == "provide_info":
                 chunks.append(_render_provide_info(payload, tracker_state))
                 last_rendered_action = action
@@ -721,8 +873,13 @@ class NLG:
                 if phase == "CONFIRMED":
                     chunks.append("All set — your meal plan is finalized. Type 'exit' to end, or start a new plan anytime.")
                 else:
-                    chunks.append("What would you like to do next?")
+                    awaiting = str((tracker_state or {}).get("awaiting_slot") or "").strip()
+                    if awaiting:
+                        chunks.append(_render_request_info(awaiting, tracker_state))
+                    else:
+                        chunks.append(_render_phase_aware_fallback(tracker_state))
                 continue
+             
 
         final = "\n\n".join([c for c in chunks if c]).strip()
 

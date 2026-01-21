@@ -252,6 +252,8 @@ class Tracker:
     pending_action: Optional[Dict[str, Any]] = None
     pending_mrs: List[Dict[str, Any]] = field(default_factory=list)
     turn_id: int = 0
+    awaiting_slot: Optional[str] = None
+    reprompt_count: int = 0
 
     # Optional: keep last MR for debugging/logging
     last_user_mr: Optional[Dict[str, Any]] = None
@@ -367,12 +369,40 @@ class Tracker:
             "active_menu_id": self.active_menu_id,
             "active_menu": copy.deepcopy(self.active_menu),
             "last_referenced_day": self.last_referenced_day,
+            "awaiting_slot": self.awaiting_slot,
+            "reprompt_count": self.reprompt_count,
             "pending_action": copy.deepcopy(self.pending_action),
             "pending_mrs": copy.deepcopy(self.pending_mrs),
 
         }
 
     # -------------------------- state mutation ------------------------------
+
+    def note_request_info(self, slot: str) -> None:
+        """
+        Track that the system asked the user for a specific slot via request_info(slot).
+
+        - If we ask for the same slot again consecutively, increment reprompt_count.
+        - If we switch to a new slot, set awaiting_slot and reset reprompt_count.
+        """
+        slot = (slot or "").strip()
+        if not slot:
+            return  # defensive: ignore empty slot names
+
+        if self.awaiting_slot == slot:
+            self.reprompt_count += 1
+        else:
+            self.awaiting_slot = slot
+            self.reprompt_count = 0
+
+    def clear_awaiting(self) -> None:
+        """
+        Clear the "awaiting_slot" context and its reprompt counter.
+        Call this when the system moves on from slot-filling to another action.
+        """
+        self.awaiting_slot = None
+        self.reprompt_count = 0
+
 
     def set_menus(self, menu1: Dict[str, Any], menu2: Dict[str, Any]) -> None:
         """Called by DM after GENERATE_TWO_MENUS()."""
@@ -384,6 +414,9 @@ class Tracker:
         self.active_menu = None
         self.last_referenced_day = None
         self.pending_action = None
+        self.awaiting_slot = None
+        self.reprompt_count = 0
+
 
 
     def set_active_menu(self, menu_id: int) -> bool:
@@ -398,6 +431,9 @@ class Tracker:
 
         self.active_menu = copy.deepcopy(self.menus[key])
         self.phase = "ACTIVE_MENU"
+        self.awaiting_slot = None
+        self.reprompt_count = 0
+
         return True
 
     def set_phase(self, phase: Phase) -> None:
@@ -410,6 +446,8 @@ class Tracker:
         self.active_menu_id = None
         self.active_menu = None
         self.last_referenced_day = None
+        self.awaiting_slot = None
+        self.reprompt_count = 0
         self.last_user_mr = None
         self.pending_action = None
         self.pending_mrs = []
@@ -724,10 +762,13 @@ class Tracker:
             servings = slots.get("servings", None)
             if not is_nullish(servings):
                 try:
-                    self.constraints["servings"] = int(servings)
-                    count_provided += 1
+                    s = int(servings)
+                    if 1 <= s <= 6:
+                        self.constraints["servings"] = s
+                        count_provided += 1
                 except (TypeError, ValueError):
                     pass
+
 
             time_limit = normalize_upper_enum(slots.get("time_limit", None))
             if time_limit and time_limit in ALLOWED_TIME_LIMITS:

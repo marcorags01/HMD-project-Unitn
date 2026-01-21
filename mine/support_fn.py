@@ -47,7 +47,7 @@ TIME_THRESHOLDS_MIN: Dict[str, int] = {
 }
 
 REQUIRED_RECIPE_FIELDS = {
-    "recipe_id", "title", "time_min", "calorie_level", "servings_base", "contains_tags", "ingredients"
+    "recipe_id", "title", "time_min", "calorie_level", "servings_base", "contains_tags", "ingredients", "steps"
 }
 REQUIRED_ING_FIELDS = {"name", "qty", "unit", "category"}
 
@@ -244,40 +244,6 @@ def parsing_json(text: str) -> Any:
     return best_obj if best_obj is not None else {}
 
 
-def extract_action_and_argument(input_string: str) -> Optional[Tuple[str, str]]:
-    """
-    Parse a DM “function-call string” like:
-      ASK_MISSING_PLAN_SLOTS(servings,time_limit)
-      SET_ACTIVE_MENU(menu_id=1)
-      SWAP_DAY(day=Tue)
-      CONFIRM()
-
-    Returns (action, argument_string). If there's no argument, returns ("CONFIRM", "").
-
-    This mirrors the spirit of Marina’s helper but stays minimal and safe.
-    """
-    if not input_string:
-        return None
-
-    s = input_string.strip()
-    # Remove common quoting artifacts
-    s = s.replace("`", "").replace("\"", "").replace("'", "")
-
-    match = re.match(r"(\w+)\((.*?)\)\s*$", s)
-    if not match:
-        return None
-
-    action = match.group(1)
-    arg = match.group(2).strip()
-
-    # If it's "key=value", keep only the value (like Marina)
-    if "=" in arg:
-        # Keep right-hand side of the first "="
-        arg = arg.split("=", 1)[1].strip()
-
-    return action, arg
-
-
 # ------------------------- Dataset loading & validation -------------------------
 
 def load_recipes(path: str) -> Tuple[List[Dict[str, Any]], Dict[str, Dict[str, Any]]]:
@@ -321,6 +287,9 @@ def _validate_recipe(r: Dict[str, Any]) -> None:
 
     if not isinstance(r["ingredients"], list) or len(r["ingredients"]) == 0:
         raise ValueError(f"ingredients must be a non-empty list for recipe {r.get('recipe_id')}")
+
+    if not isinstance(r["steps"], list) or len(r["steps"]) == 0:
+        raise ValueError(f"steps must be a non-empty list for recipe {r.get('recipe_id')}")
 
     for ing in r["ingredients"]:
         if not isinstance(ing, dict):
@@ -508,14 +477,18 @@ def get_day_details(
     avoid_set = {a for a in avoid_items if a in ALLOWED_AVOID_ITEMS}
     tags = {str(t).lower() for t in (recipe.get("contains_tags") or [])}
     avoid_check = bool(avoid_set.intersection(tags))
+    steps = recipe.get("steps") or []
+    steps = [str(s).strip() for s in steps if str(s).strip()]
 
     return {
         "day": day,
+        "servings": int(servings),
         "recipe_id": rid,
         "title": recipe["title"],
         "time_min": int(recipe["time_min"]),
         "calorie_level": str(recipe["calorie_level"]).upper(),
         "ingredients": scaled_ings,
+        "steps": steps,
         "avoid_check": avoid_check,
     }
 
@@ -687,6 +660,85 @@ def update_avoid_items(
 
 # ------------------------- Shopping list (scaling + aggregation) -------------------------
 
+_WS_RE = re.compile(r"\s+")
+
+def _normalize_unit(unit: str) -> str:
+    u = (unit or "").strip().lower()
+    unit_map = {
+        "pc": "pc",
+        "piece": "pc",
+        "pieces": "pc",
+        "pcs": "pc",
+        "g": "g",
+        "gram": "g",
+        "grams": "g",
+        "ml": "ml",
+        "milliliter": "ml",
+        "milliliters": "ml",
+    }
+    return unit_map.get(u, u)
+
+def _normalize_category(category: str) -> str:
+    c = (category or "").strip().lower()
+    if not c:
+        return "other"
+    cat_map = {
+        "produce": "produce",
+        "pantry": "pantry",
+        "dairy": "dairy",
+        "protein": "protein",
+        "spices": "spices",
+    }
+    return cat_map.get(c, c)
+
+def _singularize_token(tok: str) -> str:
+    # Conservative English singularization for simple plurals.
+    # Only apply to alphabetic tokens.
+    if not tok.isalpha():
+        return tok
+
+    # Common “do not touch” cases (mass nouns / tricky endings)
+    exceptions = {
+        "rice", "pasta", "glass", "asparagus", "couscous",
+    }
+    if tok in exceptions:
+        return tok
+
+    if tok.endswith("ies") and len(tok) > 3:
+        return tok[:-3] + "y"
+    if tok.endswith("oes") and len(tok) > 3:
+        return tok[:-2]  # tomatoes -> tomato, potatoes -> potato
+    if tok.endswith("ches") or tok.endswith("shes") or tok.endswith("xes") or tok.endswith("zes"):
+        return tok[:-2]  # drop 'es'
+    if tok.endswith("s") and not tok.endswith("ss") and len(tok) > 1:
+        return tok[:-1]
+
+    return tok
+
+def _normalize_ingredient_name(name: str) -> str:
+    s = (name or "").strip().lower()
+    s = s.strip(" ,;")
+    s = re.sub(r"[,:;]", " ", s)
+    s = s.replace("-", " ")
+    s = _WS_RE.sub(" ", s).strip()
+
+    # If there is a parenthetical suffix, singularize only the "base" part.
+    if "(" in s:
+        base, rest = s.split("(", 1)
+        base = base.strip()
+        rest = "(" + rest  # add back '('
+    else:
+        base, rest = s, ""
+
+    toks = base.split()
+    if toks:
+        toks[-1] = _singularize_token(toks[-1])
+    base_norm = " ".join(toks).strip()
+
+    return (base_norm + (" " + rest if rest else "")).strip()
+
+
+
 def scale_ingredients(recipe: Dict[str, Any], servings: int) -> List[Dict[str, Any]]:
     """
     Scale ingredient quantities by:
@@ -706,7 +758,7 @@ def scale_ingredients(recipe: Dict[str, Any], servings: int) -> List[Dict[str, A
     scaled: List[Dict[str, Any]] = []
     for ing in recipe.get("ingredients", []):
         raw_name = ing.get("name", "")
-        name = raw_name.strip() if isinstance(raw_name, str) else str(raw_name).strip()
+        name = _normalize_ingredient_name(raw_name)
       
         if not name:
             # Optional during debugging: raise to find the offending ingredient precisely
@@ -714,12 +766,10 @@ def scale_ingredients(recipe: Dict[str, Any], servings: int) -> List[Dict[str, A
             continue
 
         raw_unit = ing.get("unit", "")
-        unit = raw_unit.strip() if isinstance(raw_unit, str) else str(raw_unit).strip()
+        unit = _normalize_unit(raw_unit)
 
         raw_category = ing.get("category", "")
-        category = raw_category.strip() if isinstance(raw_category, str) else str(raw_category).strip()
-        if not category:
-            category = "Other"
+        category = _normalize_category(raw_category)
 
         qty = ing.get("qty", 0)
 
@@ -746,7 +796,7 @@ def _round_qty(qty: float, unit: str) -> float:
     if qty <= 0:
         return 0.0
 
-    if u in ("pc", "piece", "pieces"):
+    if u in ("pc"):
         # nearest int, minimum 1
         return float(max(1, int(round(qty))))
 
@@ -780,7 +830,7 @@ def generate_shopping_list(
             continue
 
         for ing in scale_ingredients(recipe, servings):
-            key = (ing["name"].strip().lower(), str(ing["unit"]), str(ing["category"]))
+            key = (str(ing["name"]), str(ing["unit"]), str(ing["category"]))
             agg[key] += float(ing["qty"])
 
     out: List[Dict[str, Any]] = []
