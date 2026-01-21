@@ -253,8 +253,20 @@ class NLU:
 
 
         nlu_text = format_chat(self.args, system_prompt, user_payload, tokenizer=self.tokenizer)
+
+        # ---- Hard normalize to a tokenizer-safe text input ----
+        if nlu_text is None:
+            nlu_text = ""
+
+        # If something upstream ever returns chat "messages" (list[dict]), render it now.
+        if isinstance(nlu_text, list) and nlu_text and isinstance(nlu_text[0], dict) and "role" in nlu_text[0]:
+            nlu_text = self.tokenizer.apply_chat_template(
+                nlu_text, tokenize=False, add_generation_prompt=True
+            )
+
+        # Any remaining non-str becomes str (last-resort safety)
         if not isinstance(nlu_text, str):
-            raise TypeError(f"format_chat() must return str, got {type(nlu_text)}: {repr(nlu_text)[:200]}")
+            nlu_text = str(nlu_text)
 
         self.logger.debug(f"NLU input:\n{nlu_text}")
         self.logger.debug(f"NLU prompt type={type(nlu_text)}")
@@ -262,15 +274,11 @@ class NLU:
         if DEBUG:
             print("DEBUG nlu_text type:", type(nlu_text))
             print("DEBUG nlu_text head:", repr(nlu_text)[:200])
-        
-        # ---- Force a guaranteed TextInputSequence and batch-of-1 for fast tokenizers ----
-        if nlu_text is None:
-            nlu_text = ""
-        elif not isinstance(nlu_text, str):
-            nlu_text = str(nlu_text)
 
-        # Tokenize as a batch of size 1 to avoid encode_batch type edge-cases
-        enc = self.tokenizer(nlu_text, return_tensors="pt")
+        # IMPORTANT: tokenize as a *batch of 1* (your comment said you wanted this, but you weren't doing it)
+        enc = self.tokenizer([nlu_text], return_tensors="pt")
+        inputs = enc.to(self.model.device)
+
         inputs = enc.to(self.model.device)
 
         if DEBUG:
