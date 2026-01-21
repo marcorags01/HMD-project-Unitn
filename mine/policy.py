@@ -167,6 +167,16 @@ def apply_policy(
     # that the NLU cannot reliably classify (e.g., "ok", "go ahead", "finalize").
     # If the DM proposes a valid action, allow it to pass through guard rails.
     if intent == "out_of_domain":
+        ood_type = str(slots.get("ood_type") or "").strip().upper()
+        if ood_type == "REFUSE_PENDING":
+            return _final(
+                "fallback",
+                "",
+                nm,
+                proposed_action,
+                proposed_argument,
+                "ood_refuse_pending->fallback",
+            )
         if phase in {"AWAITING_MENU_SELECTION", "ACTIVE_MENU", "CONFIRMED"} and proposed_action in ALLOWED_DM_ACTIONS and proposed_action != "fallback":
             # Continue to normal guard rails below.
             pass

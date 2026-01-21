@@ -285,8 +285,13 @@ class Tracker:
         count = 0
 
         if intent == "out_of_domain":
-            self.last_user_mr = {"intent": "out_of_domain"}
-            return intent, total_slots, 0
+
+            # IMPORTANT: still apply MR so we can consume structured OOD subtypes (e.g., REFUSE_PENDING)
+            if update:
+                count = self.apply_mr(input)
+            else:
+                self.last_user_mr = {"intent": "out_of_domain", "slots": copy.deepcopy(input.get("slots", {}) or {})}
+            return intent, total_slots, count
 
         if update:
             count = self.apply_mr(input)
@@ -330,29 +335,6 @@ class Tracker:
 
         return last_intent, total_slots, count
 
-    @staticmethod
-    def _looks_like_refusal(text: str) -> bool:
-        t = (text or "").strip().lower()
-        if not t:
-            return False
-
-        # conservative list (avoid false positives)
-        refusals = {
-            "no", "nope", "nah", "n",
-            "no thanks", "no thank you",
-            "don't", "do not", "dont",
-            "don't swap", "do not swap", "dont swap",
-            "keep it", "leave it", "never mind", "cancel",
-        }
-
-        if t in refusals:
-            return True
-
-        # allow punctuation variants: "no.", "no!", "no?"
-        if t.startswith("no") and len(t) <= 4:
-            return True
-
-        return False
 
 
 
@@ -398,7 +380,9 @@ class Tracker:
             "last_referenced_day": self.last_referenced_day,
             "awaiting_slot": self.awaiting_slot,
             "reprompt_count": self.reprompt_count,
+            "last_user_mr": copy.deepcopy(self.last_user_mr),
             "pending_action": copy.deepcopy(self.pending_action),
+            "last_denied_action": copy.deepcopy(self.last_denied_action),
             "pending_mrs": copy.deepcopy(self.pending_mrs),
 
         }
@@ -477,6 +461,7 @@ class Tracker:
         self.reprompt_count = 0
         self.last_user_mr = None
         self.pending_action = None
+        self.last_denied_action = None
         self.pending_mrs = []
         self.turn_id = 0
 
@@ -555,6 +540,7 @@ class Tracker:
         """
         # 1) advance turn
         self.turn_id += 1
+        self.last_denied_action = None
 
         # 2) stamp MRs
         self._stamp_turn(mrs, self.turn_id)
@@ -883,6 +869,17 @@ class Tracker:
         intent = str(mr.get("intent", "")).strip()
         slots = mr.get("slots", {}) or {}
         self.last_user_mr = {"intent": intent, "slots": copy.deepcopy(slots)}
+        self.last_denied_action = None
+
+        # OOD subtype: user refused a pending suggested swap
+        if intent == "out_of_domain" and self.pending_action is not None:
+            ood_type = str(slots.get("ood_type", "") or "").strip().upper()
+            p_type = str(self.pending_action.get("type", "") or "").strip().upper()
+            if ood_type == "REFUSE_PENDING" and p_type == "SWAP_DAY":
+                self.last_denied_action = copy.deepcopy(self.pending_action)
+                self.pending_action = None
+                # No slot application needed for OOD
+                return 0
 
         # Expire pending_action unless the user is responding to it.
         if self.pending_action is not None:
@@ -918,6 +915,24 @@ class Tracker:
         # Normalize intent strings defensively
         intents = [str(m.get("intent", "")).strip() for m in mrs]
         intents_set = set(intents)
+
+        # Reset one-turn denial marker
+        self.last_denied_action = None
+
+        # If this turn contains an OOD subtype REFUSE_PENDING, treat it as refusal of the pending suggested swap
+        if self.pending_action is not None and "out_of_domain" in intents_set:
+            p_type = str(self.pending_action.get("type", "") or "").strip().upper()
+            if p_type == "SWAP_DAY":
+                for mr in mrs:
+                    if str(mr.get("intent", "")).strip() != "out_of_domain":
+                        continue
+                    s = (mr.get("slots", {}) or {})
+                    if isinstance(s, dict):
+                        ood_type = str(s.get("ood_type", "") or "").strip().upper()
+                        if ood_type == "REFUSE_PENDING":
+                            self.last_denied_action = copy.deepcopy(self.pending_action)
+                            self.pending_action = None
+                            break
 
         # ---- Multi-MR-safe pending_action expiry (runs ONCE per turn) ----
         if self.pending_action is not None:

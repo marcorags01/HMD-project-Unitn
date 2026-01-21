@@ -546,6 +546,16 @@ class NLG:
                     return "Okay — I won’t make the swap. What would you like to do next?"
                 return f"Okay — I’ll keep {day} as-is. What would you like to do next?"
 
+            last_mr = (tracker_state or {}).get("last_user_mr") or {}
+            if isinstance(last_mr, dict) and str(last_mr.get("intent") or "") == "out_of_domain":
+                ood_type = str((last_mr.get("slots") or {}).get("ood_type") or "").strip().upper()
+                if ood_type == "REFUSE_PENDING":
+                    day = str((tracker_state or {}).get("last_referenced_day") or "").strip()
+                    day = day if day in {"Mon", "Tue", "Wed", "Thu", "Fri"} else "that day"
+                    return (
+                        f"No problem — we’ll keep {day} as-is. "
+                        "If you’d like, I can still suggest another alternative or swap a different day."
+                    )
 
 
         # ------------------------- Build verbatim factual blocks -------------------------
