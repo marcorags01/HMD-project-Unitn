@@ -70,54 +70,6 @@ def _strip_accidental_action_echo(text: str) -> str:
     return text.strip()
 
 
-_NEG_RE = re.compile(r"\b(no|no thanks|nah|nope|don't|do not|keep it|leave it|i don't want)\b", re.IGNORECASE)
-
-def _last_user_and_assistant_from_recent(recent: str) -> tuple[str, str]:
-    """
-    Best-effort extraction of the most recent user and assistant messages from `recent_turns`.
-    Works if recent_turns uses lines prefixed with 'user:' / 'assistant:'.
-    If the format differs, it falls back to heuristic scanning.
-    """
-    if not recent:
-        return "", ""
-
-    # Preferred: explicit prefixes
-    user_msgs = re.findall(r"(?:^|\n)user:\s*(.*)", recent, flags=re.IGNORECASE)
-    asst_msgs = re.findall(r"(?:^|\n)assistant:\s*(.*)", recent, flags=re.IGNORECASE)
-
-    last_user = user_msgs[-1].strip() if user_msgs else ""
-    last_asst = asst_msgs[-1].strip() if asst_msgs else ""
-
-    # Heuristic fallback: take last non-empty line(s)
-    if not last_user or not last_asst:
-        lines = [ln.strip() for ln in recent.splitlines() if ln.strip()]
-        # If we cannot parse roles, at least return the last line as "user"
-        if lines:
-            last_user = last_user or lines[-1]
-            # and try to find a prior line that contains the swap question
-            for ln in reversed(lines[:-1]):
-                if "Do you want me to swap" in ln:
-                    last_asst = ln
-                    break
-
-    return last_user, last_asst
-
-
-_DAY_ALIASES = {
-    "monday": "Mon", "mon": "Mon",
-    "tuesday": "Tue", "tue": "Tue", "tues": "Tue",
-    "wednesday": "Wed", "wed": "Wed",
-    "thursday": "Thu", "thu": "Thu", "thurs": "Thu",
-    "friday": "Fri", "fri": "Fri",
-}
-
-def _extract_swap_day_from_text(text: str) -> str:
-    # allow “swap Mon”, “swap: Mon”, “swap Monday”, case-insensitive
-    m = re.search(r"\bswap\b\s*[:\-]?\s*(mon|tue|tues|wed|thu|thurs|fri|monday|tuesday|wednesday|thursday|friday)\b",
-                  text, flags=re.IGNORECASE)
-    if not m:
-        return ""
-    return _DAY_ALIASES.get(m.group(1).lower(), "")
 
 
 
@@ -584,18 +536,16 @@ class NLG:
         if action == "fallback" and phase == "CONFIRMED":
             return "All set — your meal plan is finalized. Type 'exit' to end, or start a new plan anytime."
 
-        # ------------------------- Swap-rejection acknowledgement -------------------------
-        # If the assistant just asked to confirm a swap suggestion and the user refused,
-        # NLU will output out_of_domain -> policy fallback. Make fallback user-friendly here.
-        if action == "fallback" and phase != "CONFIRMED" and self.history is not None:
-            recent2 = self.history.last_iterations(last_n=2)  # small window is enough
-            last_user, last_asst = _last_user_and_assistant_from_recent(recent2)
-
-            if "do you want me to swap" in (last_asst or "").lower() and _NEG_RE.search(last_user or ""):
-                day = _extract_swap_day_from_text(last_asst) or "that day"
+        # ------------------------- Swap-rejection acknowledgement (state-driven) -------------------------
+        # Tracker sets last_denied_action when NLU emits out_of_domain with ood_type=REFUSE_PENDING
+        if action == "fallback" and phase != "CONFIRMED":
+            denied = (tracker_state or {}).get("last_denied_action")
+            if isinstance(denied, dict) and str(denied.get("type", "")).strip().upper() == "SWAP_DAY":
+                day = str(denied.get("day") or "").strip() or "that day"
                 if day == "that day":
                     return "Okay — I won’t make the swap. What would you like to do next?"
                 return f"Okay — I’ll keep {day} as-is. What would you like to do next?"
+
 
 
         # ------------------------- Build verbatim factual blocks -------------------------
@@ -873,6 +823,15 @@ class NLG:
                 if phase == "CONFIRMED":
                     chunks.append("All set — your meal plan is finalized. Type 'exit' to end, or start a new plan anytime.")
                 else:
+                    denied = (tracker_state or {}).get("last_denied_action")
+                    if isinstance(denied, dict) and str(denied.get("type", "")).strip().upper() == "SWAP_DAY":
+                        day = str(denied.get("day") or "").strip() or "that day"
+                        if day == "that day":
+                            chunks.append("Okay — I won’t make the swap. What would you like to do next?")
+                        else:
+                            chunks.append(f"Okay — I’ll keep {day} as-is. What would you like to do next?")
+                        continue
+                
                     awaiting = str((tracker_state or {}).get("awaiting_slot") or "").strip()
                     if awaiting:
                         chunks.append(_render_request_info(awaiting, tracker_state))

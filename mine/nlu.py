@@ -1,6 +1,6 @@
 # nlu.py
 """
-Meal Kit Composer — NLU (LLM-based), Marina-style.
+Meal Kit Composer — NLU (LLM-based).
 
 Responsibilities:
 - Given user text, produce one or more MR in the flat JSON format:
@@ -108,6 +108,7 @@ class NLU:
             "- Only include slots that are relevant to what the user provided in this turn.\n"
             "  Exception: when outputting a full plan MR in one turn, include all plan slots.\n"
             "- Do not invent values or add defaults that the user did not state.\n"
+            "- For intent=\"out_of_domain\", you MAY include an optional slot \"ood_type\" to specify the reason (e.g., \"REFUSE_PENDING\").\n"
             "- Return ONLY JSON. No extra text.\n"
             "\n"
             "Dialogue context rules (use RECENT_TURNS):\n"
@@ -130,7 +131,7 @@ class NLU:
             "- If the last assistant message asked to confirm a suggested swap (e.g., contains \"Do you want me to swap\"),\n"
             "  then interpret short replies as follows:\n"
             " - If the user replies with acceptance (e.g., \"yes\", \"ok\", \"do it\", \"swap it\", \"go ahead\") -> {\"intent\":\"confirm\",\"slots\":{}}\n"
-            " - If the user replies with refusal (e.g., \"no\", \"no thanks\", \"nope\", \"nah\", \"don't\", \"don't swap\", \"keep it\", \"leave it\", \"never mind\", \"cancel\") -> {\"intent\":\"out_of_domain\",\"slots\":{}}\n"
+            " - If the user replies with refusal (e.g., \"no\", \"no thanks\", \"nope\", \"nah\", \"don't\", \"don't swap\", \"keep it\", \"leave it\", \"never mind\", \"cancel\") -> {\"intent\":\"out_of_domain\",\"slots\":{\"ood_type\":\"REFUSE_PENDING\"}}\n"
             "- Interpret intent=\"confirm\" ONLY if the user explicitly requests confirmation/finalization (e.g., \"confirm\", \"finalize\", \"generate shopping list\")\n"
             "  OR if the last assistant message asked an explicit yes/no confirmation question and the user replies \"yes\".\n"
             "  Do NOT treat generic acknowledgements (\"ok\", \"fine\", \"thanks\") as confirm.\n"
@@ -209,7 +210,7 @@ class NLU:
             "- User: \"Change Friday\" -> "
             "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Fri\",\"value\":\"BEST_FIT\",\"mode\":\"COMMIT\"}}\n"
             "- Assistant: \"Do you want me to swap Mon to this?\" User: \"no thanks\" -> "
-            "{\"intent\":\"out_of_domain\",\"slots\":{}}\n"
+            "{\"intent\":\"out_of_domain\",\"slots\":{\"ood_type\":\"REFUSE_PENDING\"}}\n"
             "- User: \"Option 1 and confirm.\" -> "
             "["
             "{\"intent\":\"select_menu\",\"slots\":{\"menu_id\":1}},"

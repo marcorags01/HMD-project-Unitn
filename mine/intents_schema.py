@@ -43,7 +43,7 @@ INTENT_SLOTS: Dict[str, List[str]] = {
     "confirm": [],
     "show_week": [],
     "help": ["intent", "slot"],
-    "out_of_domain": [],
+    "out_of_domain": ["ood_type"],
     
 }
 
@@ -177,6 +177,10 @@ def normalize_mr(mr: Dict[str, Any]) -> Dict[str, Any]:
             slots_out["intent"] = _lower(slots_out.get("intent"))
         if "slot" in slots_out and not is_nullish(slots_out.get("slot")):
             slots_out["slot"] = str(slots_out["slot"]).strip()
+
+    elif intent == "out_of_domain":
+        if "ood_type" in slots_out and not is_nullish(slots_out.get("ood_type")):
+           slots_out["ood_type"] = str(slots_out["ood_type"]).strip().upper()
 
     elif intent == "show_week":
      pass

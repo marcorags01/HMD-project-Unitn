@@ -250,6 +250,8 @@ class Tracker:
     active_menu: Optional[Dict[str, Any]] = None
     last_referenced_day: Optional[str] = None
     pending_action: Optional[Dict[str, Any]] = None
+    last_user_text: str = ""
+    last_denied_action: Optional[Dict[str, Any]] = None
     pending_mrs: List[Dict[str, Any]] = field(default_factory=list)
     turn_id: int = 0
     awaiting_slot: Optional[str] = None
@@ -260,11 +262,11 @@ class Tracker:
 
     possible_intents: List[str] = field(default_factory=lambda: sorted(POSSIBLE_INTENTS))
 
-    # --------- convenience / compatibility helpers (Marina-like API) ---------
+    # --------- convenience / compatibility helpers  ---------
 
     def creation(self, input: Dict[str, Any], history: Optional[History] = None, update: bool = True) -> Tuple[str, int, int]:
         """
-        Compatibility wrapper similar to Marina's tracker:
+        Compatibility wrapper:
         - returns (intent, total_slots_for_intent, count_slots_provided_this_turn)
 
         The DM can ignore these numbers if it prefers.
@@ -327,6 +329,31 @@ class Tracker:
             count = int(summary.get("count_provided", 0))
 
         return last_intent, total_slots, count
+
+    @staticmethod
+    def _looks_like_refusal(text: str) -> bool:
+        t = (text or "").strip().lower()
+        if not t:
+            return False
+
+        # conservative list (avoid false positives)
+        refusals = {
+            "no", "nope", "nah", "n",
+            "no thanks", "no thank you",
+            "don't", "do not", "dont",
+            "don't swap", "do not swap", "dont swap",
+            "keep it", "leave it", "never mind", "cancel",
+        }
+
+        if t in refusals:
+            return True
+
+        # allow punctuation variants: "no.", "no!", "no?"
+        if t.startswith("no") and len(t) <= 4:
+            return True
+
+        return False
+
 
 
     def _total_slots_for_intent(self, intent: str) -> int:
