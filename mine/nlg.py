@@ -645,10 +645,21 @@ class NLG:
         # Avoid update acknowledgement (factual)
         if action == "update_avoid":
             repaired = payload.get("repaired_days") or []
+            repairs = payload.get("repairs") or []
+
             base = "Got it — I updated your foods to avoid.\n\n" + _fmt_constraints(tracker_state)
-            if repaired:
+
+            if repairs:
+                base += "\n\nI updated these meals to keep everything compatible:"
+                for it in repairs:
+                    # show the new recipe; optionally show what it replaced
+                    base += f"\n- {it.get('day')}: {it.get('new_title')} (was: {it.get('old_title')})"
+            elif repaired:
+                # fallback to previous behavior if no detailed mapping is provided
                 base += "\n\nI also updated these days to keep everything compatible: " + ", ".join(repaired)
+
             fact_block = base
+
    
         if action in {"set_active_menu", "suggest_swap_day", "swap_day", "update_avoid"}:
             if fact_block:

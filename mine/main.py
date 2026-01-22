@@ -278,6 +278,9 @@ def execute_action(
             payload["error"] = err or "I couldn’t update that avoid item."
             return payload
 
+        # NEW: snapshot old menu to compute substitutions
+        old_menu = dict(tracker.active_menu or {})
+
         try:
             repaired_menu, repaired_days = repair_menu(
                 tracker.active_menu or {},
@@ -288,8 +291,29 @@ def execute_action(
             tracker.active_menu = repaired_menu
             if tracker.active_menu_id in (1, 2):
                 tracker.menus[str(tracker.active_menu_id)] = dict(repaired_menu)
+
             payload["repaired_days"] = repaired_days
+
+            # NEW: add detailed substitutions day -> new recipe (and old recipe)
+            repairs = []
+            for day in repaired_days:
+                old_id = str(old_menu.get(day, ""))
+                new_id = str(repaired_menu.get(day, ""))
+
+                if not new_id or old_id == new_id:
+                    continue
+
+                repairs.append({
+                    "day": day,
+                    "old_recipe_id": old_id,
+                    "old_title": recipes_by_id.get(old_id, {}).get("title", old_id),
+                    "new_recipe_id": new_id,
+                    "new_title": recipes_by_id.get(new_id, {}).get("title", new_id),
+                })
+
+            payload["repairs"] = repairs
             return payload
+
         except Exception as e:
             payload["error"] = f"I updated your avoid list, but I couldn’t repair the plan: {e}"
             return payload

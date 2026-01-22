@@ -1736,7 +1736,748 @@
       "Whisk peanut butter, soy sauce, lime juice, minced garlic, and water.",
       "Toss noodles with tofu and shredded carrots; coat with sauce and serve."
     ]
+  },
+  {
+    "recipe_id": "R71",
+    "title": "Spicy Black Bean Rice Bowl with Avocado",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "black beans (canned, drained)", "qty": 260, "unit": "g", "category": "pantry" },
+      { "name": "corn kernels", "qty": 160, "unit": "g", "category": "produce" },
+      { "name": "avocado", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "lime", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "red onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry" },
+      { "name": "cumin", "qty": 3, "unit": "g", "category": "spices" },
+      { "name": "chili powder", "qty": 4, "unit": "g", "category": "spices" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice according to package directions.",
+      "Warm beans and corn in a pan with olive oil, cumin, chili powder, and salt.",
+      "Dice onion and avocado; squeeze lime over avocado.",
+      "Assemble bowls with rice and bean-corn mix.",
+      "Top with onion and avocado; finish with extra lime."
+    ]
+  },
+  {
+    "recipe_id": "R72",
+    "title": "Crispy Potato Chickpea Skillet",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "potatoes", "qty": 500, "unit": "g", "category": "produce" },
+      { "name": "chickpeas (canned, drained)", "qty": 260, "unit": "g", "category": "pantry" },
+      { "name": "spinach", "qty": 120, "unit": "g", "category": "produce" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 25, "unit": "ml", "category": "pantry" },
+      { "name": "paprika", "qty": 3, "unit": "g", "category": "spices" },
+      { "name": "garlic", "qty": 2, "unit": "pc", "category": "produce" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Dice potatoes into small cubes (about 1 cm).",
+      "Sauté potatoes in olive oil with salt and paprika until browned and tender (about 12–15 minutes).",
+      "Add chopped onion and minced garlic; cook 2 minutes.",
+      "Stir in chickpeas; warm through 2–3 minutes.",
+      "Fold in spinach to wilt; finish with black pepper."
+    ]
+  },
+  {
+    "recipe_id": "R73",
+    "title": "Tomato Lentil Rice Pilaf",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "lentils (canned, drained)", "qty": 260, "unit": "g", "category": "pantry" },
+      { "name": "tomatoes (canned)", "qty": 250, "unit": "g", "category": "pantry" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "garlic", "qty": 2, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry" },
+      { "name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Sauté chopped onion in olive oil until soft; add minced garlic and oregano.",
+      "Add canned tomatoes and salt; simmer 6–8 minutes.",
+      "Stir in lentils to heat through.",
+      "Serve tomato-lentil sauce over rice."
+    ]
+  },
+  {
+    "recipe_id": "R74",
+    "title": "Chickpea Coconut Curry Rice",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "chickpeas (canned, drained)", "qty": 260, "unit": "g", "category": "pantry" },
+      { "name": "coconut milk", "qty": 220, "unit": "ml", "category": "pantry" },
+      { "name": "tomatoes (canned)", "qty": 200, "unit": "g", "category": "pantry" },
+      { "name": "spinach", "qty": 120, "unit": "g", "category": "produce" },
+      { "name": "curry powder", "qty": 6, "unit": "g", "category": "spices" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Warm olive oil in a pan; stir in curry powder for 30 seconds.",
+      "Add tomatoes, coconut milk, chickpeas, and salt; simmer 8–10 minutes.",
+      "Stir in spinach to wilt.",
+      "Serve curry over rice."
+    ]
+  },
+  {
+    "recipe_id": "R75",
+    "title": "Quinoa Avocado Bean Power Bowl",
+    "time_min": 20,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "quinoa (dry)", "qty": 160, "unit": "g", "category": "pantry" },
+      { "name": "black beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry" },
+      { "name": "avocado", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "tomatoes", "qty": 220, "unit": "g", "category": "produce" },
+      { "name": "lime", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry" },
+      { "name": "cumin", "qty": 3, "unit": "g", "category": "spices" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook quinoa and fluff.",
+      "Warm black beans with cumin and a pinch of salt.",
+      "Dice tomatoes and avocado.",
+      "Whisk lime juice, olive oil, and salt for a quick dressing.",
+      "Assemble bowls: quinoa, beans, tomatoes, avocado; drizzle dressing."
+    ]
+  },
+  {
+    "recipe_id": "R76",
+    "title": "Sweet Potato Black Bean Burrito Bowl",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 160, "unit": "g", "category": "pantry" },
+      { "name": "sweet potato", "qty": 400, "unit": "g", "category": "produce" },
+      { "name": "black beans (canned, drained)", "qty": 260, "unit": "g", "category": "pantry" },
+      { "name": "salsa", "qty": 160, "unit": "g", "category": "pantry" },
+      { "name": "lime", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "cumin", "qty": 3, "unit": "g", "category": "spices" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Microwave sweet potato (pierced) until tender, then cube (or pan-sauté cubes in olive oil 10–12 minutes).",
+      "Warm black beans with cumin and salt.",
+      "Assemble bowls with rice, sweet potato, beans, and salsa.",
+      "Finish with lime juice."
+    ]
+  },
+  {
+    "recipe_id": "R77",
+    "title": "Lemon Chickpea Mash with Rice and Olives",
+    "time_min": 20,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "chickpeas (canned, drained)", "qty": 300, "unit": "g", "category": "pantry" },
+      { "name": "olives", "qty": 70, "unit": "g", "category": "pantry" },
+      { "name": "lemon", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "garlic", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 25, "unit": "ml", "category": "pantry" },
+      { "name": "paprika", "qty": 2, "unit": "g", "category": "spices" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Mash chickpeas with olive oil, lemon juice, minced garlic, paprika, salt, and pepper (leave some texture).",
+      "Warm the mash briefly in a pan if desired.",
+      "Serve chickpea mash over rice.",
+      "Top with sliced olives and extra lemon."
+    ]
+  },
+  {
+    "recipe_id": "R78",
+    "title": "Herby White Bean Potato Bowl",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "potatoes", "qty": 500, "unit": "g", "category": "produce" },
+      { "name": "white beans (canned, drained)", "qty": 260, "unit": "g", "category": "pantry" },
+      { "name": "cherry tomatoes", "qty": 220, "unit": "g", "category": "produce" },
+      { "name": "parsley", "qty": 12, "unit": "g", "category": "produce" },
+      { "name": "lemon", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 25, "unit": "ml", "category": "pantry" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Boil diced potatoes in salted water until tender; drain.",
+      "Warm beans in a pan with half the olive oil.",
+      "Toss potatoes with beans, halved tomatoes, remaining olive oil, lemon juice, salt, and pepper.",
+      "Stir in chopped parsley.",
+      "Serve warm (or room temperature)."
+    ]
+  },
+  {
+    "recipe_id": "R79",
+    "title": "Smoky Bean Corn Rice Skillet",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "kidney beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry" },
+      { "name": "corn kernels", "qty": 180, "unit": "g", "category": "produce" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "tomatoes (canned)", "qty": 220, "unit": "g", "category": "pantry" },
+      { "name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry" },
+      { "name": "smoked paprika", "qty": 3, "unit": "g", "category": "spices" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Sauté chopped onion in olive oil 4–5 minutes.",
+      "Add tomatoes, beans, corn, smoked paprika, and salt; simmer 8–10 minutes.",
+      "Serve the smoky bean mix over rice."
+    ]
+  },
+  {
+    "recipe_id": "R80",
+    "title": "Garlicky Lentil Spinach Rice",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "lentils (canned, drained)", "qty": 260, "unit": "g", "category": "pantry" },
+      { "name": "spinach", "qty": 150, "unit": "g", "category": "produce" },
+      { "name": "garlic", "qty": 3, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 25, "unit": "ml", "category": "pantry" },
+      { "name": "lemon", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Sauté sliced garlic in olive oil until fragrant (do not brown).",
+      "Add lentils and a pinch of salt; warm 3–4 minutes.",
+      "Fold in spinach to wilt; season with pepper.",
+      "Serve over rice with lemon juice."
+    ]
+  },
+  {
+    "recipe_id": "R81",
+    "title": "Quick Three-Bean Quinoa Bowl",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "quinoa (dry)", "qty": 160, "unit": "g", "category": "pantry" },
+      { "name": "black beans (canned, drained)", "qty": 200, "unit": "g", "category": "pantry" },
+      { "name": "kidney beans (canned, drained)", "qty": 200, "unit": "g", "category": "pantry" },
+      { "name": "white beans (canned, drained)", "qty": 200, "unit": "g", "category": "pantry" },
+      { "name": "tomatoes", "qty": 200, "unit": "g", "category": "produce" },
+      { "name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry" },
+      { "name": "lime", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" },
+      { "name": "cumin", "qty": 3, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook quinoa.",
+      "Warm mixed beans in a pan with cumin and salt.",
+      "Chop tomatoes.",
+      "Dress with lime juice and olive oil.",
+      "Assemble bowls: quinoa, beans, tomatoes; drizzle dressing."
+    ]
+  },
+  {
+    "recipe_id": "R82",
+    "title": "Coconut Rice with Spiced Beans",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "coconut milk", "qty": 200, "unit": "ml", "category": "pantry" },
+      { "name": "water", "qty": 200, "unit": "ml", "category": "pantry" },
+      { "name": "black beans (canned, drained)", "qty": 260, "unit": "g", "category": "pantry" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "curry powder", "qty": 4, "unit": "g", "category": "spices" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Simmer rice in coconut milk + water with a pinch of salt until tender.",
+      "Sauté chopped onion in olive oil; stir in curry powder for 30 seconds.",
+      "Add beans and a splash of water; warm 4–5 minutes; season with salt.",
+      "Serve spiced beans over coconut rice."
+    ]
+  },
+  {
+    "recipe_id": "R83",
+    "title": "Citrus Cucumber Quinoa Salad",
+    "time_min": 20,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "quinoa (dry)", "qty": 140, "unit": "g", "category": "pantry" },
+      { "name": "cucumber", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "orange", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "mint", "qty": 8, "unit": "g", "category": "produce" },
+      { "name": "olive oil", "qty": 12, "unit": "ml", "category": "pantry" },
+      { "name": "lemon", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "salt", "qty": 3, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook quinoa and cool slightly.",
+      "Dice cucumber; segment orange; chop mint.",
+      "Whisk olive oil, lemon juice, and salt.",
+      "Toss quinoa with cucumber, orange, and mint.",
+      "Chill briefly or serve immediately."
+    ]
+  },
+  {
+    "recipe_id": "R84",
+    "title": "Tomato Basil White Bean Salad",
+    "time_min": 15,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "white beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry" },
+      { "name": "tomatoes", "qty": 250, "unit": "g", "category": "produce" },
+      { "name": "fresh basil", "qty": 12, "unit": "g", "category": "produce" },
+      { "name": "red onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "lemon", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "salt", "qty": 3, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Chop tomatoes and thinly slice onion.",
+      "Combine beans, tomatoes, onion, and basil.",
+      "Dress with olive oil, lemon juice, salt, and pepper.",
+      "Toss and serve."
+    ]
+  },
+  {
+    "recipe_id": "R85",
+    "title": "Simple Lentil Veggie Soup",
+    "time_min": 25,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "lentils (canned, drained)", "qty": 240, "unit": "g", "category": "pantry" },
+      { "name": "vegetable broth", "qty": 700, "unit": "ml", "category": "pantry" },
+      { "name": "carrots", "qty": 180, "unit": "g", "category": "produce" },
+      { "name": "celery stalks", "qty": 2, "unit": "pc", "category": "produce" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 10, "unit": "ml", "category": "pantry" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" },
+      { "name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Sauté chopped onion, carrot, and celery in olive oil 5 minutes.",
+      "Add broth, lentils, oregano, and salt; simmer 15 minutes.",
+      "Adjust seasoning and serve."
+    ]
+  },
+  {
+    "recipe_id": "R86",
+    "title": "Zesty Chickpea Tomato Skillet",
+    "time_min": 20,
+    "calorie_level": "LOW",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "chickpeas (canned, drained)", "qty": 240, "unit": "g", "category": "pantry" },
+      { "name": "tomatoes (canned)", "qty": 300, "unit": "g", "category": "pantry" },
+      { "name": "spinach", "qty": 120, "unit": "g", "category": "produce" },
+      { "name": "garlic", "qty": 2, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 12, "unit": "ml", "category": "pantry" },
+      { "name": "lemon", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" },
+      { "name": "chili flakes", "qty": 2, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Sauté minced garlic in olive oil for 30 seconds.",
+      "Add tomatoes, salt, and chili flakes; simmer 8 minutes.",
+      "Stir in chickpeas to warm through.",
+      "Fold in spinach to wilt; finish with lemon juice."
+    ]
+  },
+  {
+    "recipe_id": "R87",
+    "title": "Lemon Pepper Salmon with Herby Rice",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["fish"],
+    "ingredients": [
+      { "name": "salmon fillet", "qty": 320, "unit": "g", "category": "protein" },
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "lemon", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "parsley", "qty": 10, "unit": "g", "category": "produce" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 2, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Season salmon with salt and pepper; pan-sear in olive oil until cooked through.",
+      "Stir chopped parsley and lemon juice into rice; season lightly.",
+      "Serve salmon over herby rice with extra lemon."
+    ]
+  },
+  {
+    "recipe_id": "R88",
+    "title": "Garlic Cod with Potato Smash",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["fish"],
+    "ingredients": [
+      { "name": "cod fillets", "qty": 320, "unit": "g", "category": "protein" },
+      { "name": "potatoes", "qty": 500, "unit": "g", "category": "produce" },
+      { "name": "garlic", "qty": 2, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry" },
+      { "name": "lemon", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Boil potatoes in salted water until tender; drain and roughly smash with olive oil, salt, and pepper.",
+      "Season cod with salt and pepper; sear in olive oil 3–4 minutes per side.",
+      "Add minced garlic to the pan for the last 30 seconds.",
+      "Finish fish with lemon juice.",
+      "Serve cod with potato smash."
+    ]
+  },
+  {
+    "recipe_id": "R89",
+    "title": "Tuna White Bean Rice Bowl",
+    "time_min": 20,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["fish"],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "tuna (canned, drained)", "qty": 180, "unit": "g", "category": "pantry" },
+      { "name": "white beans (canned, drained)", "qty": 200, "unit": "g", "category": "pantry" },
+      { "name": "cucumber", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "lemon", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry" },
+      { "name": "salt", "qty": 3, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Combine tuna and beans; season with lemon juice, olive oil, salt, and pepper.",
+      "Slice cucumber.",
+      "Assemble bowls: rice topped with tuna-bean mix and cucumber."
+    ]
+  },
+  {
+    "recipe_id": "R90",
+    "title": "One-Pan Sardine Tomato Rice",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["fish"],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "sardines (canned, drained)", "qty": 200, "unit": "g", "category": "pantry" },
+      { "name": "tomatoes (canned)", "qty": 250, "unit": "g", "category": "pantry" },
+      { "name": "garlic", "qty": 2, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" },
+      { "name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Sauté minced garlic in olive oil for 30 seconds; add tomatoes, oregano, and salt; simmer 8 minutes.",
+      "Flake sardines into the sauce and warm 2 minutes.",
+      "Serve over rice."
+    ]
+  },
+  {
+    "recipe_id": "R91",
+    "title": "Red Lentil Coconut Dal with Rice",
+    "time_min": 40,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "red lentils (dry)", "qty": 200, "unit": "g", "category": "pantry" },
+      { "name": "coconut milk", "qty": 250, "unit": "ml", "category": "pantry" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "garlic", "qty": 2, "unit": "pc", "category": "produce" },
+      { "name": "curry powder", "qty": 6, "unit": "g", "category": "spices" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Sauté chopped onion in olive oil 5 minutes; add minced garlic and curry powder.",
+      "Add lentils, coconut milk, and 300 ml water; add salt.",
+      "Simmer until lentils are tender and thick (18–22 minutes).",
+      "Serve dal over rice."
+    ]
+  },
+  {
+    "recipe_id": "R92",
+    "title": "Black Bean Sweet Potato Chili Bowl",
+    "time_min": 40,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "sweet potato", "qty": 350, "unit": "g", "category": "produce" },
+      { "name": "black beans (canned, drained)", "qty": 280, "unit": "g", "category": "pantry" },
+      { "name": "kidney beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry" },
+      { "name": "tomatoes (canned)", "qty": 350, "unit": "g", "category": "pantry" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "chili powder", "qty": 7, "unit": "g", "category": "spices" },
+      { "name": "cumin", "qty": 3, "unit": "g", "category": "spices" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Dice sweet potato into small cubes.",
+      "Sauté chopped onion in olive oil 4–5 minutes.",
+      "Add tomatoes, sweet potato, beans, chili powder, cumin, and salt.",
+      "Simmer 22–25 minutes until sweet potato is tender and chili thickens.",
+      "Serve hot."
+    ]
+  },
+  {
+    "recipe_id": "R93",
+    "title": "Chickpea Spinach Coconut Stew",
+    "time_min": 35,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "chickpeas (canned, drained)", "qty": 300, "unit": "g", "category": "pantry" },
+      { "name": "spinach", "qty": 180, "unit": "g", "category": "produce" },
+      { "name": "coconut milk", "qty": 250, "unit": "ml", "category": "pantry" },
+      { "name": "tomatoes (canned)", "qty": 250, "unit": "g", "category": "pantry" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "garlic", "qty": 2, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "curry powder", "qty": 6, "unit": "g", "category": "spices" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Sauté chopped onion in olive oil until soft; add minced garlic and curry powder.",
+      "Add tomatoes and coconut milk; simmer 8 minutes.",
+      "Add chickpeas; simmer 10 minutes.",
+      "Stir in spinach to wilt; season with salt.",
+      "Serve as a hearty stew."
+    ]
+  },
+  {
+    "recipe_id": "R94",
+    "title": "Hearty Lentil Tomato Stew with Potatoes",
+    "time_min": 40,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": [],
+    "ingredients": [
+      { "name": "potatoes", "qty": 450, "unit": "g", "category": "produce" },
+      { "name": "lentils (dry)", "qty": 200, "unit": "g", "category": "pantry" },
+      { "name": "tomatoes (canned)", "qty": 350, "unit": "g", "category": "pantry" },
+      { "name": "vegetable broth", "qty": 650, "unit": "ml", "category": "pantry" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "paprika", "qty": 3, "unit": "g", "category": "spices" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Dice potatoes; sauté chopped onion in olive oil 4 minutes.",
+      "Add paprika, lentils, tomatoes, broth, potatoes, and salt.",
+      "Simmer 25–30 minutes until lentils and potatoes are tender.",
+      "Adjust seasoning and serve."
+    ]
+  },
+  {
+    "recipe_id": "R95",
+    "title": "Cheesy Broccoli Rice Bake",
+    "time_min": 40,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["dairy"],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "broccoli", "qty": 300, "unit": "g", "category": "produce" },
+      { "name": "cheddar", "qty": 160, "unit": "g", "category": "dairy" },
+      { "name": "milk", "qty": 120, "unit": "ml", "category": "dairy" },
+      { "name": "butter", "qty": 15, "unit": "g", "category": "dairy" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Steam broccoli until tender-crisp.",
+      "Mix rice with broccoli, milk, half the cheddar, butter, salt, and pepper.",
+      "Top with remaining cheddar and bake at 200°C for 12–15 minutes until melted."
+    ]
+  },
+  {
+    "recipe_id": "R96",
+    "title": "Creamy Mushroom Rice Skillet",
+    "time_min": 35,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["dairy"],
+    "ingredients": [
+      { "name": "rice (uncooked)", "qty": 170, "unit": "g", "category": "pantry" },
+      { "name": "mushrooms", "qty": 300, "unit": "g", "category": "produce" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "cream", "qty": 150, "unit": "ml", "category": "dairy" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "garlic", "qty": 2, "unit": "pc", "category": "produce" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook rice.",
+      "Sauté chopped onion and sliced mushrooms in olive oil until browned.",
+      "Add minced garlic; cook 30 seconds.",
+      "Stir in cream, salt, and pepper; simmer 3–4 minutes.",
+      "Toss creamy mushrooms with rice and serve."
+    ]
+  },
+  {
+    "recipe_id": "R97",
+    "title": "Tomato Basil Pasta with White Beans",
+    "time_min": 30,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["gluten"],
+    "ingredients": [
+      { "name": "pasta (penne)", "qty": 200, "unit": "g", "category": "pantry" },
+      { "name": "white beans (canned, drained)", "qty": 260, "unit": "g", "category": "pantry" },
+      { "name": "tomatoes (canned)", "qty": 350, "unit": "g", "category": "pantry" },
+      { "name": "garlic", "qty": 2, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 20, "unit": "ml", "category": "pantry" },
+      { "name": "fresh basil", "qty": 12, "unit": "g", "category": "produce" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Cook pasta; reserve a splash of cooking water.",
+      "Sauté minced garlic in olive oil for 30 seconds.",
+      "Add tomatoes and salt; simmer 10 minutes.",
+      "Stir in beans; warm 2–3 minutes.",
+      "Toss with pasta and basil; loosen with pasta water; season with pepper."
+    ]
+  },
+  {
+    "recipe_id": "R98",
+    "title": "Vegetable Couscous with Chickpeas and Lemon",
+    "time_min": 35,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["gluten"],
+    "ingredients": [
+      { "name": "couscous", "qty": 200, "unit": "g", "category": "pantry" },
+      { "name": "chickpeas (canned, drained)", "qty": 260, "unit": "g", "category": "pantry" },
+      { "name": "zucchini", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "bell pepper", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "red onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 25, "unit": "ml", "category": "pantry" },
+      { "name": "lemon", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "salt", "qty": 4, "unit": "g", "category": "spices" },
+      { "name": "oregano (dried)", "qty": 2, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Chop vegetables; sauté in olive oil until tender (10–12 minutes); season with salt and oregano.",
+      "Prepare couscous according to package directions.",
+      "Warm chickpeas briefly with the vegetables.",
+      "Combine couscous with vegetables and chickpeas.",
+      "Finish with lemon juice and serve."
+    ]
+  },
+  {
+    "recipe_id": "R99",
+    "title": "Egg and Potato Breakfast Bowl",
+    "time_min": 20,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["egg"],
+    "ingredients": [
+      { "name": "potatoes", "qty": 450, "unit": "g", "category": "produce" },
+      { "name": "eggs", "qty": 4, "unit": "pc", "category": "protein" },
+      { "name": "onion", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "salt", "qty": 5, "unit": "g", "category": "spices" },
+      { "name": "black pepper", "qty": 1, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Dice potatoes small; sauté in olive oil with salt until browned and tender (12–14 minutes).",
+      "Add chopped onion; cook 2 minutes.",
+      "Push potatoes aside; scramble eggs in the pan.",
+      "Combine, season with pepper, and serve."
+    ]
+  },
+  {
+    "recipe_id": "R100",
+    "title": "Quick Tuna Corn Tortilla Tostadas",
+    "time_min": 25,
+    "calorie_level": "HIGH",
+    "servings_base": 2,
+    "contains_tags": ["fish"],
+    "ingredients": [
+      { "name": "corn tortillas", "qty": 6, "unit": "pc", "category": "pantry" },
+      { "name": "tuna (canned, drained)", "qty": 180, "unit": "g", "category": "pantry" },
+      { "name": "black beans (canned, drained)", "qty": 240, "unit": "g", "category": "pantry" },
+      { "name": "tomatoes", "qty": 200, "unit": "g", "category": "produce" },
+      { "name": "lime", "qty": 1, "unit": "pc", "category": "produce" },
+      { "name": "olive oil", "qty": 15, "unit": "ml", "category": "pantry" },
+      { "name": "salt", "qty": 3, "unit": "g", "category": "spices" }
+    ],
+    "steps": [
+      "Toast corn tortillas in a dry pan until crisp.",
+      "Warm beans with a pinch of salt.",
+      "Mix tuna with lime juice, olive oil, and salt.",
+      "Top tostadas with beans, tuna, and chopped tomatoes.",
+      "Serve immediately."
+    ]
   }
+
+
+
 
 
 ]

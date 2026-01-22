@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import json
 import re
+import random
 from collections import defaultdict
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -346,6 +347,7 @@ def filter_recipes(recipes: List[Dict[str, Any]], constraints: Dict[str, Any]) -
 def generate_two_menus(
     recipes: List[Dict[str, Any]],
     constraints: Dict[str, Any],
+    seed: Optional[int] = None,
 ) -> Tuple[Dict[str, str], Dict[str, str]]:
     """
     Generate two menus under the same constraints but different selection priorities:
@@ -355,15 +357,18 @@ def generate_two_menus(
     Returns:
       menu1, menu2  (each is a dict day->recipe_id)
     """
+    rng = random.Random(seed)
+
     feasible = filter_recipes(recipes, constraints)
-    if len(feasible) == 0:
+
+    # You need at least 5 feasible recipes to build a 5-day menu
+    if len(feasible) < 5:
         raise MenuGenerationError(_menu_infeasibility_message(constraints, len(feasible)))
 
-    menu1 = _build_menu_option1(feasible)
-    menu2 = _build_menu_option2(feasible)
+    menu1 = _build_menu_option1(feasible, rng)
+    menu2 = _build_menu_option2(feasible, rng)
 
     return menu1, menu2
-
 
 def _recipe_id(r: Dict[str, Any]) -> str:
     return str(r["recipe_id"])
@@ -385,37 +390,38 @@ def _ingredient_categories(r: Dict[str, Any]) -> List[str]:
     return out
 
 
-def _build_menu_option2(feasible: List[Dict[str, Any]]) -> Dict[str, str]:
+def _build_menu_option2(feasible: List[Dict[str, Any]], rng: random.Random) -> Dict[str, str]:
     """
-    Option 2: choose the 5 recipes with minimum time (then recipe_id).
+    Option 2: random sample 5 distinct feasible recipes.
     """
-    ranked = sorted(feasible, key=lambda r: (int(r["time_min"]), _recipe_id(r)))
-    if len(ranked) < 5:
-        raise ValueError("Not enough feasible recipes to build a 5-day menu (need at least 5).")
+    if len(feasible) < 5:
+        raise MenuGenerationError("Not enough feasible recipes to build a 5-day menu (need at least 5).")
 
-    chosen = ranked[:5]
+    chosen = rng.sample(feasible, k=5)
     return {day: _recipe_id(chosen[i]) for i, day in enumerate(WEEK_DAYS)}
 
 
-def _build_menu_option1(feasible: List[Dict[str, Any]]) -> Dict[str, str]:
+def _build_menu_option1(feasible: List[Dict[str, Any]], rng: random.Random) -> Dict[str, str]:
     """
-    Option 1: greedy variety selection.
-    For each day, pick a recipe that minimizes overlap with categories already used.
-    Tie-breakers: more unique categories, then shorter time, then recipe_id.
+    Option 1: greedy variety selection with randomized candidate order to avoid
+    always picking the same tie-break winners.
     """
     if len(feasible) < 5:
-        raise ValueError("Not enough feasible recipes to build a 5-day menu (need at least 5).")
+        raise MenuGenerationError("Not enough feasible recipes to build a 5-day menu (need at least 5).")
 
     used_ids = set()
     used_cats = set()
-
     menu: Dict[str, str] = {}
 
     for day in WEEK_DAYS:
         best = None
         best_key = None
 
-        for r in feasible:
+        # randomized iteration order each day
+        candidates = feasible[:]     # shallow copy
+        rng.shuffle(candidates)
+
+        for r in candidates:
             rid = _recipe_id(r)
             if rid in used_ids:
                 continue
@@ -428,14 +434,13 @@ def _build_menu_option1(feasible: List[Dict[str, Any]]) -> Dict[str, str]:
                 overlap,              # minimize overlap first
                 -unique_cats,         # then maximize diversity inside recipe
                 int(r["time_min"]),   # then prefer shorter time
-                rid,                  # deterministic final tie-break
+                rid,                  # still deterministic tie-break after shuffle
             )
 
             if best is None or key < best_key:
                 best = r
                 best_key = key
 
-        # must exist because len(feasible) >= 5
         assert best is not None
         rid = _recipe_id(best)
         menu[day] = rid
@@ -443,6 +448,7 @@ def _build_menu_option1(feasible: List[Dict[str, Any]]) -> Dict[str, str]:
         used_cats.update(_ingredient_categories(best))
 
     return menu
+
 
 
 # ------------------------- Inspect helpers -------------------------
