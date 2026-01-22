@@ -445,6 +445,39 @@ def apply_policy(
                 proposed_argument,
                 "refine_swap->swap_day",
             )
+        elif rtype in {"ADD_AVOID_ITEM", "REMOVE_AVOID_ITEM"}:
+            val = slots.get("value")
+            val = str(val).strip().lower() if not is_nullish(val) else ""
+
+            if not val:
+                return _final(
+                    "request_info",
+                    "value",
+                    nm,
+                    proposed_action,
+                    proposed_argument,
+                    "refine_avoid_missing_value->request_value",
+                )
+
+            if val not in ALLOWED_AVOID_ITEMS:
+                return _final(
+                    "request_info",
+                    "value",
+                    nm,
+                    proposed_action,
+                    proposed_argument,
+                    "refine_avoid_invalid_value->request_value",
+                )
+
+            # Deterministically execute avoid update (ignore DM proposal)
+            return _final(
+                "update_avoid",
+                _join_args([rtype, val]),
+                nm,
+                proposed_action,
+                proposed_argument,
+                "refine_avoid->update_avoid",
+            )
 
 
     # 4b) Non-committing suggestion guardrail:

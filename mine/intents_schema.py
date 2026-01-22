@@ -168,9 +168,13 @@ def normalize_mr(mr: Dict[str, Any]) -> Dict[str, Any]:
             slots_out["target_day"] = normalize_day(slots_out.get("target_day"))
         if "mode" in slots_out:
             slots_out["mode"] = _upper(slots_out.get("mode"))
-        if "value" in slots_out and not is_nullish(slots_out.get("value")):
+        
+        rt = str(slots_out.get("refine_type") or "").upper()
+        if rt in {"ADD_AVOID_ITEM", "REMOVE_AVOID_ITEM"} and "value" in slots_out and not is_nullish(slots_out.get("value")):
+            vlist = normalize_avoid_items(slots_out.get("value"))  # applies aliases like eggs->egg
+            slots_out["value"] = vlist[0] if vlist else str(slots_out.get("value")).strip()
+        elif "value" in slots_out and not is_nullish(slots_out.get("value")):
             slots_out["value"] = str(slots_out["value"]).strip()
-
 
     elif intent == "help":
         if "intent" in slots_out:
