@@ -166,30 +166,39 @@ def extract_action_and_argument(input_string: str) -> Optional[Tuple[str, str]]:
 
 MODELS: Dict[str, str] = {
     "llama3": "meta-llama/Meta-Llama-3-8B-Instruct",
+    "llama31": "meta-llama/Llama-3.1-8B-Instruct",
     "qwen3": "Qwen/Qwen3-4B-Instruct-2507",  # <-- adjust if your course uses a different id
 }
 
 # Per-model loader (Qwen often needs trust_remote_code=True in course repos)
 MODEL_LOADERS: Dict[str, Callable[..., PreTrainedModel]] = {
     "llama3": AutoModelForCausalLM.from_pretrained,
+    "llama31": AutoModelForCausalLM.from_pretrained,
     "qwen3": partial(AutoModelForCausalLM.from_pretrained, trust_remote_code=True),
 }
 
 # Per-model tokenizer kwargs
 TOKENIZER_KWARGS: Dict[str, Dict[str, object]] = {
     "llama3": {},
+    "llama31": {},
     "qwen3": {"trust_remote_code": True},
 }
 
 # If prepare_text is callable, we'll use tokenizer.apply_chat_template formatting (Qwen style).
 PREPARE_TEXT: Dict[str, Optional[Callable[..., str]]] = {
     "llama3": None,
+     "llama31": None,
     "qwen3": qwen3.prepare_text,
 }
 
 TEMPLATES = {
     # System + user -> assistant
     "llama3": (
+        "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{}<|eot_id|>"
+        "<|start_header_id|>user<|end_header_id|>\n\n{}<|eot_id|>"
+        "<|start_header_id|>assistant<|end_header_id|>"
+    ),
+    "llama31": (
         "<|begin_of_text|><|start_header_id|>system<|end_header_id|>\n\n{}<|eot_id|>"
         "<|start_header_id|>user<|end_header_id|>\n\n{}<|eot_id|>"
         "<|start_header_id|>assistant<|end_header_id|>"

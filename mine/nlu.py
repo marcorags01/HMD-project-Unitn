@@ -406,8 +406,13 @@ class NLU:
             print("DEBUG nlu_text type:", type(nlu_text))
             print("DEBUG nlu_text head:", repr(nlu_text)[:200])
 
-        # IMPORTANT: tokenize as a *batch of 1* (your comment said you wanted this, but you weren't doing it)
-        enc = self.tokenizer([nlu_text], return_tensors="pt")
+        # Tokenize a single string (still yields batch dim = 1 with return_tensors="pt").
+        # This avoids intermittent fast-tokenizer encode_batch() type errors.
+        try:
+            enc = self.tokenizer(nlu_text, return_tensors="pt")
+        except TypeError:
+            # Last-resort hardening: coerce to a plain Python str and retry.
+            enc = self.tokenizer(str(nlu_text), return_tensors="pt")
         inputs = enc.to(self.model.device)
 
 
