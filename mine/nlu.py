@@ -202,7 +202,7 @@ class NLU:
         self.args = args
         self.logger = logger
 
-    def __call__(self, user_text: str) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+    def __call__(self, user_text: str, awaiting_slot: Optional[str] = None,) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         # A compact but explicit schema hint helps LLM stay grounded.
         schema_hint = {
             "intents": list(INTENT_SLOTS.keys()),
@@ -434,7 +434,9 @@ class NLU:
         obj = parsing_json(out)
 
         # --- Evidence gate (prevents "uga" -> FAST, etc.) ---------------------
-        awaited = _infer_awaited_slot(recent)
+        awaited = (awaiting_slot or "").strip()
+        if not awaited:
+            awaited = _infer_awaited_slot(recent)
 
         # Closing intent: user indicates they are done / want to finalize
         if awaited == "" and _is_close(user_text):
@@ -459,14 +461,46 @@ class NLU:
                 obj = {"intent": "plan", "slots": {"time_limit": "FAST"}}
 
 
+        def _is_interrupting_intent(obj: Any) -> bool:
+            if not isinstance(obj, (dict, list)):
+                return False
+
+            objs = obj if isinstance(obj, list) else [obj]
+            for o in objs:
+                if not isinstance(o, dict):
+                    continue
+                intent = str(o.get("intent") or "")
+                slots = o.get("slots") or {}
+                ood_type = str(slots.get("ood_type") or "")
+
+                if intent in {"inspect", "show_week", "refine", "help", "confirm"}:
+                    return True
+                if intent == "out_of_domain" and ood_type == "REFUSE_PENDING":
+                    return True
+
+            return False
+
+
         def _invalid_answer():
             return {"intent": "out_of_domain", "slots": {"ood_type": "INVALID_ANSWER"}}
+
+        # If we're awaiting a slot but the user is clearly issuing a different valid request
+        # (e.g., "show Wed"), do not force INVALID_ANSWER.
+        if awaited and awaited != "yes_no_swap" and _is_interrupting_intent(obj):
+            if isinstance(obj, dict):
+                return normalize_mr(obj)
+            if isinstance(obj, list):
+                mrs = [normalize_mr(x) for x in obj if isinstance(x, dict)]
+                return mrs if mrs else {"intent": "out_of_domain", "slots": {}}
+
 
         # If we are in a controlled-slot Q/A moment, require evidence in USER_INPUT
         if awaited == "servings":
             # accept only if user text looks like a servings answer
             if not _text_has_servings_evidence(user_text):
                 return _invalid_answer()
+
+        
 
         elif awaited == "time_limit":
             # If LLM filled time_limit, require evidence for that specific value

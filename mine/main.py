@@ -417,7 +417,7 @@ class Dialogue:
             self.history.add_msg(user_text, "user", "input")
 
             # 1) NLU -> MR (dict or list[dict])
-            raw_obj = self.nlu(user_text)
+            raw_obj = self.nlu(user_text, awaiting_slot=getattr(self.tracker, "awaiting_slot", None))
 
             # Freeze contract: downstream always sees list[dict]
             if raw_obj is None:
@@ -477,9 +477,17 @@ class Dialogue:
             # 6b) Track slot-filling context for robust fallback/reprompt behavior
             if action == "request_info":
                 self.tracker.note_request_info(arg)
-            elif action != "fallback":
-                # We are moving on from slot-filling; clear reprompt context.
-                self.tracker.clear_awaiting()
+
+            else:
+                # Actions that should NOT clear awaiting_slot (read-only / informational “interrupts”)
+                INTERRUPT_ACTIONS = {"show_day", "show_week", "provide_info"}
+
+                if action in INTERRUPT_ACTIONS:
+                    pass  # keep awaiting_slot so the user can resume answering the pending question
+                elif action != "fallback":
+                    # Any state-changing action means we're no longer waiting for the previous slot
+                    self.tracker.clear_awaiting()
+
 
             if DEBUG:
                 print("DEBUG Policy final:", action, "arg:", arg, "reason:", dbg.get("policy_reason"))
