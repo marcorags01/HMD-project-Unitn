@@ -387,6 +387,66 @@ def apply_policy(
                 "pending_swap_confirm->commit",
             )
 
+    # 4c) Deterministic routing for inspect/refine once menu gate is satisfied.
+    # Prevent DM from re-asking for slots that are already present in the MR.
+    if intent == "inspect":
+        day = slots.get("target_day")
+        day = normalize_day(day)  # ensure "wednesday"/"Wed"/typos normalize
+        if day in ALLOWED_DAYS:
+            return _final(
+                "show_day",
+                str(day),
+                nm,
+                proposed_action,
+                proposed_argument,
+                "inspect->show_day",
+            )
+        return _final(
+            "request_info",
+            "target_day",
+            nm,
+            proposed_action,
+            proposed_argument,
+            "inspect_missing_day->request_target_day",
+        )
+
+    if intent == "refine":
+        rtype = str(slots.get("refine_type") or "").strip().upper()
+
+        if rtype == "SWAP_DAY":
+            day = slots.get("target_day")
+            day = normalize_day(day)
+
+            if day not in ALLOWED_DAYS:
+                return _final(
+                    "request_info",
+                    "target_day",
+                    nm,
+                    proposed_action,
+                    proposed_argument,
+                    "refine_swap_missing_day->request_target_day",
+                )
+
+            # Suggest vs commit decided by the MR, not by the DM proposal
+            if _mr_requests_suggestion(intent, slots):
+                return _final(
+                    "suggest_swap_day",
+                    str(day),
+                    nm,
+                    proposed_action,
+                    proposed_argument,
+                    "refine_swap->suggest_swap_day",
+                )
+            return _final(
+                "swap_day",
+                str(day),
+                nm,
+                proposed_action,
+                proposed_argument,
+                "refine_swap->swap_day",
+            )
+
+
     # 4b) Non-committing suggestion guardrail:
     # If MR indicates the user asked for an alternative suggestion (not an applied swap),
     # rewrite swap_day -> suggest_swap_day deterministically.

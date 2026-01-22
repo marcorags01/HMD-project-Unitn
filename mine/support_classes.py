@@ -55,23 +55,34 @@ def normalize_upper_enum(x: Any) -> Optional[str]:
 
 
 def normalize_day(x: Any) -> Optional[str]:
-    """
-    Validation-only day normalization:
-    - Accept canonical day codes only (Mon/Tue/Wed/Thu/Fri), case-insensitive.
-    - Do NOT map full names ("monday") or other aliases; NLU should do that.
-    """
     if is_nullish(x):
         return None
-    if not isinstance(x, str):
-        return None
-
-    s = x.strip()
+    s = str(x).strip().lower()
     if not s:
         return None
 
-    # case-only normalization
-    s3 = s[:3].title()  # "mon" -> "Mon", "MON" -> "Mon"
-    return s3 if s3 in ALLOWED_DAYS else None
+    # canonical 3-letter
+    s3 = s[:3].title()
+    if s3 in ALLOWED_DAYS:
+        return s3
+
+    # full names / common variants
+    mapping = {
+        "monday": "Mon",
+        "tuesday": "Tue",
+        "wednesday": "Wed",
+        "thursday": "Thu",
+        "friday": "Fri",
+        "tues": "Tue",
+        "thur": "Thu",
+        "thurs": "Thu",
+        "weds": "Wed",
+        # common typos you observed
+        "wesnday": "Wed",
+        "wensday": "Wed",
+        "wesnday": "Wed",
+    }
+    return mapping.get(s)
 
 
 # --- Avoid-item canonicalization (conservative) ---
@@ -413,6 +424,46 @@ class Tracker:
         """
         self.awaiting_slot = None
         self.reprompt_count = 0
+
+    def _clear_awaiting_if_answered(self, slots: Dict[str, Any]) -> None:
+        """
+        Fix B: If we are awaiting a slot and this MR provides it (validly), clear awaiting.
+        Keep validation lightweight and aligned with policy/sanitizers.
+        """
+        awaiting = getattr(self, "awaiting_slot", None)
+        awaiting = str(awaiting).strip() if not is_nullish(awaiting) else ""
+        if not awaiting:
+            return
+
+        if not isinstance(slots, dict):
+            return
+
+        if awaiting not in slots:
+            return
+
+        val = slots.get(awaiting, None)
+        if is_nullish(val):
+            return
+
+        # Minimal validity checks for the two problematic fields in your logs
+        if awaiting == "target_day":
+            day = normalize_day(val)
+            if day in ALLOWED_DAYS:
+                self.clear_awaiting()
+            return
+
+        if awaiting == "menu_id":
+            try:
+                mid = int(val)
+            except Exception:
+                return
+            if mid in (1, 2):
+                self.clear_awaiting()
+            return
+
+        # For other slots, "non-null" is sufficient (policy/sanitizers validate next step)
+        self.clear_awaiting()
+
 
 
     def set_menus(self, menu1: Dict[str, Any], menu2: Dict[str, Any]) -> None:
@@ -931,10 +982,16 @@ class Tracker:
             else:
                 self.pending_action = None
 
-        return self._apply_slots(mr)
+        count = self._apply_slots(mr)
+
+        # Fix B: if this MR answers what we were waiting for, clear awaiting_slot
+        self._clear_awaiting_if_answered(slots)
+
+        return count
+
 
     
-    
+
     def apply_mrs(self, mrs: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
         Apply multiple NLU MRs sequentially as ONE user turn.
@@ -1033,6 +1090,14 @@ class Tracker:
         count_total = 0
         for mr in mrs:
             count_total += self._apply_slots(mr)
+
+        # Fix B: if any MR in this turn answers what we were waiting for, clear awaiting_slot
+        for mr in mrs:
+            s = mr.get("slots", {}) or {}
+            if isinstance(s, dict):
+                self._clear_awaiting_if_answered(s)
+                if is_nullish(getattr(self, "awaiting_slot", None)) or str(getattr(self, "awaiting_slot", "")).strip() == "":
+                    break
 
         # last_user_mr: keep the last MR of the turn (most recent)
         last = mrs[-1]
