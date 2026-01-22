@@ -126,8 +126,8 @@ def apply_policy(
 
     # --- HELP intent: route to provide_info (must be early, before plan/menu gates) ---
     if intent == "help":
-        req_slot = slots.get("slot")
-        req_intent = slots.get("intent")
+        req_slot = slots.get("help_slot")
+        req_intent = slots.get("help_intent")
 
         if is_nullish(req_slot):
             req_slot = "all"
@@ -278,6 +278,49 @@ def apply_policy(
             proposed_argument,
             "plan_complete->propose_menus",
         )
+    
+    # --- SELECT_MENU must deterministically activate the chosen menu ---
+    if intent == "select_menu":
+        # If menus are not available yet, generate them first
+        if not menus_exist:
+            return _final(
+                "propose_menus",
+                "",
+                nm,
+                proposed_action,
+                proposed_argument,
+                "select_menu->need_menus",
+            )
+
+        mid = slots.get("menu_id")
+
+        # Coerce to int if possible
+        try:
+            mid = int(mid) if not is_nullish(mid) else None
+        except Exception:
+            mid = None
+
+        # Valid selection -> commit it (ignore DM proposal)
+        if mid in (1, 2):
+            return _final(
+                "set_active_menu",
+                str(mid),
+                nm,
+                proposed_action,
+                proposed_argument,
+                "select_menu->set_active_menu",
+            )
+
+        # Missing/invalid menu_id -> reprompt
+        return _final(
+            "request_info",
+            "menu_id",
+            nm,
+            proposed_action,
+            proposed_argument,
+            "select_menu_missing_or_invalid_menu_id",
+        )
+
 
 
     menu_dependent_actions = {"set_active_menu", "show_day", "show_week", "suggest_swap_day","swap_day", "update_avoid", "confirm_plan"}
@@ -322,9 +365,9 @@ def apply_policy(
 
 
     # 3) Menu selection gate: must have an active menu before show/swap/update/confirm
-    active_required_actions = {"show_day", "show_week", "suggest_swap_day", "swap_day", "update_avoid", "confirm_plan"}
-    if not has_active and proposed_action in active_required_actions:
-        return _final("request_info", "menu_id", nm, proposed_action, proposed_argument, "menu_gate_action")
+    if not has_active and intent in {"inspect", "refine", "confirm", "show_week"}:
+        return _final("request_info", "menu_id", nm, proposed_action, proposed_argument, "menu_gate_intent")
+
 
     # 4) Pending suggestion confirmation routing:
     # If there is a pending suggested SWAP_DAY and the user confirms (e.g., "yes/ok/do it"),
