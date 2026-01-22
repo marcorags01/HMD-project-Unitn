@@ -1,6 +1,6 @@
 # utils.py
 """
-Meal Kit Composer — shared utilities (Marina-like).
+Meal Kit Composer — shared utilities.
 
 This module centralizes:
 - PROMPTS for DM/NLG (and optionally NLU later)
@@ -32,6 +32,7 @@ from transformers import (
     BatchEncoding,
     PreTrainedTokenizer,
     PreTrainedModel,
+    BitsAndBytesConfig,
 )
 
 
@@ -135,7 +136,6 @@ def extract_action_and_argument(input_string: str) -> Optional[Tuple[str, str]]:
 
     Returns (action, argument_string). If there's no argument, returns ("CONFIRM", "").
 
-    This mirrors the spirit of Marina’s helper but stays minimal and safe.
     """
     if not input_string:
         return None
@@ -151,7 +151,7 @@ def extract_action_and_argument(input_string: str) -> Optional[Tuple[str, str]]:
     action = match.group(1)
     arg = match.group(2).strip()
 
-    # If it's "key=value", keep only the value (like Marina)
+    # If it's "key=value", keep only the value 
     if "=" in arg:
         # Keep right-hand side of the first "="
         arg = arg.split("=", 1)[1].strip()
@@ -399,14 +399,22 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
 
     loader_fn = MODEL_LOADERS[model_key]
 
+    # Quantize llama31 to fit in ~16GB VRAM
+    quant_config = None
+    if model_key == "llama31" and torch.cuda.is_available():
+        quant_config = BitsAndBytesConfig(load_in_8bit=True)
+
     model = loader_fn(
         args.model_name,
-        device_map="auto" if use_auto_map else None,
-        torch_dtype=tdtype,
+        device_map="auto" if (use_auto_map or quant_config is not None) else None,
+        torch_dtype=tdtype if quant_config is None else None,
+        quantization_config=quant_config,
     )
 
-    if not use_auto_map:
+    # Only manually move if we're NOT using device_map and NOT quantizing
+    if not (use_auto_map or quant_config is not None):
         model = model.to(args.device)
+
 
     tok_kwargs = TOKENIZER_KWARGS.get(model_key, {})
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, **tok_kwargs)
@@ -428,7 +436,7 @@ def generate(
     args: Namespace,
 ) -> str:
     """
-    Minimal generation wrapper consistent with Marina’s style, with optional sampling.
+    Minimal generation wrapper, with optional sampling.
     """
     do_sample = getattr(args, "temperature", 0.0) > 0.0
 

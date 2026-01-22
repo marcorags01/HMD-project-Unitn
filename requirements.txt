@@ -5,3 +5,4 @@ huggingface-hub
 safetensors
 sentencepiece
 protobuf
+bitsandbytes
