@@ -411,15 +411,21 @@ class Dialogue:
 
             # 2) Validate + normalize each MR (debug/robustness)
             validations = [validate_mr(m) for m in raw_mrs]
-            mrs = [v.normalized_mr for v in validations]  # normalized for tracker/policy/execution
-
+            mrs: list[dict] = []
+            for v in validations:
+                if v.valid:
+                    mrs.append(v.normalized_mr)
+                else:
+                    mrs.append({"intent": "out_of_domain", "slots": {"ood_type": "INVALID_MR"}})
 
             if DEBUG:
                 print("DEBUG raw MRs:", raw_mrs)
                 for i, v in enumerate(validations):
                     print(f"DEBUG MR[{i}] valid:", v.valid, "errors:", v.errors)
                     print(f"DEBUG MR[{i}] normalized:", v.normalized_mr)
+                print("DEBUG MRs ingested:", mrs)
 
+            
             # 3) Apply MR(s) to tracker as ONE turn (always)
             self.tracker.ingest_turn(mrs, history=self.history)
 

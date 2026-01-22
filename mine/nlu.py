@@ -43,18 +43,26 @@ _WORD_NUMS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 _YES_TOKENS = ("yes", "yep", "yeah", "ok", "okay", "sure", "do it", "go ahead", "swap it")
 _NO_TOKENS  = ("no", "nope", "nah", "no thanks", "don't", "do not", "keep it", "leave it", "cancel", "never mind")
 
-def _last_assistant_line(recent: str) -> str:
-    """Extract the last assistant message from RECENT_TURNS (best-effort)."""
-    if not recent:
-        return ""
-    lines = [ln.strip() for ln in recent.splitlines() if ln.strip()]
-    # try common prefixes
-    for i in range(len(lines) - 1, -1, -1):
-        ln = lines[i]
-        if ln.lower().startswith("assistant:"):
-            return ln[len("assistant:"):].strip()
-    # fallback: just return last line
-    return lines[-1] if lines else ""
+_ACK_TOKENS = (
+    "great", "thanks", "thank you", "ok", "okay", "cool", "nice", "sounds good", "perfect", "awesome"
+)
+
+_CLOSE_TOKENS = (
+    "all set", "i am all set", "i'm all set", "that's all", "that is all",
+    "nothing else", "no more", "we're done", "we are done", "done for now",
+    "i am satisfied", "i'm satisfied", "i am finished", "i'm finished"
+)
+
+def _is_ack(user_text: str) -> bool:
+    t = (user_text or "").strip().lower()
+    return bool(t) and any(t == a or a in t for a in _ACK_TOKENS)
+
+def _is_close(user_text: str) -> bool:
+    t = (user_text or "").strip().lower()
+    return bool(t) and any(c in t for c in _CLOSE_TOKENS)
+
+
+
 
 def _infer_awaited_slot(recent: str) -> str:
     """
@@ -65,7 +73,15 @@ def _infer_awaited_slot(recent: str) -> str:
 
     if "how many servings" in s:
         return "servings"
-    if "quick meals" in s or "prep time" in s:
+    if (
+    "quick meals" in s
+    or "prep time" in s
+    or "cook time" in s
+    or "how much time" in s
+    or "how long" in s
+    or "minutes" in s
+    or "time limit" in s
+    ):
         return "time_limit"
     if "lighter meals" in s or "balanced" in s or "more filling" in s:
         return "calorie_level"
@@ -89,7 +105,7 @@ def _text_has_time_limit_evidence(user_text: str, val: str) -> bool:
     if val == "FAST":
         return any(k in t for k in ("fast", "quick", "short", "asap"))
     if val == "NORMAL":
-        return any(k in t for k in ("normal", "regular", "standard", "ok", "okay"))
+        return any(k in t for k in ("normal", "regular", "standard", "ok", "okay", "plenty of time", "a lot of time", "lots of time", "free time", "no rush"))
     return False
 
 def _text_has_calorie_level_evidence(user_text: str, val: str) -> bool:
@@ -242,9 +258,11 @@ class NLU:
             "  then interpret short replies as follows:\n"
             " - If the user replies with acceptance (e.g., \"yes\", \"ok\", \"do it\", \"swap it\", \"go ahead\") -> {\"intent\":\"confirm\",\"slots\":{}}\n"
             " - If the user replies with refusal (e.g., \"no\", \"no thanks\", \"nope\", \"nah\", \"don't\", \"don't swap\", \"keep it\", \"leave it\", \"never mind\", \"cancel\") -> {\"intent\":\"out_of_domain\",\"slots\":{\"ood_type\":\"REFUSE_PENDING\"}}\n"
-            "- Interpret intent=\"confirm\" ONLY if the user explicitly requests confirmation/finalization (e.g., \"confirm\", \"finalize\", \"generate shopping list\")\n"
-            "  OR if the last assistant message asked an explicit yes/no confirmation question and the user replies \"yes\".\n"
-            "  Do NOT treat generic acknowledgements (\"ok\", \"fine\", \"thanks\") as confirm.\n"
+            " - Interpret intent=\"confirm\" if the user explicitly requests confirmation/finalization (e.g., \"confirm\", \"finalize\", \"generate shopping list\")\n"
+            "   OR if the last assistant message asked an explicit yes/no confirmation question and the user replies \"yes\".\n"
+            " - ALSO interpret intent=\"confirm\" if the user clearly indicates they are done/closing the session (e.g., \"I'm all set\", \"that's all\", \"nothing else\", \"we're done\", \"I'm satisfied\", \"I'm finished\"),\n"
+            "   BUT only when RECENT_TURNS does NOT show the assistant is currently asking for a specific required slot value.\n"
+            " - Do NOT treat generic acknowledgements (\"ok\", \"fine\", \"thanks\", \"great\") as confirm; those are acknowledgements, not finalization.\n"
             "- If the user reply does NOT contain evidence for a controlled value (servings/time_limit/calorie_level/avoid_items/menu_id/yes-no), output intent=\"out_of_domain\" with slots={\"ood_type\":\"INVALID_ANSWER\"} (do NOT guess).\n"
             "\n"
             "Canonicalization (normalize user language into controlled values):\n"
@@ -332,6 +350,8 @@ class NLU:
             "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Tue\",\"value\":\"BEST_FIT\",\"mode\":\"SUGGEST\"}},"
             "{\"intent\":\"inspect\",\"slots\":{\"target_day\":\"Wed\"}}"
             "]\n"
+            "- User: \"I'm all set, thanks.\" -> {\"intent\":\"confirm\",\"slots\":{}}\n"
+            "- User: \"Great, thanks!\" -> {\"intent\":\"out_of_domain\",\"slots\":{\"ood_type\":\"ACK\"}}\n"   
             "\n"
             "Special help intent rule:\n"
             "- If the user asks what values/options are allowed/supported for something, use intent='help'\n"
@@ -404,6 +424,26 @@ class NLU:
 
         # --- Evidence gate (prevents "uga" -> FAST, etc.) ---------------------
         awaited = _infer_awaited_slot(recent)
+
+        # Closing intent: user indicates they are done / want to finalize
+        if awaited == "" and _is_close(user_text):
+            return {"intent": "confirm", "slots": {}}
+
+        # Simple acknowledgement: keep conversation open without fallback spam
+        if awaited == "" and _is_ack(user_text):
+            return {"intent": "out_of_domain", "slots": {"ood_type": "ACK"}}
+
+
+        # --- Deterministic repair: user answered time_limit but LLM may output out_of_domain ---
+        if awaited == "time_limit":
+            t = (user_text or "").lower()
+            # NORMAL evidence (include your reported phrasing)
+            if any(k in t for k in ("normal", "regular", "standard", "plenty of time", "a lot of time", "lots of time", "free time", "no rush")):
+                obj = {"intent": "plan", "slots": {"time_limit": "NORMAL"}}
+            # FAST evidence
+            elif any(k in t for k in ("fast", "quick", "short", "asap", "in a hurry")):
+                obj = {"intent": "plan", "slots": {"time_limit": "FAST"}}
+
 
         def _invalid_answer():
             return {"intent": "out_of_domain", "slots": {"ood_type": "INVALID_ANSWER"}}

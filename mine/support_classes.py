@@ -575,20 +575,31 @@ class Tracker:
         if idx is None:
             if self.missing_plan_slots():
                 mr = {"intent": "plan", "slots": {}}
+                reason = "missing_plan_slots"
             elif self.phase == "AWAITING_MENU_SELECTION" or (self.menus_exist() and not self.has_active_menu()):
                 mr = {"intent": "select_menu", "slots": {}}
+                reason = "awaiting_menu_selection"
             else:
                 mr = {"intent": "out_of_domain", "slots": {}}
+                reason = "no_pending_match"
+
             mr["_turn_id"] = self.turn_id
+            mr["_synthetic"] = True
+            mr["_synthetic_reason"] = reason
+            mr["_selected_from_pending_index"] = None
             return mr
 
         # queued MR
         mr = self.pending_mrs[idx]
+
         # ensure it's stamped (defensive)
         if "_turn_id" not in mr:
             mr["_turn_id"] = self.turn_id
-        return mr
 
+        mr["_synthetic"] = False
+        mr["_synthetic_reason"] = None
+        mr["_selected_from_pending_index"] = idx
+        return mr
 
 
     def select_next_pending_index(self) -> Optional[int]:
@@ -676,6 +687,15 @@ class Tracker:
         try:
             action = (action or "").strip().lower()
             intent = self._intent_of(selected_mr)
+            sel_turn_id = selected_mr.get("_turn_id")
+
+            is_synthetic = bool(selected_mr.get("_synthetic", False))
+
+            def _is_success(action: str, payload: Dict[str, Any]) -> bool:
+                if action in {"request_info", "fallback"}:
+                    return False
+                return not bool((payload or {}).get("error"))
+
 
             # 0) If we asked for info, keep everything (we're waiting for user input).
             if action == "request_info":
@@ -684,7 +704,8 @@ class Tracker:
             # 1) Fallback: remove only out_of_domain, keep the rest.
             elif action == "fallback":
                 if intent == "out_of_domain":
-                    self.remove_pending(selected_mr)
+                    if not is_synthetic:
+                        self.remove_pending(selected_mr)
 
             # 2) propose_menus: goal progressed, clear plan requests.
             elif action == "propose_menus":
@@ -703,14 +724,16 @@ class Tracker:
             elif action == "show_day":
                 if (payload or {}).get("details") is not None and not (payload or {}).get("error"):
                     if intent == "inspect":
-                        self.remove_pending(selected_mr)
+                        if not is_synthetic: 
+                            self.remove_pending(selected_mr)
                     else:
                         self._remove_first_by_intent("inspect")
 
             elif action == "show_week":
                 if not (payload or {}).get("error"):
                     if intent == "show_week":
-                        self.remove_pending(selected_mr)
+                        if not is_synthetic:
+                            self.remove_pending(selected_mr)
                     else:
                         self._remove_first_by_intent("show_week")
 
@@ -719,7 +742,8 @@ class Tracker:
             elif action == "update_avoid":
                 if not (payload or {}).get("error"):
                     if intent == "refine":
-                        self.remove_pending(selected_mr)
+                        if not is_synthetic:
+                            self.remove_pending(selected_mr)
                     else:
                         self._remove_first_by_intent("refine")
 
@@ -727,7 +751,8 @@ class Tracker:
             elif action == "suggest_swap_day":
                 if bool((payload or {}).get("suggested", False)) and not (payload or {}).get("error"):
                     if intent == "refine":
-                        self.remove_pending(selected_mr)
+                        if not is_synthetic:
+                            self.remove_pending(selected_mr)
                     else:
                         self._remove_first_by_intent("refine")
 
@@ -735,7 +760,8 @@ class Tracker:
             elif action == "swap_day":
                 if bool((payload or {}).get("swapped", False)) and not (payload or {}).get("error"):
                     if intent == "refine":
-                        self.remove_pending(selected_mr)
+                        if not is_synthetic:
+                            self.remove_pending(selected_mr)
                     else:
                         self._remove_first_by_intent("refine")
 
@@ -748,7 +774,16 @@ class Tracker:
 
             # 9) Default: if we successfully did something, remove the MR we tried to handle
             else:
-                self.remove_pending(selected_mr)
+                if not is_synthetic:
+                    self.remove_pending(selected_mr)
+
+            # Fix 3: after a successful non-fallback action, drop low-value leftovers from the same user turn
+            if sel_turn_id is not None and _is_success(action, payload):
+                self.pending_mrs = [
+                    m for m in self.pending_mrs
+                    if m.get("_turn_id") != sel_turn_id
+                    or self._intent_of(m) not in {"help", "out_of_domain"}
+                ]
 
         finally:
             # Always enforce recency window + conservative pruning
