@@ -62,58 +62,7 @@ def _is_close(user_text: str) -> bool:
     return bool(t) and any(c in t for c in _CLOSE_TOKENS)
 
 
-def _infer_awaited_slot(recent: str) -> str:
-    """
-    Infer which controlled slot is being asked based on the MOST RECENT
-    assistant prompt visible in RECENT_TURNS. Uses last-occurrence wins.
-    Returns: servings|time_limit|calorie_level|avoid_items|menu_id|yes_no_swap|""
-    """
-    s = (recent or "").lower()
 
-    # Map slot -> list of cue substrings
-    cues = {
-        "servings": [
-            "how many servings",
-        ],
-        "time_limit": [
-            "quick meals",
-            "prep time",
-            "cook time",
-            "how much time",
-            "how long",
-            "minutes",
-            "time limit",
-        ],
-        "calorie_level": [
-            "lighter meals",
-            "balanced",
-            "more filling",
-        ],
-        "avoid_items": [
-            "allerg",
-            "foods you want to avoid",
-        ],
-        "menu_id": [
-            "which option do you prefer",
-            "option 1",
-            "option 2",
-        ],
-        "yes_no_swap": [
-            "do you want me to swap",
-        ],
-    }
-
-    best_slot = ""
-    best_pos = -1
-
-    for slot, patterns in cues.items():
-        for p in patterns:
-            pos = s.rfind(p)
-            if pos > best_pos:
-                best_pos = pos
-                best_slot = slot
-
-    return best_slot if best_pos >= 0 else ""
 
 
 
@@ -237,7 +186,8 @@ class NLU:
                 "If the user makes multiple distinct requests mapping to different intents, output multiple MRs in user order.",
                 "For each MR: include only slots allowed for that intent, and only slots supported by the current user turn (no extra nulls).",
                 "Do not invent information; normalize clear synonyms/typos into controlled values.",
-                "Use RECENT_TURNS to resolve elliptical answers, prioritizing the most recent assistant question.",
+                "Use RECENT_TURNS for ellipsis ONLY when AWAITING_SLOT is not (none) or when resolving day/menu references (e.g., “that one”, “option 2”).",
+                "If AWAITING_SLOT is (none), do not treat the user message as an answer to a prior slot question.",
                 "avoid_items must be a JSON list (possibly empty) when confident, otherwise null; never output a single string.",
             ],
 
@@ -259,8 +209,7 @@ class NLU:
             "RECENT_TURNS handling (context resolution):\n"
             "- Use RECENT_TURNS to interpret short/elliptical replies.\n"
             "- If multiple assistant questions appear in RECENT_TURNS, treat the MOST RECENT assistant question as the one being answered.\n"
-            "- If the assistant is collecting PLAN details (servings/time_limit/calorie_level/avoid_items), interpret the user reply as intent=plan\n"
-            "  and fill ONLY the asked plan slot(s), even if the text includes words like \"avoid\".\n"
+            "If AWAITING_SLOT is one of servings/time_limit/calorie_level/avoid_items, interpret the user reply as intent=plan and fill ONLY that slot.\n"
             "- When replying to a plan question, output ONLY that plan slot in slots (plus avoid_items=[] if explicitly none).\n\n"
             "- If the user provides multiple plan constraints in one message, output intent=plan and include all provided plan slots.\n"
 
@@ -284,7 +233,7 @@ class NLU:
             "  or if they clearly close the session (I’m all set/that’s all/nothing else/we’re done/etc.),\n"
             "  BUT NOT if RECENT_TURNS shows the assistant is currently asking for a required slot value.\n"
             "- acknowledgements: generic acknowledgements (ok/fine/thanks/great/etc.) are NOT confirm; output out_of_domain with ood_type=ACK.\n"
-            "- invalid answers: if RECENT_TURNS indicates the assistant is asking for a controlled slot value and the user reply lacks evidence for that slot, output {\"intent\":\"out_of_domain\",\"slots\":{\"ood_type\":\"INVALID_ANSWER\"}} (do not guess).\n"
+            "- invalid answers: ONLY if AWAITING_SLOT is set to a controlled slot AND the user reply lacks evidence for that slot, output INVALID_ANSWER (do not guess). If AWAITING_SLOT is (none), do NOT output INVALID_ANSWER.\n"
 
             "Canonicalization (controlled values):\n"
             "- servings: integer 1..6 (map one/two/three/four/five/six).\n"
@@ -381,6 +330,8 @@ class NLU:
         user_payload = (
             "SCHEMA_HINT:\n"
             + _safe_json(schema_hint)
+            + "\n\nAWAITING_SLOT:\n"
+            + ((awaiting_slot or "").strip() if awaiting_slot else "(none)")
             + "\n\nRECENT_TURNS:\n"
             + (recent if recent else "(none)")
             + "\n\nUSER_INPUT:\n"
@@ -435,9 +386,7 @@ class NLU:
 
         # --- Evidence gate (prevents "uga" -> FAST, etc.) ---------------------
         awaited = (awaiting_slot or "").strip()
-        if not awaited:
-            awaited = _infer_awaited_slot(recent)
-
+        
         # Closing intent: user indicates they are done / want to finalize
         if awaited == "" and _is_close(user_text):
             return {"intent": "confirm", "slots": {}}
@@ -486,7 +435,7 @@ class NLU:
 
         # If we're awaiting a slot but the user is clearly issuing a different valid request
         # (e.g., "show Wed"), do not force INVALID_ANSWER.
-        if awaited and awaited != "yes_no_swap" and _is_interrupting_intent(obj):
+        if awaited and _is_interrupting_intent(obj):
             if isinstance(obj, dict):
                 return normalize_mr(obj)
             if isinstance(obj, list):
