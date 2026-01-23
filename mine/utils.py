@@ -426,6 +426,17 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     return model, tokenizer  # type: ignore
 
 
+def infer_input_device(model) -> torch.device:
+    # If accelerate device_map is active, prefer the first CUDA device used by the model
+    dm = getattr(model, "hf_device_map", None)
+    if isinstance(dm, dict):
+        for dev in dm.values():
+            if isinstance(dev, str) and dev.startswith("cuda"):
+                return torch.device(dev)
+    # Fallback
+    return torch.device(getattr(model, "device", "cpu"))
+
+
 
 # ------------------------- Generation wrapper -------------------------
 

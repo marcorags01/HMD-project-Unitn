@@ -21,7 +21,7 @@ from __future__ import annotations
 import json
 import re
 from typing import Any, Dict, Union, List, Optional
-from utils import generate, format_chat
+from utils import generate, format_chat, infer_input_device
 from intents_schema import INTENT_SLOTS, normalize_mr
 from support_fn import parsing_json
 from support_classes import (
@@ -375,7 +375,7 @@ class NLU:
         except TypeError:
             # Last-resort hardening: coerce to a plain Python str and retry.
             enc = self.tokenizer(str(nlu_text), return_tensors="pt")
-        inputs = enc.to(self.model.device)
+        inputs = enc.to(infer_input_device(self.model))
 
 
         if DEBUG:

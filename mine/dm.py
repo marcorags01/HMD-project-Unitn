@@ -19,7 +19,7 @@ import json
 import copy
 from typing import Any, Dict, Optional, Tuple
 
-from utils import PROMPTS, generate, format_chat, extract_action_and_argument
+from utils import PROMPTS, generate, format_chat, extract_action_and_argument, infer_input_device
 from intents_schema import normalize_mr
 
 
@@ -231,7 +231,7 @@ class DM:
             dm_text = str(dm_text)
 
         enc = self.tokenizer(dm_text, return_tensors="pt")
-        inputs = enc.to(self.model.device)
+        inputs = enc.to(infer_input_device(self.model))
 
 
         dm_output = generate(self.model, inputs, self.tokenizer, self.args).strip()

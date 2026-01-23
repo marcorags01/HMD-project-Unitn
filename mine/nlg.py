@@ -20,7 +20,7 @@ import json
 import re
 from typing import Any, Dict, Optional, List
 
-from utils import PROMPTS, generate, format_chat
+from utils import PROMPTS, generate, format_chat, infer_input_device
 from collections import defaultdict
 
 
@@ -784,7 +784,7 @@ class NLG:
             nlg_text = str(nlg_text)
 
         enc = self.tokenizer(nlg_text, return_tensors="pt")
-        inputs = enc.to(self.model.device)
+        inputs = enc.to(infer_input_device(self.model))
 
 
         out = generate(self.model, inputs, self.tokenizer, self.args).strip()
