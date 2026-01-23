@@ -415,9 +415,16 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     if not (use_auto_map or quant_config is not None):
         model = model.to(args.device)
 
+    tok_kwargs = dict(TOKENIZER_KWARGS.get(model_key, {}))
 
-    tok_kwargs = TOKENIZER_KWARGS.get(model_key, {})
+    # Fast tokenizers occasionally throw TextEncodeInput errors on some setups.
+    # Use the slow tokenizer for stability.
+    if model_key in {"llama3", "llama31"}:
+        tok_kwargs["use_fast"] = False
+
     tokenizer = AutoTokenizer.from_pretrained(args.model_name, **tok_kwargs)
+
+    
 
     if tokenizer.pad_token_id is None and tokenizer.eos_token_id is not None:
         tokenizer.pad_token = tokenizer.eos_token
