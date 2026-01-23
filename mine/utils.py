@@ -412,8 +412,7 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
         quantization_config=quant_config,
     )
 
-    print("MODEL device:", getattr(model, "device", None))
-    print("HF device map:", getattr(model, "hf_device_map", None))
+ 
 
 
     # Only manually move if we're NOT using device_map and NOT quantizing
@@ -501,12 +500,7 @@ def generate(
         gen_kwargs["temperature"] = float(getattr(args, "temperature", 0.7))
         gen_kwargs["top_p"] = float(getattr(args, "top_p", 0.9))
 
-    print(
-        "GEN do_sample:", do_sample,
-        "temp:", getattr(args, "temperature", None),
-        "top_p:", getattr(args, "top_p", None),
-    )
-    print("GEN kwargs keys:", sorted(gen_kwargs.keys()))
+    
 
     with torch.inference_mode():
         output = model.generate(
