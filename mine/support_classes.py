@@ -737,20 +737,17 @@ class Tracker:
             self.creation_multi(mrs_now, history=history, update=True)
 
             # Enqueue ONLY the first MR
-            self.enqueue_mrs(mrs_now)
+            mrs_now_non_plan = [m for m in mrs_now if str(m.get("intent", "")).strip() != "plan"]
+            self.enqueue_mrs(mrs_now_non_plan)
+
 
         else:
             # Old behavior (but with ACKs removed)
             self._stamp_turn(filtered, self.turn_id)
             self.creation_multi(filtered, history=history, update=True)
-            self.enqueue_mrs(filtered)
+            filtered_non_plan = [m for m in filtered if str(m.get("intent", "")).strip() != "plan"]
+            self.enqueue_mrs(filtered_non_plan)
 
-        # 4) keep only the most recent pending plan MR (your existing logic)
-        new_plans = [m for m in self.pending_mrs if str(m.get("intent", "")).strip() == "plan"]
-        if new_plans:
-            last_plan = new_plans[-1]
-            self.pending_mrs = [m for m in self.pending_mrs if str(m.get("intent", "")).strip() != "plan"]
-            self.pending_mrs.append(last_plan)
 
         # 5) prune by recency window
         self.prune_pending_by_turn(keep_last_n_turns=2)
@@ -854,8 +851,7 @@ class Tracker:
 
     def _can_coerce_refine_to_plan_avoid(self) -> bool:
         # Coerce only while plan is incomplete and avoid_items is still missing
-        return "avoid_items" in self.missing_plan_slots() and self.phase == "AWAITING_PLAN"
-
+        return "avoid_items" in self.missing_plan_slots()
 
     def _intent_of(self, mr: Dict[str, Any]) -> str:
         return str((mr or {}).get("intent", "")).strip() or "out_of_domain"
@@ -1100,6 +1096,26 @@ class Tracker:
             day = normalize_day(slots.get("target_day", None))
             if day and day in ALLOWED_DAYS:
                 self.last_referenced_day = day
+
+            rt = normalize_upper_enum(slots.get("refine_type", None))
+            val_raw = slots.get("value", None)
+            tok = _canon_avoid_token(val_raw)
+
+            if rt in ("ADD_AVOID_ITEM", "REMOVE_AVOID_ITEM"):
+                # Only accept allowed items; ignore unknowns.
+                if tok and tok in ALLOWED_AVOID_ITEMS:
+                    cur = self._get_avoid_set()
+                    before = len(cur)
+
+                    if rt == "ADD_AVOID_ITEM":
+                        cur.add(tok)
+                    else:  # REMOVE_AVOID_ITEM
+                        cur.discard(tok)
+
+                    if len(cur) != before:
+                        self._set_avoid_set(cur)
+                        # counts as "provided" if it produced an actual state change
+                        count_provided += 1
 
             return count_provided
         
