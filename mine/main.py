@@ -444,6 +444,8 @@ class Dialogue:
                     # clear the gate
                     self.tracker.pending_action = None
 
+                    self.tracker.pending_mrs.clear()
+
                     if not next_mr:
                         reply = "There is nothing else queued to continue."
                         print(reply)

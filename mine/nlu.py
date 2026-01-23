@@ -462,13 +462,27 @@ class NLU:
                             return _invalid_answer()
 
         elif awaited == "calorie_level":
-            if isinstance(obj, dict):
-                slots = obj.get("slots") or {}
-                if obj.get("intent") == "plan" and "calorie_level" in slots:
-                    val = slots.get("calorie_level")
-                    if isinstance(val, str) and val in ALLOWED_CALORIE_LEVELS:
-                        if not _text_has_calorie_level_evidence(user_text, val):
-                            return _invalid_answer()
+            t = (user_text or "").lower()
+            slots = obj.get("slots") or {} if isinstance(obj, dict) else {}
+
+            # If awaited slot is missing, force it if text provides evidence; else INVALID_ANSWER
+            if not (isinstance(obj, dict) and obj.get("intent") == "plan" and "calorie_level" in slots):
+                if any(k in t for k in ("low", "light", "lighter")):
+                    obj = {"intent": "plan", "slots": {"calorie_level": "LOW"}}
+                elif any(k in t for k in ("med", "medium", "balanced", "average")):
+                    obj = {"intent": "plan", "slots": {"calorie_level": "MED"}}
+                elif any(k in t for k in ("high", "filling", "hearty")):
+                    obj = {"intent": "plan", "slots": {"calorie_level": "HIGH"}}
+                else:
+                    return _invalid_answer()
+            else:
+                # Slot present: validate value is evidenced
+                val = slots.get("calorie_level")
+                if not (isinstance(val, str) and val in ALLOWED_CALORIE_LEVELS):
+                    return _invalid_answer()
+                if not _text_has_calorie_level_evidence(user_text, val):
+                    return _invalid_answer()
+
 
         elif awaited == "avoid_items":
             if isinstance(obj, dict):

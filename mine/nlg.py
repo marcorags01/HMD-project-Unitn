@@ -163,9 +163,7 @@ def _append_continue_prompt(text: str, tracker_state: Dict[str, Any]) -> str:
         return text
 
     suffix = f"Do you want to continue with {nxt}? (yes/no)"
-    if remaining and remaining > 1:
-        suffix = f"Do you want to continue with {nxt}? (yes/no) ({remaining} queued)"
-
+    
     return (text.rstrip() + "\n\n" + suffix).strip()
 
 

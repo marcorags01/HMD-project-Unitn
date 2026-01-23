@@ -731,7 +731,7 @@ class Tracker:
 
             # Stamp: now + (optionally) stamp deferred for debugging (you will re-stamp on activation later)
             self._stamp_turn(mrs_now, self.turn_id)
-            self._stamp_turn(self.deferred_mrs, self.turn_id)
+            
 
             # Apply ONLY the first MR to state
             self.creation_multi(mrs_now, history=history, update=True)
@@ -911,9 +911,8 @@ class Tracker:
 
             # 2) propose_menus: goal progressed, clear plan requests.
             elif action == "propose_menus":
-                self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "plan"]
-                # optional: clear select_menu too if you want
-                # self.pending_mrs = [m for m in self.pending_mrs if self._intent_of(m) != "select_menu"]
+                 if not (payload or {}).get("error"):
+                    self.pending_mrs.clear()
 
             # 3) set_active_menu: if it worked, clear select_menu MRs
             elif action == "set_active_menu":
@@ -961,11 +960,12 @@ class Tracker:
             # 7) swap_day: if swapped=True, consume a refine MR (swap-type) or selected
             elif action == "swap_day":
                 if bool((payload or {}).get("swapped", False)) and not (payload or {}).get("error"):
-                    if intent == "refine":
+                    if intent in {"refine","confirm"}:
                         if not is_synthetic:
                             self.remove_pending(selected_mr)
                     else:
                         self._remove_first_by_intent("refine")
+                        self._remove_first_by_intent("confirm")
 
             # 8) confirm_plan: if succeeded, clear confirm (and optionally clear all)
             elif action == "confirm_plan":

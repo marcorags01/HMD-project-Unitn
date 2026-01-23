@@ -397,6 +397,43 @@ def apply_policy(
                 "pending_swap_confirm->commit",
             )
 
+    if intent == "confirm":
+        if missing_plan:
+            return _final(
+                "request_info",
+                missing_plan[0],
+                nm,
+                proposed_action,
+                proposed_argument,
+                "confirm->missing_plan",
+            )
+        if not menus_exist:
+            return _final(
+                "propose_menus",
+                "",
+                nm,
+                proposed_action,
+                proposed_argument,
+                "confirm->need_menus",
+            )
+        if not has_active:
+            return _final(
+                "request_info",
+                "menu_id",
+                nm,
+                proposed_action,
+                proposed_argument,
+                "confirm->need_active_menu",
+            )
+        return _final(
+            "confirm_plan",
+            "",
+            nm,
+            proposed_action,
+            proposed_argument,
+            "confirm->confirm_plan",
+        )
+
     # 4c) Deterministic routing for inspect/refine once menu gate is satisfied.
     # Prevent DM from re-asking for slots that are already present in the MR.
     if intent == "inspect":
