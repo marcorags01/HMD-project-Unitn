@@ -371,10 +371,10 @@ class NLU:
         # Tokenize a single string (still yields batch dim = 1 with return_tensors="pt").
         # This avoids intermittent fast-tokenizer encode_batch() type errors.
         try:
-            enc = self.tokenizer(nlu_text, return_tensors="pt")
+            enc = self.tokenizer(nlu_text, return_tensors="pt", add_special_tokens=False)
         except TypeError:
             # Last-resort hardening: coerce to a plain Python str and retry.
-            enc = self.tokenizer(str(nlu_text), return_tensors="pt")
+            enc = self.tokenizer(str(nlu_text), return_tensors="pt", add_special_tokens=False)
         inputs = enc.to(infer_input_device(self.model))
 
 

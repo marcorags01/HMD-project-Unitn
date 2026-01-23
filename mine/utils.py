@@ -432,20 +432,47 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     model.eval()
     return model, tokenizer  # type: ignore
 
+# utils.py
 
 def infer_input_device(model) -> torch.device:
-    # If accelerate device_map is active, prefer the first CUDA device used by the model
+    # Best signal: where embeddings live (first op in most decoder LMs)
+    try:
+        emb = model.get_input_embeddings()
+        if emb is not None and hasattr(emb, "weight") and emb.weight is not None:
+            return emb.weight.device
+    except Exception:
+        pass
+
+    # Next: explicit model.device if present
+    dev = getattr(model, "device", None)
+    if dev is not None:
+        return torch.device(dev)
+
+    # Fallback: hf_device_map (pick the first real device)
     dm = getattr(model, "hf_device_map", None)
     if isinstance(dm, dict):
-        for dev in dm.values():
-            if isinstance(dev, str) and dev.startswith("cuda"):
-                return torch.device(dev)
-    # Fallback
-    return torch.device(getattr(model, "device", "cpu"))
+        for d in dm.values():
+            if isinstance(d, str) and d not in {"disk"}:
+                return torch.device(d)
+    return torch.device("cpu")
+
 
 
 
 # ------------------------- Generation wrapper -------------------------
+
+def _eos_ids_for_model(tokenizer: PreTrainedTokenizer, args: Namespace):
+    eos = tokenizer.eos_token_id
+    model_key = getattr(args, "model_key", "") or ""
+    if model_key in {"llama3", "llama31"}:
+        try:
+            eot = tokenizer.convert_tokens_to_ids("<|eot_id|>")
+            if eot is not None and eot != eos:
+                return [eos, eot]
+        except Exception:
+            pass
+    return eos
+
 
 def generate(
     model: PreTrainedModel,
@@ -461,7 +488,7 @@ def generate(
     gen_kwargs = dict(
         max_new_tokens=getattr(args, "max_new_tokens", 64),
         pad_token_id=tokenizer.pad_token_id,
-        eos_token_id=tokenizer.eos_token_id,
+        eos_token_id=_eos_ids_for_model(tokenizer, args),
         do_sample=do_sample,
     )
 

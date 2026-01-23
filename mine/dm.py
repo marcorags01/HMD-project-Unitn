@@ -230,7 +230,7 @@ class DM:
         elif not isinstance(dm_text, str):
             dm_text = str(dm_text)
 
-        enc = self.tokenizer(dm_text, return_tensors="pt")
+        enc = self.tokenizer(dm_text, return_tensors="pt", add_special_tokens=False)
         inputs = enc.to(infer_input_device(self.model))
 
 
