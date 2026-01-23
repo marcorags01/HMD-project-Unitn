@@ -767,6 +767,9 @@ class Tracker:
             if self.missing_plan_slots():
                 mr = {"intent": "plan", "slots": {}}
                 reason = "missing_plan_slots"
+            elif self.phase == "AWAITING_PLAN" and not self.menus_exist():
+                mr = {"intent": "plan", "slots": {}}
+                reason = "plan_complete_need_menus"
             elif self.phase == "AWAITING_MENU_SELECTION" or (self.menus_exist() and not self.has_active_menu()):
                 mr = {"intent": "select_menu", "slots": {}}
                 reason = "awaiting_menu_selection"
