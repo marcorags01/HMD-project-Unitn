@@ -332,6 +332,7 @@ def get_args() -> Namespace:
         help="Which model key to use (e.g., llama3, qwen3).",
     )
 
+    
    
     parser.add_argument(
         "--max-new-tokens",
@@ -410,6 +411,10 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
         torch_dtype=tdtype if quant_config is None else None,
         quantization_config=quant_config,
     )
+
+    print("MODEL device:", getattr(model, "device", None))
+    print("HF device map:", getattr(model, "hf_device_map", None))
+
 
     # Only manually move if we're NOT using device_map and NOT quantizing
     if not (use_auto_map or quant_config is not None):
