@@ -387,9 +387,16 @@ class Dialogue:
         self.recipes, self.recipes_by_id = load_recipes(recipes_path)
         
 
+    def _say(self, text: str) -> None:
+        print(f"Assistant: {text}\n")
+
+    def _read_user(self) -> str:
+        return input("User(you): ").strip()
+
+
     def start(self):
         starting = PROMPTS.get("START", "Hi. How can I help you?")
-        print(starting)
+        self._say(starting)
         self.history.add_msg(starting, "assistant", "start")
 
         
@@ -399,7 +406,7 @@ class Dialogue:
 
 
         while True:
-            user_text = input().strip()
+            user_text = self._read_user()
             raw = (user_text or "").strip()
             low = raw.lower()
             # Deterministic restart/reset escape hatch
@@ -409,20 +416,20 @@ class Dialogue:
                 last_action = ""
 
                 starting = PROMPTS.get("START", "Hi. How can I help you?")
-                print(starting)
+                self._say(starting)
                 self.history.add_msg(starting, "assistant", "start")
                 continue
 
             
 
             if low in {"exit", "quit", "q"}:
-                print("Goodbye.")
+                self._say("Goodbye.")
                 break
 
             if getattr(self.tracker, "phase", "") == "CONFIRMED" and low in {
                 "finalize", "done", "thanks", "thank you", "bye"
             }:
-                print("All set. Goodbye.")
+                self._say("All set. Goodbye.")
                 break
 
             if not raw:
@@ -448,7 +455,7 @@ class Dialogue:
 
                     if not next_mr:
                         reply = "There is nothing else queued to continue."
-                        print(reply)
+                        self._say(reply)
                         self.history.add_msg(reply, "assistant", "fallback")
                         last_action = "fallback"
                         continue
@@ -466,14 +473,14 @@ class Dialogue:
                     self.tracker.pending_action = None
 
                     reply = "Okay — I won’t run the queued follow-up."
-                    print(reply)
+                    self._say(reply)
                     self.history.add_msg(reply, "assistant", "fallback")
                     last_action = "fallback"
                     continue  # do not call NLU/DM
 
                 else:  # OTHER
                     reply = f"Please reply yes/no first — do you want to continue with {next_summary}? (yes/no)"
-                    print(reply)
+                    self._say(reply)
                     self.history.add_msg(reply, "assistant", "fallback")
                     last_action = "fallback"
                     continue  # do not call NLU/DM
@@ -577,7 +584,7 @@ class Dialogue:
                 payload=payload,
             )
 
-            print(reply)
+            self._say(reply)
             self.history.add_msg(reply, "assistant", action)
             last_action = action
 

@@ -39,7 +39,7 @@ from transformers import (
 # ------------------------- Prompts -------------------------
 
 PROMPTS = {
-    "START": "Hi, I am your Meal Kit Composer assistant. How can I help you?",
+    "START": "Hello — I’m the Meal Kit Composer. My job is to turn your preferences into a practical weekly dinner plan: balanced recipes, clear constraints, and easy iteration. I’ll start by asking a few quick questions (servings, prep time, calorie target, avoid-list), then I’ll generate two menu options. After you choose, you can inspect any day and request changes until your week plan is exactly right.",
 
     # DM prompt parts (LLM must output exactly ONE compact action)
     "DM_START": """You are the Dialogue Manager (DM) for a Meal Kit Composer assistant.
