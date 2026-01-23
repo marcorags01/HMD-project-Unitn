@@ -43,12 +43,23 @@ from intents_schema import validate_mr
 
 
 
-
-
-
 logger = logging.getLogger("MealKitComposer")
 logger.setLevel(logging.DEBUG)
 
+# ------------------------- Continue-gate parsing -------------------------
+
+YES_SET = {"yes", "y", "ok", "okay", "sure", "continue", "go ahead", "please"}
+NO_SET  = {"no", "n", "nope", "not now", "cancel", "stop"}
+
+def parse_continue_reply(text: str) -> str:
+    t = (text or "").strip().lower()
+    # normalize repeated spaces
+    t = " ".join(t.split())
+    if t in YES_SET or t.startswith("yes ") or t.startswith("yes,"):
+        return "YES"
+    if t in NO_SET or t.startswith("no ") or t.startswith("no,"):
+        return "NO"
+    return "OTHER"
 
 
 
@@ -381,6 +392,8 @@ class Dialogue:
         print(starting)
         self.history.add_msg(starting, "assistant", "start")
 
+        
+
         last_action = ""
         DEBUG = bool(getattr(self.args, "debug", False))
 
@@ -400,6 +413,7 @@ class Dialogue:
                 self.history.add_msg(starting, "assistant", "start")
                 continue
 
+            
 
             if low in {"exit", "quit", "q"}:
                 print("Goodbye.")
@@ -416,8 +430,60 @@ class Dialogue:
 
             self.history.add_msg(user_text, "user", "input")
 
+            # -------------------- EARLY CONTINUE_DEFERRED GATE (before NLU) --------------------
+            bypass_raw_mrs = None  # if set, we skip NLU and treat these as the "raw_mrs" for this turn
+
+            pending = getattr(self.tracker, "pending_action", None)
+            if isinstance(pending, dict) and (pending.get("type") == "CONTINUE_DEFERRED"):
+                decision = parse_continue_reply(user_text)
+
+                next_summary = str(pending.get("next") or "the next step")
+
+                if decision == "YES":
+                    next_mr = self.tracker.pop_deferred()
+                    # clear the gate
+                    self.tracker.pending_action = None
+
+                    if not next_mr:
+                        reply = "There is nothing else queued to continue."
+                        print(reply)
+                        self.history.add_msg(reply, "assistant", "fallback")
+                        last_action = "fallback"
+                        continue
+
+                    # re-stamp to avoid prune_pending_by_turn dropping it as stale
+                    next_mr = copy.deepcopy(next_mr)
+                    next_mr.pop("_turn_id", None)
+
+
+                    # bypass NLU: feed this MR into the usual validation/ingest pipeline below
+                    bypass_raw_mrs = [next_mr]
+
+                elif decision == "NO":
+                    self.tracker.clear_deferred()
+                    self.tracker.pending_action = None
+
+                    reply = "Okay — I won’t run the queued follow-up."
+                    print(reply)
+                    self.history.add_msg(reply, "assistant", "fallback")
+                    last_action = "fallback"
+                    continue  # do not call NLU/DM
+
+                else:  # OTHER
+                    reply = f"Please reply yes/no first — do you want to continue with {next_summary}? (yes/no)"
+                    print(reply)
+                    self.history.add_msg(reply, "assistant", "fallback")
+                    last_action = "fallback"
+                    continue  # do not call NLU/DM
+            # -------------------- END EARLY CONTINUE_DEFERRED GATE --------------------
+
+
             # 1) NLU -> MR (dict or list[dict])
-            raw_obj = self.nlu(user_text, awaiting_slot=getattr(self.tracker, "awaiting_slot", None))
+            if bypass_raw_mrs is not None:
+                raw_obj = bypass_raw_mrs
+            else:
+                raw_obj = self.nlu(user_text, awaiting_slot=getattr(self.tracker, "awaiting_slot", None))
+
 
             # Freeze contract: downstream always sees list[dict]
             if raw_obj is None:

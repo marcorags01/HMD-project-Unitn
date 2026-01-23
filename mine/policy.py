@@ -157,10 +157,20 @@ def apply_policy(
     #--Post confirmation behavior--
     # If the plan is already confirmed and the user confirms again (e.g., "finalize", "done"),
     # do not restart the workflow; just acknowledge closure.
+    #--Post confirmation behavior--
     pending = getattr(tracker, "pending_action", None)
-    if phase == "CONFIRMED" and intent == "confirm" and not pending:    
+
+    # If the plan is already confirmed and the user confirms again, just acknowledge closure.
+    if phase == "CONFIRMED" and intent == "confirm" and not pending:
         return _final("fallback", "", nm, proposed_action, proposed_argument, "already_confirmed")
+
+    # --- CONTINUE gate safety net
+    ptype = str((pending or {}).get("type") or "").strip().upper() if isinstance(pending, dict) else ""
+    if ptype == "CONTINUE_DEFERRED":
+        return _final("fallback", "", nm, proposed_action, proposed_argument, "continue_gate_block")
+
     has_active = getattr(tracker, "has_active_menu", lambda: False)()
+
 
     # 0) Out-of-domain handling
     # In mid-workflow states, the user may produce acknowledgements or short commands

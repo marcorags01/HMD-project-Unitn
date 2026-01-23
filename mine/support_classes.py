@@ -85,6 +85,8 @@ def normalize_day(x: Any) -> Optional[str]:
     return mapping.get(s)
 
 
+
+
 # --- Avoid-item canonicalization (conservative) ---
 # Map common surface forms to the controlled vocabulary tokens.
 _AVOID_ALIASES: Dict[str, str] = {
@@ -264,6 +266,7 @@ class Tracker:
     last_user_text: str = ""
     last_denied_action: Optional[Dict[str, Any]] = None
     pending_mrs: List[Dict[str, Any]] = field(default_factory=list)
+    deferred_mrs: List[Dict[str, Any]] = field(default_factory=list)
     turn_id: int = 0
     awaiting_slot: Optional[str] = None
     reprompt_count: int = 0
@@ -346,7 +349,54 @@ class Tracker:
 
         return last_intent, total_slots, count
 
+    def deferred_summary(self, mr: Optional[Dict[str, Any]]) -> str:
+        """
+        Deterministic short description of a deferred MR for the continue gate.
+        Must not rely on the LLM.
+        """
+        if not isinstance(mr, dict):
+            return "the next request"
 
+        intent = str(mr.get("intent", "")).strip()
+        slots = mr.get("slots", {}) or {}
+        if not isinstance(slots, dict):
+            slots = {}
+
+        if intent == "inspect":
+            day = normalize_day(slots.get("target_day", None))
+            return f"show details for {day}" if day else "show day details"
+
+        if intent == "show_week":
+            return "show the weekly plan"
+
+        if intent == "confirm":
+            return "finalize the plan and generate the shopping list"
+
+        if intent == "select_menu":
+            return "choose a menu"
+
+        if intent == "refine":
+            r_type = normalize_upper_enum(slots.get("refine_type", None)) or ""
+            day = normalize_day(slots.get("target_day", None))
+            mode = normalize_upper_enum(slots.get("mode", None)) or ""
+            value = slots.get("value", None)
+
+            if r_type == "SWAP_DAY" and day:
+                # In your NLU logs, mode is often SUGGEST
+                if mode == "SUGGEST":
+                    return f"suggest an alternative for {day}"
+                return f"swap {day}"
+
+            if r_type in {"ADD_AVOID_ITEM", "REMOVE_AVOID_ITEM"}:
+                op = "add" if r_type == "ADD_AVOID_ITEM" else "remove"
+                item = ""
+                if value is not None and not is_nullish(value):
+                    item = _canon_avoid_token(value)
+                return f"update foods to avoid ({op} {item})" if item else "update foods to avoid"
+
+            return "refine the plan"
+
+        return "the next request"
 
 
     def _total_slots_for_intent(self, intent: str) -> int:
@@ -395,6 +445,9 @@ class Tracker:
             "pending_action": copy.deepcopy(self.pending_action),
             "last_denied_action": copy.deepcopy(self.last_denied_action),
             "pending_mrs": copy.deepcopy(self.pending_mrs),
+            "deferred_mrs_count": len(self.deferred_mrs),
+            "deferred_next": copy.deepcopy(self.deferred_mrs[0]) if self.deferred_mrs else None,
+
 
         }
 
@@ -478,6 +531,8 @@ class Tracker:
         self.pending_action = None
         self.awaiting_slot = None
         self.reprompt_count = 0
+        self.deferred_mrs = []
+
 
 
 
@@ -495,6 +550,8 @@ class Tracker:
         self.phase = "ACTIVE_MENU"
         self.awaiting_slot = None
         self.reprompt_count = 0
+        self.deferred_mrs = []
+
 
         return True
 
@@ -514,6 +571,7 @@ class Tracker:
         self.pending_action = None
         self.last_denied_action = None
         self.pending_mrs = []
+        self.deferred_mrs = []
         self.turn_id = 0
 
     def enqueue_mrs(self, mrs: List[Dict[str, Any]]) -> None:
@@ -568,6 +626,23 @@ class Tracker:
 
         self.pending_mrs = pruned
 
+    def has_deferred(self) -> bool:
+        return bool(self.deferred_mrs)
+
+    def peek_deferred(self) -> Optional[Dict[str, Any]]:
+        if not self.deferred_mrs:
+            return None
+        return self.deferred_mrs[0]
+
+    def pop_deferred(self) -> Optional[Dict[str, Any]]:
+        if not self.deferred_mrs:
+            return None
+        return self.deferred_mrs.pop(0)
+
+    def clear_deferred(self) -> None:
+        self.deferred_mrs = []
+
+
     def _stamp_turn(self, mrs: List[Dict[str, Any]], turn_id: int) -> None:
         for m in mrs:
             if isinstance(m, dict):
@@ -584,35 +659,103 @@ class Tracker:
             if int(m.get("_turn_id", self.turn_id)) >= keep_from
         ]
 
+    def _is_noop_ack(self, mr: Dict[str, Any]) -> bool:
+        """True if this MR is an out_of_domain ACK that should be ignored."""
+        if not isinstance(mr, dict):
+            return False
+        if str(mr.get("intent", "")).strip() != "out_of_domain":
+            return False
+        slots = mr.get("slots", {}) or {}
+        if not isinstance(slots, dict):
+            return False
+        return str(slots.get("ood_type", "") or "").strip().upper() == "ACK"
+
+
+    def _deferral_allowed_now(self) -> bool:
+        """
+        Allow multi-intent deferral only when we're in a stable state:
+        - active menu selected
+        - not in slot-filling
+        - no pending confirmation (e.g., swap)
+        - plan is complete
+        """
+        return (
+            self.has_active_menu()
+            and (self.awaiting_slot is None)
+            and (self.pending_action is None)
+            and (len(self.missing_plan_slots()) == 0)
+        )
+
+
     def ingest_turn(self, mrs: List[Dict[str, Any]], history: Optional[History] = None) -> None:
         """
         Tracker-owned: advances turn, stamps, applies to state, enqueues, and prunes.
-        This is the ONLY place that should touch pending_mrs besides update_pending_after_action().
+
+        Deferral-aware:
+        - Drop no-op ACK MRs entirely
+        - If safe and 2+ MRs, apply/enqueue only the first and defer the rest (FIFO)
         """
         # 1) advance turn
         self.turn_id += 1
         self.last_denied_action = None
 
-        # 2) stamp MRs
-        self._stamp_turn(mrs, self.turn_id)
+        if not mrs:
+            return
 
-        # 3) apply MRs to state (single-turn semantics)
-        self.creation_multi(mrs, history=history, update=True)
+        # 2) Filter no-op ACKs before anything else
+        filtered: List[Dict[str, Any]] = []
+        for mr in mrs:
+            if not isinstance(mr, dict):
+                continue
+            if self._is_noop_ack(mr):
+                continue
+            filtered.append(mr)
 
-        # 4) enqueue
-        self.enqueue_mrs(mrs)
+        if not filtered:
+            # Only ACKs came in; treat as no-op
+            return
 
-        # 5) keep only the most recent pending plan MR (your old main.py logic)
+        # 3) Decide whether deferral mode is allowed (minimally disruptive gating)
+        do_deferral = self._deferral_allowed_now() and (len(filtered) >= 2)
+
+        # Defensive: never defer if these are not satisfied (even if gate changes later)
+        if do_deferral and (self.pending_action is not None or self.missing_plan_slots()):
+            do_deferral = False
+
+        if do_deferral:
+            mrs_now = [filtered[0]]
+            mrs_later = filtered[1:]
+
+            # Replace (do not append) to avoid stale deferred from prior turns
+            self.deferred_mrs = [copy.deepcopy(x) for x in mrs_later]
+
+            # Stamp: now + (optionally) stamp deferred for debugging (you will re-stamp on activation later)
+            self._stamp_turn(mrs_now, self.turn_id)
+            self._stamp_turn(self.deferred_mrs, self.turn_id)
+
+            # Apply ONLY the first MR to state
+            self.creation_multi(mrs_now, history=history, update=True)
+
+            # Enqueue ONLY the first MR
+            self.enqueue_mrs(mrs_now)
+
+        else:
+            # Old behavior (but with ACKs removed)
+            self._stamp_turn(filtered, self.turn_id)
+            self.creation_multi(filtered, history=history, update=True)
+            self.enqueue_mrs(filtered)
+
+        # 4) keep only the most recent pending plan MR (your existing logic)
         new_plans = [m for m in self.pending_mrs if str(m.get("intent", "")).strip() == "plan"]
         if new_plans:
             last_plan = new_plans[-1]
             self.pending_mrs = [m for m in self.pending_mrs if str(m.get("intent", "")).strip() != "plan"]
             self.pending_mrs.append(last_plan)
 
-        # 6) prune by recency window
+        # 5) prune by recency window
         self.prune_pending_by_turn(keep_last_n_turns=2)
 
-        # 7) conservative prune (existing)
+        # 6) conservative prune (existing)
         self.prune_pending()
 
     
@@ -735,18 +878,26 @@ class Tracker:
         selected_mr should be the SNAPSHOT you selected in main (deepcopy),
         so equality removal works even if tracker state mutated.
         """
+        action = (action or "").strip().lower()
+
+        def _is_refuse_pending(mr: Dict[str, Any]) -> bool:
+            if self._intent_of(mr) != "out_of_domain":
+                return False
+            s = self._slots_of(mr)
+            return str(s.get("ood_type", "") or "").strip().upper() == "REFUSE_PENDING"
+
+        def _is_success(action: str, payload: Dict[str, Any]) -> bool:
+            if action in {"request_info", "fallback"}:
+                return False
+            return not bool((payload or {}).get("error"))
+        
+        resolved = _is_success(action, payload) or _is_refuse_pending(selected_mr)
+
         try:
-            action = (action or "").strip().lower()
             intent = self._intent_of(selected_mr)
             sel_turn_id = selected_mr.get("_turn_id")
 
             is_synthetic = bool(selected_mr.get("_synthetic", False))
-
-            def _is_success(action: str, payload: Dict[str, Any]) -> bool:
-                if action in {"request_info", "fallback"}:
-                    return False
-                return not bool((payload or {}).get("error"))
-
 
             # 0) If we asked for info, keep everything (we're waiting for user input).
             if action == "request_info":
@@ -835,6 +986,21 @@ class Tracker:
                     if m.get("_turn_id") != sel_turn_id
                     or self._intent_of(m) not in {"help", "out_of_domain"}
                 ]
+
+            # ---- Structured deferral: set CONTINUE_DEFERRED gate when appropriate ----
+            # Only set this gate when:
+            # - no other pending gate is active (e.g., SWAP_DAY confirmation has precedence)
+            # - we actually have deferred work
+            # - we are not asking for more info (request_info already implies a gate)
+            # - the action just succeeded (no error)
+            if self.pending_action is None:
+                if action != "request_info" and self.has_deferred() and resolved:
+                    nxt = self.peek_deferred()
+                    self.pending_action = {
+                        "type": "CONTINUE_DEFERRED",
+                        "next": self.deferred_summary(nxt),
+                        "remaining": len(self.deferred_mrs),
+                    }
 
         finally:
             # Always enforce recency window + conservative pruning

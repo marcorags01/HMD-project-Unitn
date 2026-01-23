@@ -133,6 +133,40 @@ def _append_next_steps_prompt(text: str) -> str:
     )
     return (text.rstrip() + "\n\n" + follow).strip()
 
+def _append_continue_prompt(text: str, tracker_state: Dict[str, Any]) -> str:
+    """
+    Append a deterministic continue prompt when pending_action.type == CONTINUE_DEFERRED.
+    Precedence: do NOT append if SWAP_DAY confirmation is pending.
+    """
+    if not isinstance(text, str):
+        text = str(text)
+
+    pending_action = (tracker_state or {}).get("pending_action")
+    if not isinstance(pending_action, dict):
+        return text
+
+    ptype = str(pending_action.get("type") or "").strip().upper()
+    if ptype == "SWAP_DAY":
+        return text  # precedence rule: do not double-prompt
+    if ptype != "CONTINUE_DEFERRED":
+        return text
+
+    nxt = str(pending_action.get("next") or "").strip() or "the next step"
+    try:
+        remaining = int(pending_action.get("remaining") or 0)
+    except Exception:
+        remaining = 0
+
+    # Avoid duplication if already present
+    low = text.lower()
+    if "do you want to continue with" in low:
+        return text
+
+    suffix = f"Do you want to continue with {nxt}? (yes/no)"
+    if remaining and remaining > 1:
+        suffix = f"Do you want to continue with {nxt}? (yes/no) ({remaining} queued)"
+
+    return (text.rstrip() + "\n\n" + suffix).strip()
 
 
 # ------------------------- Deterministic renderers -------------------------
@@ -543,19 +577,36 @@ class NLG:
             if isinstance(denied, dict) and str(denied.get("type", "")).strip().upper() == "SWAP_DAY":
                 day = str(denied.get("day") or "").strip() or "that day"
                 if day == "that day":
-                    return "Okay — I won’t make the swap. What would you like to do next?"
-                return f"Okay — I’ll keep {day} as-is. What would you like to do next?"
+                    msg = "Okay — I won’t make the swap."
+                else:
+                    msg = f"Okay — I’ll keep {day} as-is."
+               
+                pending_action = (tracker_state or {}).get("pending_action")
+                ptype = str(pending_action.get("type") or "").strip().upper() if isinstance(pending_action, dict) else ""
+
+                if ptype == "CONTINUE_DEFERRED":
+                    msg = _append_continue_prompt(msg, tracker_state)
+                    return msg
+                else:
+                    return (msg.rstrip() + " What would you like to do next?").strip()
+
 
             last_mr = (tracker_state or {}).get("last_user_mr") or {}
             if isinstance(last_mr, dict) and str(last_mr.get("intent") or "") == "out_of_domain":
                 ood_type = str((last_mr.get("slots") or {}).get("ood_type") or "").strip().upper()
                 if ood_type == "REFUSE_PENDING":
                     day = str((tracker_state or {}).get("last_referenced_day") or "").strip()
-                    day = day if day in {"Mon", "Tue", "Wed", "Thu", "Fri"} else "that day"
+                    msg = f"No problem — we’ll keep {day} as-is."
+                    pending_action = (tracker_state or {}).get("pending_action")
+                    ptype = str(pending_action.get("type") or "").strip().upper() if isinstance(pending_action, dict) else ""
+                    if ptype == "CONTINUE_DEFERRED":
+                        msg = _append_continue_prompt(msg, tracker_state)
+                        return msg
                     return (
-                        f"No problem — we’ll keep {day} as-is. "
-                        "If you’d like, I can still suggest another alternative or swap a different day."
+                        msg + " If you’d like, I can still suggest another alternative or swap a different day."
                     )
+                    
+                    
 
 
         # ------------------------- Build verbatim factual blocks -------------------------
@@ -592,7 +643,9 @@ class NLG:
                 msg = _render_day_details(details)
                 if _should_offer_next_steps(action, tracker_state):
                     msg = _append_next_steps_prompt(msg)
+                msg = _append_continue_prompt(msg, tracker_state)
                 return msg
+
             return "I couldn’t show that day. Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?"
             
 
@@ -601,14 +654,18 @@ class NLG:
                 msg = _render_week_overview(payload, tracker_state)
                 if _should_offer_next_steps(action, tracker_state):
                     msg = _append_next_steps_prompt(msg)
+                msg = _append_continue_prompt(msg, tracker_state)
                 return msg
+
             return "I couldn’t show the weekly plan right now. Try: “show the week plan again”."
 
 
 
         # Shopping list
         if action == "confirm_plan" and payload.get("shopping_list") is not None:
-            return _render_confirm_plan(payload, tracker_state)
+            msg = _render_confirm_plan(payload, tracker_state)
+            msg = _append_continue_prompt(msg, tracker_state)
+            return msg
 
 
         # Menu selection acknowledgement (keep facts correct, let LLM add tone)
@@ -666,7 +723,9 @@ class NLG:
                 msg = fact_block.strip()
                 if _should_offer_next_steps(action, tracker_state):
                     msg = _append_next_steps_prompt(msg)
+                msg = _append_continue_prompt(msg, tracker_state)
                 return msg
+
 
         if action == "fallback" and phase != "CONFIRMED":
             # swap rejection special-case already handled above
@@ -736,6 +795,8 @@ class NLG:
         if not out:
             return "Sorry—something went wrong while generating the response. Could you repeat that?"
 
+        out = _append_continue_prompt(out, tracker_state)
+
         if _should_offer_next_steps(action, tracker_state):
             out = _append_next_steps_prompt(out)
 
@@ -782,9 +843,11 @@ class NLG:
                 continue
 
             if action == "propose_menus" and payload.get("menu1_pretty") and payload.get("menu2_pretty"):
-                chunks.append(_render_menus(payload["menu1_pretty"], payload["menu2_pretty"]))
-                # After menus, user must select next -> stop here
+                msg = _render_menus(payload["menu1_pretty"], payload["menu2_pretty"])
+                msg = _append_continue_prompt(msg, tracker_state)  # adds “continue with <next>?” if needed
+                chunks.append(msg)
                 break
+
 
             if action == "set_active_menu":
                 if payload.get("ok"):
@@ -836,8 +899,11 @@ class NLG:
                 continue
 
             if action == "confirm_plan" and payload.get("shopping_list") is not None:
-                chunks.append(_render_confirm_plan(payload, tracker_state))
+                msg = _render_confirm_plan(payload, tracker_state)
+                msg = _append_continue_prompt(msg, tracker_state)
+                chunks.append(msg)
                 continue
+
 
             if action == "fallback":
                 phase = str((tracker_state or {}).get("phase", "") or "")
@@ -848,10 +914,21 @@ class NLG:
                     if isinstance(denied, dict) and str(denied.get("type", "")).strip().upper() == "SWAP_DAY":
                         day = str(denied.get("day") or "").strip() or "that day"
                         if day == "that day":
-                            chunks.append("Okay — I won’t make the swap. What would you like to do next?")
+                            msg = "Okay — I won’t make the swap."
                         else:
-                            chunks.append(f"Okay — I’ll keep {day} as-is. What would you like to do next?")
+                            msg = f"Okay — I’ll keep {day} as-is."
+
+                        pending_action = (tracker_state or {}).get("pending_action")
+                        ptype = str(pending_action.get("type") or "").strip().upper() if isinstance(pending_action, dict) else ""
+
+                        if ptype == "CONTINUE_DEFERRED":
+                            msg = _append_continue_prompt(msg, tracker_state)
+                        else:
+                            msg = (msg.rstrip() + " What would you like to do next?").strip()
+
+                        chunks.append(msg)
                         continue
+
                 
                     awaiting = str((tracker_state or {}).get("awaiting_slot") or "").strip()
                     if awaiting:
@@ -862,6 +939,10 @@ class NLG:
              
 
         final = "\n\n".join([c for c in chunks if c]).strip()
+
+        if final:
+            final = _append_continue_prompt(final, tracker_state)
+
 
         if final and _should_offer_next_steps(last_rendered_action, tracker_state):
             final = _append_next_steps_prompt(final)
