@@ -71,12 +71,19 @@ def main() -> None:
 
     # 7) pending swap confirmation: confirm commits
     tr = _mk_tracker("ACTIVE_MENU")
-    tr.constraints.update({"servings": 2, "time_limit": "FAST", "calorie_level": "MED", "avoid_items": []})  
+    tr.constraints.update({"servings": 2, "time_limit": "FAST", "calorie_level": "MED", "avoid_items": []})
+
     tr.active_menu_id = 1
     tr.active_menu = {"Mon": "1", "Tue": "2", "Wed": "3", "Thu": "4", "Fri": "5"}
+
+    # ADD THIS: menus must exist for menu operations
+    tr.menus = {"1": dict(tr.active_menu), "2": dict(tr.active_menu)}
+
     tr.pending_action = {"type": "SWAP_DAY", "day": "Tue", "recipe_id": "999"}
+
     mr = {"intent": "confirm", "slots": {}}
     _assert("swap_day", "Tue", apply_policy(tr, mr, "confirm_plan", ""), "pending_swap_confirm")
+
 
     print("All policy tests passed.")
 
