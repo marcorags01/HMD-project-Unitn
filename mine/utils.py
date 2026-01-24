@@ -405,14 +405,25 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
     if model_key == "llama31" and torch.cuda.is_available():
         quant_config = BitsAndBytesConfig(load_in_8bit=True)
 
-    model = loader_fn(
-        args.model_name,
+    model_kwargs = dict(
         device_map="auto" if (use_auto_map or quant_config is not None) else None,
-        torch_dtype=tdtype if quant_config is None else None,
         quantization_config=quant_config,
     )
 
- 
+    # dtype only matters when not quantizing; keep that logic
+    if quant_config is None:
+        model_kwargs["dtype"] = tdtype  # new name
+
+    # Backward-compatible fallback if your installed transformers is older
+    try:
+        model = loader_fn(args.model_name, **model_kwargs)
+    except TypeError as e:
+        if "dtype" in model_kwargs:
+            model_kwargs["torch_dtype"] = model_kwargs.pop("dtype")
+            model = loader_fn(args.model_name, **model_kwargs)
+        else:
+            raise
+
 
 
     # Only manually move if we're NOT using device_map and NOT quantizing
@@ -434,6 +445,20 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
         tokenizer.pad_token = tokenizer.eos_token
 
     model.eval()
+    if float(getattr(args, "temperature", 0.0)) <= 0.0:
+        try:
+            gc = getattr(model, "generation_config", None)
+            if gc is not None:
+                # Set neutral values used by greedy decoding
+                if hasattr(gc, "temperature"):
+                    gc.temperature = 1.0
+                if hasattr(gc, "top_p"):
+                    gc.top_p = 1.0
+                if hasattr(gc, "top_k"):
+                    gc.top_k = 0
+        except Exception:
+            pass
+
     return model, tokenizer  # type: ignore
 
 # utils.py
