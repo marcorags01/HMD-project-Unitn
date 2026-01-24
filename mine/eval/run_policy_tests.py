@@ -39,9 +39,11 @@ def main() -> None:
 
     # 3) Menu selection gate: inspect before selecting menu
     tr = _mk_tracker("AWAITING_MENU_SELECTION")
+    tr.constraints.update({"servings": 2, "time_limit": "FAST", "calorie_level": "MED", "avoid_items": []})
     tr.menus = {"1": {"Mon": "1"}, "2": {"Mon": "2"}}
     mr = {"intent": "inspect", "slots": {"target_day": "Mon"}}
     _assert("request_info", "menu_id", apply_policy(tr, mr, "show_day", "Mon"), "menu_gate_inspect")
+
 
     # 4) show_week requires active menu
     tr = _mk_tracker("ACTIVE_MENU")
