@@ -178,7 +178,7 @@ _WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
 _REQUEST_QUESTIONS = {
     "servings": "How many servings should I plan for? (1–6)",
-    "time_limit": "Do you want quick meals, or is normal prep time OK?",
+    "time_limit": "How much time do you want to spend cooking on a typical night—quick (25 minutes or less) or normal (up to 40 minutes)?",
     "calorie_level": "Are you aiming for lighter meals, balanced, or more filling?",
     "avoid_items": "Any allergies or foods you want to avoid?",
     "menu_id": "Which option do you prefer—1 or 2?",
@@ -214,7 +214,7 @@ def _render_request_info(slot: str, tracker_state: Dict[str, Any]) -> str:
 
     examples = {
         "servings": "For example: 1, 2, 4, or 6.",
-        "time_limit": "Reply “quick” or “normal”.",
+        "time_limit": "Reply “quick” (25 minutes or less) or “normal” (up to 40 minutes).",
         "calorie_level": "Reply “lighter”, “balanced”, or “more filling”.",
         "avoid_items": "For example: nuts, dairy, gluten — or “none”.",
         "menu_id": "Reply with 1 or 2.",
