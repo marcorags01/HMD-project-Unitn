@@ -47,6 +47,7 @@ def main() -> None:
 
     # 4) show_week requires active menu
     tr = _mk_tracker("ACTIVE_MENU")
+    tr.constraints.update({"servings": 2, "time_limit": "FAST", "calorie_level": "MED", "avoid_items": []})  
     tr.menus = {"1": {"Mon": "1"}, "2": {"Mon": "2"}}
     tr.active_menu_id = 1
     tr.active_menu = {"Mon": "1"}
@@ -62,6 +63,7 @@ def main() -> None:
 
     # 6) refine swap suggestion -> suggest_swap_day
     tr = _mk_tracker("ACTIVE_MENU")
+    tr.constraints.update({"servings": 2, "time_limit": "FAST", "calorie_level": "MED", "avoid_items": []})  
     tr.active_menu_id = 1
     tr.active_menu = {"Mon": "1", "Tue": "2", "Wed": "3", "Thu": "4", "Fri": "5"}
     mr = {"intent": "refine", "slots": {"refine_type": "SWAP_DAY", "target_day": "Tue", "value": "BEST_FIT", "mode": "SUGGEST"}}
@@ -69,6 +71,7 @@ def main() -> None:
 
     # 7) pending swap confirmation: confirm commits
     tr = _mk_tracker("ACTIVE_MENU")
+    tr.constraints.update({"servings": 2, "time_limit": "FAST", "calorie_level": "MED", "avoid_items": []})  
     tr.active_menu_id = 1
     tr.active_menu = {"Mon": "1", "Tue": "2", "Wed": "3", "Thu": "4", "Fri": "5"}
     tr.pending_action = {"type": "SWAP_DAY", "day": "Tue", "recipe_id": "999"}
