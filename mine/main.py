@@ -395,6 +395,7 @@ class Dialogue:
 
 
     def start(self):
+        print()
         starting = PROMPTS.get("START", "Hi. How can I help you?")
         self._say(starting)
         self.history.add_msg(starting, "assistant", "start")
