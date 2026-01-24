@@ -30,7 +30,7 @@ import json
 import re
 import random
 from collections import defaultdict
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Iterable
 
 from support_classes import (
     ALLOWED_DAYS,
@@ -557,6 +557,7 @@ def suggest_swap_day_in_menu(
     day: str,
     recipes: List[Dict[str, Any]],
     constraints: Dict[str, Any],
+    exclude_ids: Optional[Iterable[str]] = None,
 ) -> Optional[str]:
     """
     Deterministic suggestion for an alternative on `day` without mutating the menu.
@@ -567,6 +568,7 @@ def suggest_swap_day_in_menu(
 
     Selection logic mirrors swap_day_in_menu():
     - choose best feasible alternative not already used in the week if possible
+    - exclude_ids: recipe IDs to never propose (e.g., previously rejected suggestions)
     - tie-break: minimum time_min, then recipe_id
     """
     if day not in ALLOWED_DAYS:
@@ -577,6 +579,8 @@ def suggest_swap_day_in_menu(
     current_id = str(menu[day])
     used_ids = {str(v) for v in menu.values()}
 
+    exclude_set = {str(x) for x in exclude_ids} if exclude_ids else set()
+
     feasible = filter_recipes(recipes, constraints)
 
     def rank_key(r: Dict[str, Any]) -> Tuple[int, str]:
@@ -585,7 +589,7 @@ def suggest_swap_day_in_menu(
     # Pass 1: prefer recipes not used in the current week
     candidates_1 = [
         r for r in feasible
-        if _recipe_id(r) != current_id and _recipe_id(r) not in used_ids
+        if _recipe_id(r) != current_id and _recipe_id(r) not in used_ids and _recipe_id(r) not in exclude_set
     ]
     candidates_1.sort(key=rank_key)
 
@@ -593,6 +597,7 @@ def suggest_swap_day_in_menu(
     candidates_2 = [
         r for r in feasible
         if _recipe_id(r) != current_id
+        and _recipe_id(r) not in exclude_set 
     ]
     candidates_2.sort(key=rank_key)
 

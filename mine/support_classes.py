@@ -29,7 +29,7 @@ import re
 Phase = Literal["AWAITING_PLAN", "AWAITING_MENU_SELECTION", "ACTIVE_MENU", "CONFIRMED"]
 
 ALLOWED_DAYS = {"Mon", "Tue", "Wed", "Thu", "Fri"}
-
+ORDERED_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
 ALLOWED_TIME_LIMITS = {"FAST", "NORMAL"}
 ALLOWED_CALORIE_LEVELS = {"LOW", "MED", "HIGH"}
@@ -263,6 +263,7 @@ class Tracker:
     active_menu: Optional[Dict[str, Any]] = None
     last_referenced_day: Optional[str] = None
     pending_action: Optional[Dict[str, Any]] = None
+    rejected_suggestions: Dict[str, List[str]] = field(default_factory=lambda: {d: [] for d in ORDERED_DAYS})
     last_user_text: str = ""
     last_denied_action: Optional[Dict[str, Any]] = None
     pending_mrs: List[Dict[str, Any]] = field(default_factory=list)
@@ -529,6 +530,7 @@ class Tracker:
         self.active_menu = None
         self.last_referenced_day = None
         self.pending_action = None
+        self.rejected_suggestions = {d: [] for d in ORDERED_DAYS}
         self.awaiting_slot = None
         self.reprompt_count = 0
         self.deferred_mrs = []
@@ -549,6 +551,7 @@ class Tracker:
         self.active_menu = copy.deepcopy(self.menus[key])
         self.phase = "ACTIVE_MENU"
         self.awaiting_slot = None
+        self.rejected_suggestions = {d: [] for d in ORDERED_DAYS}
         self.reprompt_count = 0
         self.deferred_mrs = []
 
@@ -1011,6 +1014,39 @@ class Tracker:
     def set_pending_swap(self, day: str, recipe_id: str) -> None:
         self.pending_action = {"type": "SWAP_DAY", "day": day, "recipe_id": recipe_id}
 
+    def add_rejected_suggestion(self, day: str, recipe_id: str) -> None:
+        """
+        Record that recipe_id was suggested for `day` and the user rejected it.
+        Used to avoid repeating the same alternative.
+        """
+        d = normalize_day(day) or str(day)
+        rid = str(recipe_id)
+
+        if d not in self.rejected_suggestions:
+            self.rejected_suggestions[d] = []
+
+        if rid and rid not in self.rejected_suggestions[d]:
+            self.rejected_suggestions[d].append(rid)
+
+
+    def record_rejection_from_pending(self, pending_action: Dict[str, Any]) -> None:
+        """
+        If pending_action is a SWAP_DAY suggestion, record it as rejected.
+        """
+        if not isinstance(pending_action, dict):
+            return
+
+        p_type = str(pending_action.get("type", "") or "").strip().upper()
+        if p_type != "SWAP_DAY":
+            return
+
+        day = pending_action.get("day")
+        rid = pending_action.get("recipe_id")
+        if day is None or rid is None:
+            return
+
+        self.add_rejected_suggestion(str(day), str(rid))
+
 
     # -------------------------- MR application ------------------------------
     def _apply_slots(self, mr: Dict[str, Any]) -> int:
@@ -1148,6 +1184,7 @@ class Tracker:
             p_type = str(self.pending_action.get("type", "") or "").strip().upper()
             if ood_type == "REFUSE_PENDING" and p_type == "SWAP_DAY":
                 self.last_denied_action = copy.deepcopy(self.pending_action)
+                self.record_rejection_from_pending(self.pending_action)
                 self.pending_action = None
                 # No slot application needed for OOD
                 return 0
@@ -1208,6 +1245,7 @@ class Tracker:
                         ood_type = str(s.get("ood_type", "") or "").strip().upper()
                         if ood_type == "REFUSE_PENDING":
                             self.last_denied_action = copy.deepcopy(self.pending_action)
+                            self.record_rejection_from_pending(self.pending_action)
                             self.pending_action = None
                             break
 

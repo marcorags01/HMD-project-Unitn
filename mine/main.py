@@ -34,7 +34,7 @@ from support_fn import (
     is_feasible,
 )
 from support_classes import (
-    History, Tracker,
+    History, Tracker, normalize_day
 )
 from dm import DM
 from policy import apply_policy
@@ -182,9 +182,44 @@ def execute_action(
             payload["error"] = "Please pick a menu option first (1 or 2)."
             return payload
 
-        day = argument.strip()
+        # Canonicalize day (defensive)
+        day_raw = (argument or "").strip()
+        day = normalize_day(day_raw) or day_raw
+        day = day.strip()
+        if not day:
+            payload["error"] = "I didn’t catch which day you mean."
+            return payload
+
         try:
-            sug_id = suggest_swap_day_in_menu(tracker.active_menu or {}, day, recipes, tracker.constraints)
+            # ---- NEW: if the user is asking again for the same day while a suggestion is pending,
+            # treat that as an implicit rejection of the pending suggestion ----
+            pending = getattr(tracker, "pending_action", None)
+            if isinstance(pending, dict):
+                p_type = str(pending.get("type", "") or "").strip().upper()
+                p_day = str(pending.get("day", "") or "").strip()
+                if p_type == "SWAP_DAY" and p_day == day:
+                    # record rejection + clear pending
+                    if hasattr(tracker, "record_rejection_from_pending"):
+                        tracker.record_rejection_from_pending(pending)
+                    tracker.pending_action = None
+
+            # ---- NEW: build exclusions from previously rejected suggestions ----
+            exclude_ids = set()
+            rs = getattr(tracker, "rejected_suggestions", None)
+            if isinstance(rs, dict):
+                # Recommended: global union so we don't repeat a rejected meal across any day
+                for lst in rs.values():
+                    if isinstance(lst, list):
+                        exclude_ids.update(str(x) for x in lst if x is not None)
+
+            sug_id = suggest_swap_day_in_menu(
+                tracker.active_menu or {},
+                day,
+                recipes,
+                tracker.constraints,
+                exclude_ids=exclude_ids,   # NEW
+            )
+
             if sug_id is None:
                 payload["suggested"] = False
                 return payload
@@ -199,9 +234,11 @@ def execute_action(
                 recipes_by_id[str(sug_id)]["title"] if str(sug_id) in recipes_by_id else str(sug_id)
             )
             return payload
+
         except Exception as e:
             payload["error"] = f"I couldn't suggest an alternative for that day: {e}"
             return payload
+
 
 
     if action == "swap_day":
