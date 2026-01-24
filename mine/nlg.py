@@ -49,6 +49,11 @@ General behavior:
 - Do NOT repeat or summarize previous day details unless the action is show_day or the user explicitly asked to repeat them.
 """
 
+POST_MENU_SELECTED = (
+            "From now on, at any point, you can view a specific day’s dinner, ask me to change the recipe assigned "
+            "to that day (I’ll propose a suitable replacement), update foods to avoid, or confirm the plan "
+            "to get the final weekly menu and shopping list."
+        )
 
 def _safe_json(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True, default=str)
@@ -670,10 +675,7 @@ class NLG:
         if action == "set_active_menu":
             if payload.get("ok"):
                 mid = tracker_state.get("active_menu_id") or argument
-                fact_block = (
-                    f"Great — we’ll go with option {mid}.\n"
-                    "You can ask what’s planned on a day, swap a day, update foods to avoid, or confirm for the shopping list."
-                )
+                fact_block = f"Great — we’ll go with option {mid}.\n\n{POST_MENU_SELECTED}"
             else:
                 fact_block = "I couldn’t select that option. Please reply with 1 or 2."
 
@@ -850,10 +852,7 @@ class NLG:
             if action == "set_active_menu":
                 if payload.get("ok"):
                     mid = (tracker_state.get("active_menu_id") or argument)
-                    chunks.append(
-                        f"Great — we’ll go with option {mid}.\n"
-                        "You can ask what’s planned on a day, swap a day, update foods to avoid, or confirm for the shopping list."
-                    )
+                    chunks.append(f"Great — we’ll go with option {mid}.\n\n{POST_MENU_SELECTED}")
                 else:
                     chunks.append("I couldn’t select that option. Please reply with 1 or 2.")
                 continue
