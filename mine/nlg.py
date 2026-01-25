@@ -1,6 +1,6 @@
 # nlg.py
 """
-Meal Kit Composer — NLG (LLM-based), Marina-style.
+Meal Kit Composer — NLG (hybrid: deterministic + LLM fallback).
 
 Responsibilities:
 - Given final action + argument + payload (+ tracker snapshot), generate a user-facing message.
@@ -15,6 +15,7 @@ Non-responsibilities:
 """
 
 from __future__ import annotations
+from collections import defaultdict
 
 import json
 import re
@@ -22,8 +23,9 @@ from typing import Any, Dict, Optional, List
 
 from utils import PROMPTS, generate, format_chat, infer_input_device
 from support_classes import display_day
-from collections import defaultdict
 
+
+#------------------------- NLG Prompt Template -------------------------
 
 _ACTION_GUIDE = """YOU WRITE THE USER-FACING MESSAGE.
 
@@ -51,11 +53,14 @@ General behavior:
 - Do NOT repeat or summarize previous day details unless the action is show_day or the user explicitly asked to repeat them.
 """
 
+
 POST_MENU_SELECTED = (
             "From now on, at any point, you can view a specific day’s dinner, ask me to change the recipe assigned "
             "to that day (I’ll propose a suitable replacement), update foods to avoid, or confirm the plan "
             "to get the final weekly menu and shopping list."
         )
+
+# ------------------------- Low level helpers -------------------------
 
 def _safe_json(obj: Any) -> str:
     return json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True, default=str)
@@ -78,7 +83,7 @@ def _strip_accidental_action_echo(text: str) -> str:
 
 
 
-
+# ------------------------- High-level NLG logic -------------------------
 
 def _has_unfulfilled_user_intents(tracker_state: Dict[str, Any]) -> bool:
     """
@@ -174,7 +179,7 @@ def _append_continue_prompt(text: str, tracker_state: Dict[str, Any]) -> str:
     return (text.rstrip() + "\n\n" + suffix).strip()
 
 
-# ------------------------- Deterministic renderers -------------------------
+# ------------------------- Deterministic renderers (no LLM) -------------------------
 
 _WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
@@ -255,7 +260,7 @@ def _render_phase_aware_fallback(tracker_state: Dict[str, Any]) -> str:
         return (
             "I didn’t quite get that. You can:\n"
             "- ask what’s planned on a day (e.g., “What’s on Tuesday?”)\n"
-            "- propose an alternative for a day (e.g., “Swap Wednesday”)\n"
+            "- propose an alternative for a day (e.g., “Suggest an alternative for Wednesday”)\n"
             "- add/remove foods to avoid (e.g., “Avoid nuts”)\n"
             "- confirm to get the shopping list\n"
             "What would you like to do?"
@@ -288,7 +293,6 @@ def _render_phase_aware_fallback(tracker_state: Dict[str, Any]) -> str:
 
 def _render_provide_info(payload: Dict[str, Any], tracker_state: Dict[str, Any]) -> str:
     # Prefer payload values (executor-supplied), fall back to tracker_state
-    help_intent = str(payload.get("help_intent", "plan") or "plan").strip().lower() # (Currently unused; reserved for future intent-specific help variations.)
     help_slot = str(payload.get("help_slot", "all") or "all").strip().lower()
 
     phase = str(payload.get("phase") or tracker_state.get("phase") or "")
@@ -313,7 +317,7 @@ def _render_provide_info(payload: Dict[str, Any], tracker_state: Dict[str, Any])
             return (
                 "For your current plan, you can:\n"
                 "- ask what’s planned on a day (e.g., “What’s on Tuesday?”)\n"
-                "- propose an alternative for a day (e.g., “Swap Wednesday”)\n"
+                "- propose an alternative for a day (e.g., “Suggest an alternative for Wednesday”)\n"
                 "- add/remove foods to avoid (e.g., “Avoid nuts”)\n"
                 "- confirm to get the shopping list\n"
                 "What would you like to do next?"
@@ -540,10 +544,12 @@ def _render_day_details(details: Dict[str, Any]) -> str:
 def _render_confirm_plan(payload: Dict[str, Any], tracker_state: Dict[str, Any]) -> str:
     header = "Great! Here's your shopping list for the menu we have chosen:\n\n" + _fmt_constraints(tracker_state) + "\n\n"
     body = _render_shopping_list(payload.get("shopping_list") or [])
+    closing = ("\n\nType 'done' / 'bye' / 'exit' — or press Enter to close.\n\n"
+    "\n\nIt was a pleasure helping you today. See you next time.")
     return (header + body).strip()
 
 
-
+# ------------------------- NLG Class -------------------------
 class NLG:
     def __init__(self, history, model, tokenizer, args, logger):
         self.history = history
@@ -616,8 +622,7 @@ class NLG:
                     
                     
 
-
-        # ------------------------- Build verbatim factual blocks -------------------------
+        # ------------------------- Build factual blocks -------------------------
         menu_block = ""
         day_block = ""
         shopping_block = ""
@@ -634,6 +639,7 @@ class NLG:
             return _render_request_info(argument, tracker_state)
             
         # Deterministic high-risk actions 
+        # We render these without the LLM to avoid format drift and keep outputs stable
         if action == "propose_menus":
             m1 = payload.get("menu1_pretty")
             m2 = payload.get("menu2_pretty")
@@ -688,7 +694,7 @@ class NLG:
         if action == "suggest_swap_day":
             if payload.get("suggested"):
                 day_txt = display_day(argument)
-                denied_title = payload.get("denied_title")  # NEW (from main.py)
+                denied_title = payload.get("denied_title")  
                 prefix = ""
                 if denied_title:
                     prefix = f"Okay — I won’t swap {day_txt} to {denied_title}.\n\n"
@@ -793,10 +799,6 @@ class NLG:
 
         self.logger.debug(f"NLG input:\n{nlg_text}")
 
-        if nlg_text is None:
-            nlg_text = ""
-        elif not isinstance(nlg_text, str):
-            nlg_text = str(nlg_text)
 
         enc = self.tokenizer(nlg_text, return_tensors="pt", add_special_tokens=False)
         inputs = enc.to(infer_input_device(self.model))
@@ -815,6 +817,8 @@ class NLG:
 
         return out
     
+    # ------------------------- Deterministic multi-step renderer (no LLM) -------------------------
+
     def render_steps(
         self,
         executed_steps: List[Any],

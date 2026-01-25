@@ -1,30 +1,28 @@
-# support_classes.py
 """
-Meal Kit Composer — minimal support classes.
+Meal Kit Composer — support classes + normalization helpers.
 
-This file intentionally stays small and dependency-light, while still being usable in a
-pipeline architecture (NLU -> Tracker/State -> DM -> NLG).
+Provides:
+- Controlled vocab + normalization utilities (nullish, day, avoid-items; plus user-facing weekday display).
+- History: minimal conversation memory for prompting/debug.
+- Tracker: dialogue state container with deterministic MR ingestion, queuing/deferral, and bookkeeping
+  (phase, constraints, menus/active menu, pending_action, awaiting_slot/reprompts, pending/deferred MR queues).
 
-It provides:
-- History: lightweight conversation memory for prompting/debugging
-- Tracker: the dialogue state holder + a minimal "apply NLU MR to state" updater
-
-State schema (minimal):
-{
-  "phase": "AWAITING_PLAN" | "AWAITING_MENU_SELECTION" | "ACTIVE_MENU" | "CONFIRMED",
-  "constraints": {"servings": int|None, "time_limit": str|None, "calorie_level": str|None, "avoid_items": list[str]},
-  "menus": {"1": dict|None, "2": dict|None},
-  "active_menu_id": int|None,
-  "active_menu": dict|None,
-  "last_referenced_day": str|None
-}
+Non-responsibilities:
+- Menu generation, swapping, scoring, and shopping list creation (support_fn / executor).
+- Policy decisions beyond state bookkeeping (policy.py).
 """
+
 
 from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional, Tuple, Literal
 import copy
 import re
+
+
+# =============================================================================
+# Constants and controlled vocab
+# =============================================================================
 
 Phase = Literal["AWAITING_PLAN", "AWAITING_MENU_SELECTION", "ACTIVE_MENU", "CONFIRMED"]
 
@@ -41,9 +39,17 @@ ALLOWED_AVOID_ITEMS = {
 POSSIBLE_INTENTS = {"plan", "select_menu", "inspect", "show_week", "refine", "confirm", "help", "out_of_domain"}
 
 
+# =============================================================================
+# Generic normalization helpers (nullish, enums, days)
+# =============================================================================
+
 def is_nullish(x: Any) -> bool:
     """Treat common LLM-returned null variants as null."""
-    return x is None or x == "null" or x == "None" or x == ""
+    if x is None:
+        return True
+    if isinstance(x, str) and x.strip().lower() in {"", "null", "none"}:
+        return True
+    return False
 
 
 def normalize_upper_enum(x: Any) -> Optional[str]:
@@ -71,20 +77,20 @@ def normalize_day(x: Any) -> Optional[str]:
         "monday": "Mon",
         "tuesday": "Tue",
         "wednesday": "Wed",
+        "weds": "Wed",
+        "wesnday": "Wed",
         "thursday": "Thu",
         "friday": "Fri",
         "tues": "Tue",
         "thur": "Thu",
         "thurs": "Thu",
-        "weds": "Wed",
-        # common typos you observed
-        "wesnday": "Wed",
-        "wensday": "Wed",
-        "wesnday": "Wed",
+        
     }
     return mapping.get(s)
 
-# --- User-facing weekday display helpers ---
+# =============================================================================
+# User facing day display helpers
+# =============================================================================
 DAY_ABBR_TO_FULL = {
     "Mon": "Monday",
     "Tue": "Tuesday",
@@ -112,8 +118,10 @@ def display_day_list() -> str:
     return ", ".join(DAY_ABBR_TO_FULL[d] for d in ORDERED_DAYS)
 
 
+# =============================================================================
+# Avoid-item canonicalization and parsing helpers
+# =============================================================================
 
-# --- Avoid-item canonicalization (conservative) ---
 # Map common surface forms to the controlled vocabulary tokens.
 _AVOID_ALIASES: Dict[str, str] = {
     "eggs": "egg",
@@ -200,12 +208,10 @@ def normalize_avoid_items(x: Any) -> Optional[List[str]]:
 
     return items
 
-# --- Backward-compatible aliases (remove after one commit) ---
-_is_nullish = is_nullish
-_normalize_upper_enum = normalize_upper_enum
-_normalize_day = normalize_day
-_normalize_avoid_items = normalize_avoid_items
 
+# =============================================================================
+# History
+# =============================================================================
 
 @dataclass
 class History:
@@ -266,6 +272,11 @@ class History:
     def intent_history(self) -> str:
         return ", \n".join([i for i in self.intents if i])
 
+
+
+# =============================================================================
+# Tracker
+# =============================================================================
 
 @dataclass
 class Tracker:
@@ -785,6 +796,7 @@ class Tracker:
         self.prune_pending()
 
     
+    # -------------------------- MR scheduling / selection ---------------------------
     def select_next_mr(self) -> Dict[str, Any]:
         """
         Returns the next MR to handle.
@@ -862,29 +874,8 @@ class Tracker:
         # 4) Fallback: newest MR, not oldest.
         return len(self.pending_mrs) - 1
 
-    def _get_avoid_set(self) -> set[str]:
-        cur = self.constraints.get("avoid_items", None)
-        if cur is None:
-            return set()
-        if isinstance(cur, list):
-            out: set[str] = set()
-            for x in cur:
-                tok = _canon_avoid_token(x)
-                if tok and tok in ALLOWED_AVOID_ITEMS:
-                    out.add(tok)
-            return out
-        return set()
 
-
-    def _set_avoid_set(self, s: set[str]) -> None:
-        # Keep stable ordering for determinism; store only allowed tokens.
-        self.constraints["avoid_items"] = sorted([x for x in s if x in ALLOWED_AVOID_ITEMS])
-
-
-    def _can_coerce_refine_to_plan_avoid(self) -> bool:
-        # Coerce only while plan is incomplete and avoid_items is still missing
-        return "avoid_items" in self.missing_plan_slots()
-
+    # -------------------------- Pending consumption after action -------------------
     def _intent_of(self, mr: Dict[str, Any]) -> str:
         return str((mr or {}).get("intent", "")).strip() or "out_of_domain"
 
@@ -939,7 +930,7 @@ class Tracker:
 
             # 2) propose_menus: goal progressed, clear plan requests.
             elif action == "propose_menus":
-                 if not (payload or {}).get("error"):
+                if not (payload or {}).get("error"):
                     self.pending_mrs.clear()
 
             # 3) set_active_menu: if it worked, clear select_menu MRs
@@ -1077,6 +1068,29 @@ class Tracker:
 
 
     # -------------------------- MR application ------------------------------
+    def _get_avoid_set(self) -> set[str]:
+        cur = self.constraints.get("avoid_items", None)
+        if cur is None:
+            return set()
+        if isinstance(cur, list):
+            out: set[str] = set()
+            for x in cur:
+                tok = _canon_avoid_token(x)
+                if tok and tok in ALLOWED_AVOID_ITEMS:
+                    out.add(tok)
+            return out
+        return set()
+
+
+    def _set_avoid_set(self, s: set[str]) -> None:
+        # Keep stable ordering for determinism; store only allowed tokens.
+        self.constraints["avoid_items"] = sorted([x for x in s if x in ALLOWED_AVOID_ITEMS])
+
+
+    def _can_coerce_refine_to_plan_avoid(self) -> bool:
+        # Coerce only while plan is incomplete and avoid_items is still missing
+        return "avoid_items" in self.missing_plan_slots()
+    
     def _apply_slots(self, mr: Dict[str, Any]) -> int:
         """
         Apply a single MR’s slots to state

@@ -1,31 +1,20 @@
-# policy.py
 """
-Meal Kit Composer — deterministic DM guard rails (policy layer).
+Meal Kit Composer — deterministic policy layer (DM guard rails + intent routing).
 
 Purpose:
-- Take (tracker, user MR, proposed_action, proposed_argument)
-- Enforce hard workflow rules deterministically
-- Return a safe (action, argument, debug_info)
+- Enforce hard workflow constraints (slot-filling, menu generation/selection gates, pending-action rules).
+- Deterministically map certain user intents to actions (help/select_menu/show_week/inspect/refine/confirm).
+- Otherwise accept the DM proposal after sanitizing (action, argument).
 
-This module keeps DM lightweight (LLM picks an action), while policy guarantees:
-- missing PLAN slots are requested
-- menu selection gate before inspect/refine/confirm
-- refine constraints (SWAP_DAY requires day; avoid updates require value)
-- robust fallbacks for invalid/unsafe actions
+I/O:
+- Input: (tracker, normalized MR, DM-proposed action+argument)
+- Output: (final_action, final_argument, debug_info)
 
-Action set (must match DM prompt + NLG expectations):
-- request_info(slot)
-- provide_info(intent, slot)
-- propose_menus()
-- set_active_menu(menu_id)
-- show_day(target_day)
-- show_week()
-- swap_day(target_day)
-- suggest_swap_day(target_day)
-- update_avoid(op, value)
-- confirm_plan()
-- fallback()
+Notes:
+- Arguments are plain strings; multi-arg actions use comma-separated values:
+  provide_info: "intent, slot" ; update_avoid: "OP, value".
 """
+
 
 from __future__ import annotations
 
@@ -39,6 +28,10 @@ from support_classes import (
 )
 from intents_schema import normalize_mr
 
+
+# =============================================================================
+# Constants and controlled vocab
+# =============================================================================
 
 ALLOWED_DM_ACTIONS = {
     "request_info",
@@ -69,6 +62,9 @@ REQUESTABLE_SLOTS = {
 
 PROVIDE_INFO_INTENTS = {"plan", "select_menu", "inspect", "refine", "confirm", "show_week"}
 
+# =============================================================================
+# Argument encoding helpers (comma-separated args)
+# =============================================================================
 
 def _split_args(arg_str: str) -> List[str]:
     if arg_str is None:
@@ -81,6 +77,10 @@ def _split_args(arg_str: str) -> List[str]:
 
 def _join_args(args: List[str]) -> str:
     return ", ".join([str(a).strip() for a in args if str(a).strip()])
+
+# =============================================================================
+# MR interpretation helpers (e.g., suggest vs commit)
+# =============================================================================
 
 def _mr_requests_suggestion(intent: str, slots: Dict[str, Any]) -> bool:
     """
@@ -110,6 +110,10 @@ def _mr_requests_suggestion(intent: str, slots: Dict[str, Any]) -> bool:
     return v_str in {"SUGGEST", "ALTERNATIVE", "PROPOSE"}
 
 
+# =============================================================================
+# Policy entrypoint
+# =============================================================================
+
 def apply_policy(
     tracker: Any,
     mr: Dict[str, Any],
@@ -117,10 +121,12 @@ def apply_policy(
     proposed_argument: str = "",
 ) -> Tuple[str, str, Dict[str, Any]]:
     """
-    Guardrail-only policy:
-    - Enforce hard preconditions (plan completeness, menus existence, menu selection gate)
-    - Otherwise accept DM proposal (sanitized)
+    Policy entrypoint:
+    - Normalizes MR and enforces hard workflow constraints.
+    - Deterministically routes certain intents to actions (help/select_menu/show_week/inspect/refine/confirm).
+    - Otherwise accepts the DM proposal after sanitization.
     """
+
     nm = normalize_mr(mr)
     intent = nm.get("intent", "out_of_domain")
     slots = nm.get("slots", {}) or {}
@@ -155,13 +161,12 @@ def apply_policy(
     awaiting_slot = str(awaiting_slot).strip() if not is_nullish(awaiting_slot) else ""
 
 
-    #--Post confirmation behavior--
+    #------ Post confirmation behavior------
+
     # If the plan is already confirmed and the user confirms again (e.g., "finalize", "done"),
     # do not restart the workflow; just acknowledge closure.
-    #--Post confirmation behavior--
     pending = getattr(tracker, "pending_action", None)
 
-    # If the plan is already confirmed and the user confirms again, just acknowledge closure.
     if phase == "CONFIRMED" and intent == "confirm" and not pending:
         return _final("fallback", "", nm, proposed_action, proposed_argument, "already_confirmed")
 
@@ -270,15 +275,14 @@ def apply_policy(
         )
     
 
-    # 2) Menus must exist before menu-dependent actions.
-    # Do NOT use phase as proxy; check actual menu availability.
+    # 2) Menu availability check
     if hasattr(tracker, "menus_exist"):
         menus_exist = tracker.menus_exist()
     else:
         menus = getattr(tracker, "menus", None)
         menus_exist = bool(menus) and menus.get("1") is not None and menus.get("2") is not None
 
-    # 2a) If PLAN is complete and menus are not yet generated, force proposing menus.
+    # 2.1) If PLAN is complete and menus are not yet generated, force proposing menus.
     # This prevents the DM from re-asking already-filled plan slots due to per-turn MR nulls.
     if not menus_exist and not missing_plan and phase == "AWAITING_PLAN":
         return _final(
@@ -359,7 +363,7 @@ def apply_policy(
                 "need_menus_before_menu_id",
             )
 
-    # 2b) show_week intent routing (deterministic)
+    # 2.2) show_week intent routing (deterministic)
     if intent == "show_week":
         if missing_plan:
             # (This will usually be handled by the earlier missing_plan gate,
@@ -435,7 +439,7 @@ def apply_policy(
             "confirm->confirm_plan",
         )
 
-    # 4c) Deterministic routing for inspect/refine once menu gate is satisfied.
+    # 5) Intent-to-action routing (inspect/refine/confirm/show_week)
     # Prevent DM from re-asking for slots that are already present in the MR.
     if intent == "inspect":
         day = slots.get("target_day")
@@ -528,7 +532,7 @@ def apply_policy(
             )
 
 
-    # 4b) Non-committing suggestion guardrail:
+    # Non-committing suggestion guardrail:
     # If MR indicates the user asked for an alternative suggestion (not an applied swap),
     # rewrite swap_day -> suggest_swap_day deterministically.
     if _mr_requests_suggestion(intent, slots):
@@ -536,8 +540,8 @@ def apply_policy(
             proposed_action = "suggest_swap_day"
 
     
-    # 5) Otherwise: accept DM proposal, just sanitize action/args minimally
-    safe_action, safe_arg = sanitize_proposed_action(tracker, intent, slots, proposed_action, proposed_argument)
+    # 6) Accept/sanitize DM proposal
+    safe_action, safe_arg = sanitize_proposed_action(proposed_action, proposed_argument)
 
     # If sanitization collapses to fallback while we are awaiting a slot, reprompt that slot deterministically
     # (except in CONFIRMED, where we keep the closure behavior).
@@ -554,14 +558,11 @@ def apply_policy(
     return _final(safe_action, safe_arg, nm, proposed_action, proposed_argument, "guardrail_accept_or_sanitize")
 
 
+# =============================================================================
+# DM proposal sanitization
+# =============================================================================
 
-def sanitize_proposed_action(
-    tracker: Any,
-    intent: str,
-    slots: Dict[str, Any],
-    proposed_action: str,
-    proposed_argument: str,
-) -> Tuple[str, str]:
+def sanitize_proposed_action(proposed_action: str, proposed_argument: str,) -> Tuple[str, str]:
     a = (proposed_action or "").strip()
     arg = (proposed_argument or "").strip()
 
@@ -614,7 +615,9 @@ def sanitize_proposed_action(
 
     return "fallback", ""
 
-
+# =============================================================================
+# Return packaging / debug metadata
+# =============================================================================
 
 def _final(
     action: str,

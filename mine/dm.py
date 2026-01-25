@@ -7,6 +7,8 @@ Responsibilities:
 - Provide the model with: normalized MR + tracker state + recent turns
 - Ask the LLM to output exactly ONE compact action string: action(args)
 - Parse and return (action, argument, debug_text)
+- Build compact DM state snapshot (queue + tracker summary)
+- Validate/sanitize the model’s chosen action against the allowed action set
 
 Non-responsibilities (handled elsewhere, per compartmentalization plan):
 - Deterministic guard rails (component/policy.py)
@@ -22,7 +24,7 @@ from typing import Any, Dict, Optional, Tuple
 from utils import PROMPTS, generate, format_chat, extract_action_and_argument, infer_input_device
 from intents_schema import normalize_mr
 
-
+# Constants
 ALLOWED_DM_ACTIONS = {
     "request_info",
     "provide_info",
@@ -37,43 +39,8 @@ ALLOWED_DM_ACTIONS = {
     "fallback",
 }
 
-
-def _safe_json(obj: Any) -> str:
-    """JSON dump that won't crash on occasional non-serializable objects."""
-    return json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True, default=str)
-
-
-class DM:
-    def __init__(self, history, model, tokenizer, args, logger):
-        self.history = history
-        self.model = model
-        self.tokenizer = tokenizer
-        self.args = args
-        self.logger = logger
-
-    def __call__(
-        self,
-        tracker,
-        mr: Dict[str, Any],
-        last_action: str = "",
-        last_n_turns: Optional[int] = None,
-    ) -> Tuple[str, str, str]:
-        """
-        Returns:
-          action: str
-          argument: str (raw inside parentheses; may contain commas)
-          debug_input: str (the full formatted prompt sent to the model)
-
-        Notes:
-        - This DM does not mutate tracker or call domain services.
-        - Deterministic guard rails are intentionally not here (to keep DM small).
-        """
-
-        # 1) Normalize MR (schema-level). We do not enforce DM workflow here.
-        nm = normalize_mr(mr)  # always present
-
-        # 2) Compose system prompt from utils (Marina-like)
-        extra_rules = """ADDITIONAL DM RESPONSIBILITY (you are the primary controller):
+DM_EXTRA_RULES = """
+        ADDITIONAL DM RESPONSIBILITY (you are the primary controller):
         - Your goal is a smooth, human conversation. Do NOT mention intents, slots, enums, variable names, or JSON.
         - Ask for ONE piece of information at a time when you need something.
         - Prefer natural, short questions. Avoid listing options unless the user asks.
@@ -127,7 +94,43 @@ class DM:
 
         """
 
+# Small utility
+def _safe_json(obj: Any) -> str:
+    """JSON dump that won't crash on occasional non-serializable objects."""
+    return json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True, default=str)
 
+
+class DM:
+    def __init__(self, history, model, tokenizer, args, logger):
+        self.history = history
+        self.model = model
+        self.tokenizer = tokenizer
+        self.args = args
+        self.logger = logger
+
+    def __call__(
+        self,
+        tracker,
+        mr: Dict[str, Any],
+        last_action: str = "",
+        last_n_turns: Optional[int] = None,
+    ) -> Tuple[str, str, str]:
+        """
+        Returns:
+          action: str
+          argument: str (raw inside parentheses; may contain commas)
+          debug_input: str (the full formatted prompt sent to the model)
+
+        Notes:
+        - This DM does not mutate tracker or call domain services.
+        - Deterministic guard rails are intentionally not here (to keep DM small).
+        """
+
+        # 1) Normalize MR (schema-level). 
+        nm = normalize_mr(mr)  
+
+        
+        # 2) Compose system prompt
         system_prompt = (
             PROMPTS["DM_START"]
             + "\n"
@@ -135,12 +138,12 @@ class DM:
             + "\n"
             + PROMPTS["DM_RULES"]
             + "\n"
-            + extra_rules
+            + DM_EXTRA_RULES
             + "\n"
             + PROMPTS["DM_END"]
         )
 
-        # 3) Compose user text: include action context + recent turns + DS snapshot
+        # 3) Include recent turns if available
         recent = ""
         if self.history is not None:
             if last_n_turns is None:
@@ -148,7 +151,7 @@ class DM:
             else:
                 recent = self.history.last_iterations(last_n=last_n_turns)
 
-                
+        # 4) Build compact DM snapshot (state + queue summary)      
         pending_mrs = []
         if hasattr(tracker, "pending_mrs"):
             try:
@@ -207,8 +210,7 @@ class DM:
                 pending_intents,
             )
 
-
-
+        # 5) Compose user text
         user_text = (
             "RECENT_TURNS:\n"
             + (recent if recent else "(none)")
@@ -217,19 +219,14 @@ class DM:
             + "\n\nReturn the next action now."
         )
 
-        # 4) Format with chat template (Marina-style: args.chat_template.format(system, user))
+        # 6) Format with chat template 
         dm_text = format_chat(self.args, system_prompt, user_text, tokenizer=self.tokenizer)
         if not isinstance(dm_text, str):
             raise TypeError(f"format_chat() must return str, got {type(dm_text)}: {repr(dm_text)[:200]}")
 
         self.logger.debug(f"DM input:\n{dm_text}")
 
-        # 5) Generate
-        if dm_text is None:
-            dm_text = ""
-        elif not isinstance(dm_text, str):
-            dm_text = str(dm_text)
-
+        # 7) Tokenize + generate
         enc = self.tokenizer(dm_text, return_tensors="pt", add_special_tokens=False)
         inputs = enc.to(infer_input_device(self.model))
 
@@ -247,7 +244,7 @@ class DM:
 
         self.logger.debug(f"DM raw output: {dm_output_line}")
 
-        # 6) Parse action(args)
+        # 8) Parse action, validate against allowed actions, return
         parsed = extract_action_and_argument(dm_output_line)
         if not parsed:
             # If parsing fails, degrade gracefully.

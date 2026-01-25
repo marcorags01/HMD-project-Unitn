@@ -10,7 +10,7 @@ This module centralizes:
 
 It is grounded in the "Meal Kit Composer (Minimal Spec) — Project Reference Summary":
 - flat NLU MR format
-- minimal intents: plan, select_menu, inspect, refine, confirm
+- minimal intents: plan, select_menu, inspect, refine, confirm, show_week, help, out_of_domain
 - controlled vocabularies and required-slot rules
 - refine_type-dependent constraints (SWAP_DAY vs ADD/REMOVE_AVOID_ITEM)
 """
@@ -18,7 +18,7 @@ It is grounded in the "Meal Kit Composer (Minimal Spec) — Project Reference Su
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 from support_classes import (
     POSSIBLE_INTENTS,
@@ -34,6 +34,10 @@ from support_classes import (
 
 
 # ------------------------- Intent + slot inventory -------------------------
+# INTENT_SLOTS defines the full allowed slot surface per intent (schema shape).
+# REQUIRED_SLOTS defines what must be present for an MR to be considered valid
+# (with additional intent-specific rules below, e.g., refine_type-dependent requirements).
+
 
 INTENT_SLOTS: Dict[str, List[str]] = {
     "plan": ["servings", "time_limit", "calorie_level", "avoid_items"],
@@ -59,7 +63,7 @@ REQUIRED_SLOTS: Dict[str, List[str]] = {
     "out_of_domain": [],
 }
 
-# refine_type controlled vocab + refine-specific constraints
+#------------------------- Controlled vocabularies -------------------------
 REFINE_TYPES = {"SWAP_DAY", "ADD_AVOID_ITEM", "REMOVE_AVOID_ITEM"}
 SWAP_VALUE = "BEST_FIT"
 REFINE_MODES = {"SUGGEST", "COMMIT"}
@@ -119,6 +123,10 @@ def normalize_mr(mr: Dict[str, Any]) -> Dict[str, Any]:
         slots_in = {}
 
     allowed = set(INTENT_SLOTS.get(intent, []))
+
+    # Design choice: keep MRs sparse/delta-friendly.
+    # We keep only allowed keys the model actually provided, and later drop null-like values,
+    # so partial MRs can accumulate across turns without carrying irrelevant None fields.
     # Keep ONLY keys the model actually provided (and that are allowed for the intent)
     slots_out: Dict[str, Any] = {k: v for k, v in slots_in.items() if k in allowed}
 
@@ -148,7 +156,6 @@ def normalize_mr(mr: Dict[str, Any]) -> Dict[str, Any]:
                     avoid_norm = []
 
             slots_out["avoid_items"] = avoid_norm
-
 
     elif intent == "select_menu":
         if "menu_id" in slots_out and not is_nullish(slots_out.get("menu_id")):
@@ -187,7 +194,7 @@ def normalize_mr(mr: Dict[str, Any]) -> Dict[str, Any]:
            slots_out["ood_type"] = str(slots_out["ood_type"]).strip().upper()
 
     elif intent == "show_week":
-     pass
+        pass
 
     # Drop explicit null-like values so partial/delta MRs stay sparse
     for k in list(slots_out.keys()):
@@ -217,7 +224,7 @@ def validate_mr(mr: Dict[str, Any]) -> ValidationResult:
 
     errors: List[str] = []
 
-    # Unknown intent
+    # Schema treats out_of_domain as valid: NLU can emit it safely, and DM/policy decide the response strategy.
     if intent == "out_of_domain":
         return ValidationResult(valid=True, errors=[], normalized_mr=nm)
 
@@ -335,7 +342,7 @@ def validate_mr(mr: Dict[str, Any]) -> ValidationResult:
                         slots["slot"] = hs_norm  # canonical
 
     elif intent == "show_week":
-     pass
+        pass
 
 
     valid = len(errors) == 0

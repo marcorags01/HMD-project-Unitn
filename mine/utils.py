@@ -1,4 +1,3 @@
-# utils.py
 """
 Meal Kit Composer — shared utilities.
 
@@ -18,14 +17,13 @@ from __future__ import annotations
 
 import argparse
 from argparse import Namespace
-from typing import Tuple, Callable, Dict, Optional, Any
+from typing import Tuple, Callable, Dict, Optional
 from functools import partial
 import re
 
-from models import qwen3  # ensure models/__init__.py exists
+from models import qwen3 
 
 import torch
-import numpy as np
 from transformers import (
     AutoModelForCausalLM,
     AutoTokenizer,
@@ -39,7 +37,7 @@ from transformers import (
 # ------------------------- Prompts -------------------------
 
 PROMPTS = {
-    "START": "Hello — I’m the Meal Kit Composer.\n\nMy job is to turn your preferences into a practical weekly dinner plan: balanced recipes, clear constraints, and easy iteration.\n\nI’ll start by asking a few quick questions (servings, prep time, calorie target, avoid-list), then I’ll generate two menu options.\n\nAfter you choose, you can inspect any day and request changes until your week plan is exactly right.",
+    "START": "Hello — I’m the Meal Kit Composer.\nMy job is to turn your preferences into a practical weekly dinner plan: balanced recipes, clear constraints, and easy iteration.\nI’ll start by asking a few quick questions (servings, prep time, calorie target, avoid-list), then I’ll generate two menu options.\nAfter you choose, you can inspect any day and request changes until your week plan is exactly right.\nLet me know when you’re ready to begin!",
 
     # DM prompt parts (LLM must output exactly ONE compact action)
     "DM_START": """You are the Dialogue Manager (DM) for a Meal Kit Composer assistant.
@@ -58,12 +56,13 @@ Return ONLY the action. No explanations. No extra text.
 """,
 
 
-    "DM_ACTIONS": """ALLOWED ACTIONS (choose exactly one):
+"DM_ACTIONS": """ALLOWED ACTIONS (choose exactly one):
 - request_info(slot)
 - provide_info(intent, slot)
 - propose_menus()
 - set_active_menu(menu_id)
 - show_day(target_day)
+- show_week()
 - suggest_swap_day(target_day)
 - swap_day(target_day)
 - update_avoid(op, value)
@@ -71,9 +70,9 @@ Return ONLY the action. No explanations. No extra text.
 - fallback()
 """,
 
-    # We keep the “hard rules” in prompt for LLM guidance;
-    # deterministic guard rails will still be implemented outside the DM (policy.py).
-    "DM_RULES": """HARD WORKFLOW RULES (never violate):
+# We keep the “hard rules” in prompt for LLM guidance;
+# deterministic guard rails will still be implemented outside the DM (policy.py).
+"DM_RULES": """HARD WORKFLOW RULES (never violate):
 0) You must choose ONE action for SELECTED_MR only. pending_mrs is context only.
 0b) If SELECTED_MR is a synthetic/empty MR (e.g., {"intent":"plan","slots":{}}), ask for the next missing slot using request_info(...).
 1) If PLAN is incomplete (missing servings/time_limit/calorie_level/avoid_items), choose request_info(one missing slot).
@@ -110,7 +109,7 @@ fallback()
 Return ONE action for SELECTED_MR only.
 """,
 
-    # NLG prompt parts (will be used by component/nlg.py)
+    # NLG prompt parts
     "NLG_START": """You are the NLG component for a Meal Kit Composer assistant.
 You will be given:
 - the DM action in compact format (e.g., request_info(servings))
@@ -129,10 +128,12 @@ Do not output the action string. Output ONLY the message to the user.
 def extract_action_and_argument(input_string: str) -> Optional[Tuple[str, str]]:
     """
     Parse a DM “function-call string” like:
-      ASK_MISSING_PLAN_SLOTS(servings,time_limit)
-      SET_ACTIVE_MENU(menu_id=1)
-      SWAP_DAY(day=Tue)
-      CONFIRM()
+      request_info(servings)
+      set_active_menu(1)
+      show_day(Tue)
+      suggest_swap_day(Mon)
+      update_avoid(ADD_AVOID_ITEM, nuts)
+      confirm_plan()
 
     Returns (action, argument_string). If there's no argument, returns ("CONFIRM", "").
 
@@ -410,19 +411,11 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
         quantization_config=quant_config,
     )
 
-    # dtype only matters when not quantizing; keep that logic
     if quant_config is None:
-        model_kwargs["dtype"] = tdtype  # new name
+        model_kwargs["torch_dtype"] = tdtype
 
-    # Backward-compatible fallback if your installed transformers is older
-    try:
-        model = loader_fn(args.model_name, **model_kwargs)
-    except TypeError as e:
-        if "dtype" in model_kwargs:
-            model_kwargs["torch_dtype"] = model_kwargs.pop("dtype")
-            model = loader_fn(args.model_name, **model_kwargs)
-        else:
-            raise
+    model = loader_fn(args.model_name, **model_kwargs)
+
 
 
 
@@ -445,23 +438,9 @@ def load_model(args: Namespace) -> Tuple[PreTrainedModel, PreTrainedTokenizer]:
         tokenizer.pad_token = tokenizer.eos_token
 
     model.eval()
-    if float(getattr(args, "temperature", 0.0)) <= 0.0:
-        try:
-            gc = getattr(model, "generation_config", None)
-            if gc is not None:
-                # Set neutral values used by greedy decoding
-                if hasattr(gc, "temperature"):
-                    gc.temperature = 1.0
-                if hasattr(gc, "top_p"):
-                    gc.top_p = 1.0
-                if hasattr(gc, "top_k"):
-                    gc.top_k = 0
-        except Exception:
-            pass
-
+    
     return model, tokenizer  # type: ignore
 
-# utils.py
 
 def infer_input_device(model) -> torch.device:
     # Best signal: where embeddings live (first op in most decoder LMs)

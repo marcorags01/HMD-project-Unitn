@@ -1,20 +1,20 @@
-# nlu.py
 """
-Meal Kit Composer — NLU (LLM-based).
+Meal Kit Composer — NLU (LLM-based, evidence-gated).
 
 Responsibilities:
-- Given user text, produce one or more MR in the flat JSON format:
-    {"intent": "...", "slots": {...}}
-- Do not invent values; if missing, output null
-- Normalize using intents_schema.normalize_mr
-- Return the normalized MR even if invalid (for robustness)
+- Convert one user turn into flat MR JSON (single MR or list): {"intent":"...","slots":{...}}.
+- Prompt the LLM with schema hints + constraints; parse output strictly as JSON.
+- Apply deterministic evidence checks when AWAITING_SLOT is set to prevent hallucinated slot values
+  (servings/time_limit/calorie_level/avoid_items/menu_id/yes_no_swap), returning INVALID_ANSWER when unsupported.
+- Perform a few deterministic overrides for clear replies (e.g., FAST/NORMAL) and swap-confirmation handling
+  (confirm vs REFUSE_PENDING; optionally request another alternative).
+- Normalize all returned MR(s) via intents_schema.normalize_mr (controlled enums, day canonicalization, sparse slots).
 
-Compatible with:
-- utils.generate + args.chat_template
-- intents_schema.INTENT_SLOTS, intents_schema.validate_mr
-- support_fn.parsing_json
-- support_classes constants for controlled vocab (via schema_hint)
+Non-responsibilities:
+- Full validation/required-slot enforcement (done downstream).
+- State updates, action selection/execution, or user-facing text generation (Tracker/DM/policy/NLG).
 """
+
 
 from __future__ import annotations
 
@@ -44,9 +44,8 @@ _WORD_NUMS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6}
 _YES_TOKENS = ("yes", "yep", "yeah", "ok", "okay", "sure", "do it", "go ahead", "swap it")
 _NO_TOKENS  = ("no", "nope", "nah", "no thanks", "don't", "do not", "keep it", "leave it", "cancel", "never mind")
 
-_ACK_TOKENS = (
-    "great", "thanks", "thank you", "ok", "okay", "cool", "nice", "sounds good", "perfect", "awesome"
-)
+_ACK_SINGLE = {"great", "thanks", "ok", "okay", "cool", "nice", "perfect", "awesome"}
+_ACK_MULTI  = {"thank you", "sounds good"}
 
 _CLOSE_TOKENS = (
     "all set", "i am all set", "i'm all set", "that's all", "that is all",
@@ -56,13 +55,19 @@ _CLOSE_TOKENS = (
 
 def _is_ack(user_text: str) -> bool:
     t = (user_text or "").strip().lower()
-    return bool(t) and any(t == a or a in t for a in _ACK_TOKENS)
+    if not t:
+        return False
+
+    words = set(re.findall(r"[a-z']+", t))  # word-level tokens
+    if words.intersection(_ACK_SINGLE):
+        return True
+
+    return any(p in t for p in _ACK_MULTI)
 
 def _is_close(user_text: str) -> bool:
     t = (user_text or "").strip().lower()
     return bool(t) and any(c in t for c in _CLOSE_TOKENS)
 
-import re
 
 def _wants_another_alternative(user_text: str) -> bool:
     t = (user_text or "").lower().strip()
@@ -115,8 +120,6 @@ def _extract_swap_day_from_recent(recent: str) -> Optional[str]:
     return None
 
 
-
-
 def _text_has_servings_evidence(user_text: str) -> bool:
     t = (user_text or "").lower()
     if re.search(r"\b[1-6]\b", t):
@@ -164,8 +167,8 @@ def _text_has_yes_no_evidence(user_text: str) -> Optional[bool]:
 def _text_has_avoid_items_evidence(user_text: str, items: List[str]) -> bool:
     """
     Minimal evidence check:
-    - require that each controlled token (or a close synonym) appears somewhere in the user text.
-    This avoids accepting hallucinated ["nuts"] for 'kuku'.
+    - require that each controlled token (or a close synonym) appears somewhere in the user text
+    - this prevents accepting avoid-items that are not evidenced anywhere in the user’s text
     """
     t = (user_text or "").lower()
     syn = {
@@ -202,8 +205,11 @@ class NLU:
         self.args = args
         self.logger = logger
 
-    def __call__(self, user_text: str, awaiting_slot: Optional[str] = None,) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
-        # A compact but explicit schema hint helps LLM stay grounded.
+    def __call__(self, user_text: str, awaiting_slot: Optional[str] = None) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
+        # schema_hint is a compact, structured grounding signal (values + allowed slots).
+        # system_prompt contains the narrative task rules and examples.
+        # Both are provided because the LLM adheres better when constraints are repeated in two forms.
+
         schema_hint = {
             "intents": list(INTENT_SLOTS.keys()),
             "slots_by_intent": INTENT_SLOTS,
@@ -407,6 +413,10 @@ class NLU:
 
         nlu_text = format_chat(self.args, system_prompt, user_payload, tokenizer=self.tokenizer)
 
+
+        # Production hardening:
+        # format_chat() or upstream code may return None / list-of-messages / non-str.
+        # We coerce to a single string to avoid intermittent fast-tokenizer encode_batch() type errors.
         # ---- Hard normalize to a tokenizer-safe text input ----
         if nlu_text is None:
             nlu_text = ""
@@ -452,6 +462,11 @@ class NLU:
         # --- Evidence gate (prevents "uga" -> FAST, etc.) ---------------------
         awaited = (awaiting_slot or "").strip()
         
+
+        # Conversation-control shortcuts:
+        # - Close tokens finalize (confirm) when we are not awaiting a slot.
+        # - Acknowledgements become out_of_domain(ACK) to avoid fallback spam and keep the pipeline moving.
+
         # Closing intent: user indicates they are done / want to finalize
         if awaited == "" and _is_close(user_text):
             return {"intent": "confirm", "slots": {}}
@@ -475,6 +490,8 @@ class NLU:
                 obj = {"intent": "plan", "slots": {"time_limit": "FAST"}}
 
 
+        # If we are awaiting a slot, users can still "interrupt" with a valid request (inspect/refine/show_week/help/confirm).
+        # In that case we do NOT force INVALID_ANSWER; we let the interrupt intent pass through.
         def _is_interrupting_intent(obj: Any) -> bool:
             if not isinstance(obj, (dict, list)):
                 return False
@@ -569,6 +586,10 @@ class NLU:
                         if not _text_has_menu_id_evidence(user_text, mid):
                             return _invalid_answer()
 
+        # Swap confirmation is a special yes/no turn:
+        # - yes -> confirm (commit pending swap in executor)
+        # - no  -> out_of_domain(REFUSE_PENDING)
+        # - if refusal also requests another alternative, emit two MRs: refusal + refine(SWAP_DAY,SUGGEST)
         elif awaited == "yes_no_swap":
             yn = _text_has_yes_no_evidence(user_text)
 

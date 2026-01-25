@@ -1,4 +1,3 @@
-# support_fn.py
 """
 Meal Kit Composer — minimal support functions (domain + parsing helpers).
 
@@ -39,7 +38,9 @@ from support_classes import (
     
 )
 
-# ------------------------- Constants -------------------------
+# =============================================================================
+# Constants and exceptions
+# =============================================================================
 
 WEEK_DAYS: List[str] = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
@@ -86,7 +87,7 @@ def _menu_infeasibility_message(constraints: Dict[str, Any], feasible_count: int
     if feasible_count <= 0:
         base = "I couldn’t find meals that match those preferences."
     else:
-        base = "I couldn’t put together a full Mondat to Friday plan with those preferences."
+        base = "I couldn’t put together a full Monday to Friday plan with those preferences."
 
     if suggestions:
         if len(suggestions) == 1:
@@ -97,6 +98,9 @@ def _menu_infeasibility_message(constraints: Dict[str, Any], feasible_count: int
     return f"{base} If you adjust your preferences a bit, I can try again."
 
 
+# =============================================================================
+# Parsing helpers (LLM output -> Python objects)
+# =============================================================================
 
 def _extract_first_balanced_json_span(text: str) -> Optional[Tuple[int, int]]:
     """
@@ -112,11 +116,9 @@ def _extract_first_balanced_json_span(text: str) -> Optional[Tuple[int, int]]:
 
     # Find first opening of either object or array
     start = None
-    opener = None
     for i, ch in enumerate(text):
         if ch == "{" or ch == "[":
             start = i
-            opener = ch
             break
     if start is None:
         return None
@@ -168,7 +170,6 @@ def _extract_first_balanced_json_span(text: str) -> Optional[Tuple[int, int]]:
 
     return None
 
-# ------------------------- Parsing helpers -------------------------
 
 def parsing_json(text: str) -> Any:
     """
@@ -246,7 +247,9 @@ def parsing_json(text: str) -> Any:
     return best_obj if best_obj is not None else {}
 
 
-# ------------------------- Dataset loading & validation -------------------------
+# =============================================================================
+# Dataset loading and validation
+# =============================================================================
 
 def load_recipes(path: str) -> Tuple[List[Dict[str, Any]], Dict[str, Dict[str, Any]]]:
     """
@@ -302,8 +305,9 @@ def _validate_recipe(r: Dict[str, Any]) -> None:
 
 
 
-
-# ------------------------- Filtering / feasibility -------------------------
+# =============================================================================
+# Feasibility and filtering
+# =============================================================================
 
 def is_feasible(recipe: Dict[str, Any], constraints: Dict[str, Any]) -> bool:
     """
@@ -325,7 +329,7 @@ def is_feasible(recipe: Dict[str, Any], constraints: Dict[str, Any]) -> bool:
             return False
 
     # avoids
-    avoid_items = constraints.get("avoid_items") or []
+    avoid_items = {str(a).strip().lower() for a in (constraints.get("avoid_items") or [])}
     avoid_set = {a for a in avoid_items if a in ALLOWED_AVOID_ITEMS}
 
     tags = recipe.get("contains_tags") or []
@@ -337,13 +341,15 @@ def is_feasible(recipe: Dict[str, Any], constraints: Dict[str, Any]) -> bool:
 
 
 def filter_recipes(recipes: List[Dict[str, Any]], constraints: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Return feasible recipes only (deterministic order preserved by stable sorting)."""
+    # Return feasible recipes only, sorted deterministically by recipe_id
     feasible = [r for r in recipes if is_feasible(r, constraints)]
     # Deterministic tie-break baseline: sort by recipe_id
     return sorted(feasible, key=lambda r: str(r["recipe_id"]))
 
 
-# ------------------------- Menu generation (deterministic) -------------------------
+# =============================================================================
+# Menu generation
+# =============================================================================
 
 def generate_two_menus(
     recipes: List[Dict[str, Any]],
@@ -353,7 +359,7 @@ def generate_two_menus(
     """
     Generate two menus under the same constraints but different selection priorities:
     - Option 1: promote variety (min overlap of ingredient categories across the week)
-    - Option 2: minimize time (fastest recipes)
+    - Option 2: random sample of feasible recipes
 
     Returns:
       menu1, menu2  (each is a dict day->recipe_id)
@@ -452,7 +458,9 @@ def _build_menu_option1(feasible: List[Dict[str, Any]], rng: random.Random) -> D
 
 
 
-# ------------------------- Inspect helpers -------------------------
+# =============================================================================
+# Inspect helpers
+# =============================================================================
 
 def get_day_details(
     day: str,
@@ -500,7 +508,9 @@ def get_day_details(
     }
 
 
-# ------------------------- Refine helpers (swap / repair / avoid update) -------------------------
+# =============================================================================
+# Refine helpers (swap / suggest / repair / avoid update)
+# =============================================================================
 
 def swap_day_in_menu(
     menu: Dict[str, str],
@@ -654,7 +664,7 @@ def update_avoid_items(
     if it not in ALLOWED_AVOID_ITEMS:
         return False, f"Unknown avoid item: {it}"
 
-    avoid = constraints.get("avoid_items") or []
+    avoid = {str(a).strip().lower() for a in (constraints.get("avoid_items") or [])}
     avoid_set = set([a for a in avoid if a in ALLOWED_AVOID_ITEMS])
 
     op_up = str(op).upper().strip()
@@ -670,7 +680,9 @@ def update_avoid_items(
     return True, None
 
 
-# ------------------------- Shopping list (scaling + aggregation) -------------------------
+# =============================================================================
+# Shopping list (normalize / scale / aggregate)
+# =============================================================================
 
 _WS_RE = re.compile(r"\s+")
 
@@ -703,6 +715,29 @@ def _normalize_category(category: str) -> str:
     }
     return cat_map.get(c, c)
 
+def _normalize_ingredient_name(name: str) -> str:
+    s = (name or "").strip().lower()
+    s = s.strip(" ,;")
+    s = re.sub(r"[,:;]", " ", s)
+    s = s.replace("-", " ")
+    s = _WS_RE.sub(" ", s).strip()
+
+    # If there is a parenthetical suffix, singularize only the "base" part.
+    if "(" in s:
+        base, rest = s.split("(", 1)
+        base = base.strip()
+        rest = "(" + rest  # add back '('
+    else:
+        base, rest = s, ""
+
+    toks = base.split()
+    if toks:
+        toks[-1] = _singularize_token(toks[-1])
+    base_norm = " ".join(toks).strip()
+
+    return (base_norm + (" " + rest if rest else "")).strip()
+
+
 def _singularize_token(tok: str) -> str:
     # Conservative English singularization for simple plurals.
     # Only apply to alphabetic tokens.
@@ -726,28 +761,6 @@ def _singularize_token(tok: str) -> str:
         return tok[:-1]
 
     return tok
-
-def _normalize_ingredient_name(name: str) -> str:
-    s = (name or "").strip().lower()
-    s = s.strip(" ,;")
-    s = re.sub(r"[,:;]", " ", s)
-    s = s.replace("-", " ")
-    s = _WS_RE.sub(" ", s).strip()
-
-    # If there is a parenthetical suffix, singularize only the "base" part.
-    if "(" in s:
-        base, rest = s.split("(", 1)
-        base = base.strip()
-        rest = "(" + rest  # add back '('
-    else:
-        base, rest = s, ""
-
-    toks = base.split()
-    if toks:
-        toks[-1] = _singularize_token(toks[-1])
-    base_norm = " ".join(toks).strip()
-
-    return (base_norm + (" " + rest if rest else "")).strip()
 
 
 
@@ -808,7 +821,7 @@ def _round_qty(qty: float, unit: str) -> float:
     if qty <= 0:
         return 0.0
 
-    if u in ("pc"):
+    if u =="pc":
         # nearest int, minimum 1
         return float(max(1, int(round(qty))))
 

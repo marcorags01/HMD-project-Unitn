@@ -1,11 +1,12 @@
 # main.py
 """
-Meal Kit Composer — main controller loop (Marina-like).
+Meal Kit Composer — main controller loop.
 
 Pipeline:
   user_text
     -> NLU (LLM) produces MR JSON
-    -> Tracker.creation() applies MR to state
+    -> Tracker.ingest_turn() applies MR(s) to state and queues pending MRs
+    -> Tracker.select_next_mr() selects ONE MR to address now
     -> DM (LLM) proposes next action
     -> policy.apply_policy() enforces hard rules deterministically
     -> executor runs domain functions (support_fn) and updates Tracker
@@ -14,11 +15,22 @@ Pipeline:
 """
 
 from __future__ import annotations
-
-
+import os
 import logging
 from typing import Any, Dict
 import copy
+
+# Hide HF advisory warnings like "generation flags are not valid..."
+os.environ.setdefault("TRANSFORMERS_VERBOSITY", "error")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+
+try:
+    from transformers.utils import logging as hf_logging
+    hf_logging.set_verbosity_error()
+    hf_logging.disable_progress_bar()
+except Exception:
+    pass
+
 from nlg import NLG
 from nlu import NLU
 from utils import PROMPTS, get_args, load_model
@@ -38,18 +50,20 @@ from support_classes import (
 )
 from dm import DM
 from policy import apply_policy
-
 from intents_schema import validate_mr
-
 
 
 logger = logging.getLogger("MealKitComposer")
 logger.setLevel(logging.DEBUG)
 
-# ------------------------- Continue-gate parsing -------------------------
+
+# ------------------------- Continue-deferred gate (pre-NLU) -------------------------
 
 YES_SET = {"yes", "y", "ok", "okay", "sure", "continue", "go ahead", "please"}
 NO_SET  = {"no", "n", "nope", "not now", "cancel", "stop"}
+
+# Actions that should NOT clear awaiting_slot (read-only / informational “interrupts”)
+INTERRUPT_ACTIONS = {"show_day", "show_week", "provide_info"}
 
 def parse_continue_reply(text: str) -> str:
     t = (text or "").strip().lower()
@@ -60,8 +74,6 @@ def parse_continue_reply(text: str) -> str:
     if t in NO_SET or t.startswith("no ") or t.startswith("no,"):
         return "NO"
     return "OTHER"
-
-
 
 
 # ------------------------- Executor (domain calls + tracker updates) -------------------------
@@ -79,6 +91,7 @@ def execute_action(
     """
     payload: Dict[str, Any] = {}
 
+    # --- Menu generation / selection ---
     if action == "propose_menus":
         try:
             menu1, menu2 = generate_two_menus(recipes, tracker.constraints)
@@ -97,7 +110,6 @@ def execute_action(
             )
             return payload
 
-
     if action == "set_active_menu":
         try:
             mid = int(argument)
@@ -109,6 +121,7 @@ def execute_action(
         payload["ok"] = ok
         return payload
 
+    # --- Inspection actions ---
     if action == "show_day":
         if not tracker.has_active_menu():
             payload["error"] = "Please pick a menu option first (1 or 2)."
@@ -176,7 +189,7 @@ def execute_action(
             payload["error"] = f"I couldn't show the weekly plan: {e}"
             return payload
 
-        
+     # --- Refine actions ---   
     if action == "suggest_swap_day":
         if not tracker.has_active_menu():
             payload["error"] = "Please pick a menu option first (1 or 2)."
@@ -191,8 +204,8 @@ def execute_action(
             return payload
 
         try:
-            # ---- NEW: if the user is asking again for the same day while a suggestion is pending,
-            # treat that as an implicit rejection of the pending suggestion ----
+            # if the user is asking again for the same day while a suggestion is pending,
+            # treat that as an implicit rejection of the pending suggestion 
             pending = getattr(tracker, "pending_action", None)
             if isinstance(pending, dict):
                 p_type = str(pending.get("type", "") or "").strip().upper()
@@ -213,7 +226,7 @@ def execute_action(
                     if denied_id:
                         payload["denied_recipe_id"] = denied_id
                         payload["denied_title"] = recipes_by_id.get(denied_id, {}).get("title", denied_id)
-            # ---- build exclusions from previously rejected suggestions ----
+            # build exclusions from previously rejected suggestions 
             exclude_ids = set()
             rs = getattr(tracker, "rejected_suggestions", None)
             if isinstance(rs, dict):
@@ -226,7 +239,7 @@ def execute_action(
                 day,
                 recipes,
                 tracker.constraints,
-                exclude_ids=exclude_ids,   # NEW
+                exclude_ids=exclude_ids,   
             )
 
             if sug_id is None:
@@ -248,8 +261,6 @@ def execute_action(
             payload["error"] = f"I couldn't suggest an alternative for that day: {e}"
             return payload
 
-
-
     if action == "swap_day":
         if not tracker.has_active_menu():
             payload["error"] = "Please pick a menu option first (1 or 2)."
@@ -267,7 +278,7 @@ def execute_action(
             if p_type == "SWAP_DAY" and p_day == day and p_rid:
                 rid = str(p_rid)
 
-                # Safety checks (no new suggestion computation):
+                # Safety checks 
                 recipe = recipes_by_id.get(rid)
                 if recipe is None:
                     tracker.pending_action = None
@@ -335,7 +346,7 @@ def execute_action(
             payload["error"] = err or "I couldn’t update that avoid item."
             return payload
 
-        # NEW: snapshot old menu to compute substitutions
+        # Snapshot old menu to compute substitutions
         old_menu = dict(tracker.active_menu or {})
 
         try:
@@ -351,7 +362,7 @@ def execute_action(
 
             payload["repaired_days"] = repaired_days
 
-            # NEW: add detailed substitutions day -> new recipe (and old recipe)
+            # Add detailed substitutions day -> new recipe (and old recipe)
             repairs = []
             for day in repaired_days:
                 old_id = str(old_menu.get(day, ""))
@@ -375,6 +386,7 @@ def execute_action(
             payload["error"] = f"I updated your avoid list, but I couldn’t repair the plan: {e}"
             return payload
 
+    # --- Confirmation ---
     if action == "confirm_plan":
         if not tracker.has_active_menu():
             payload["error"] = "Please pick a menu option first (1 or 2)."
@@ -393,6 +405,7 @@ def execute_action(
             payload["error"] = f"I couldn't generate the shopping list: {e}"
             return payload
 
+    # --- Help/info ---
     if action == "provide_info":
         raw = (argument or "").strip()
 
@@ -416,7 +429,7 @@ def execute_action(
     # request_info / fallback / unknown: no execution-side effects
     return payload
 
-# ------------------------- Dialogue wrapper (Marina-like) -------------------------
+# ------------------------- Dialogue wrapper  -------------------------
 
 class Dialogue:
     def __init__(self, model, tokenizer, args, logger, recipes_path: str):
@@ -439,18 +452,13 @@ class Dialogue:
     def _read_user(self) -> str:
         return input("User(you): ").strip()
 
-
     def start(self):
         print()
         starting = PROMPTS.get("START", "Hi. How can I help you?")
         self._say(starting)
         self.history.add_msg(starting, "assistant", "start")
-
-        
-
         last_action = ""
         DEBUG = bool(getattr(self.args, "debug", False))
-
 
         while True:
             user_text = self._read_user()
@@ -467,8 +475,6 @@ class Dialogue:
                 self.history.add_msg(starting, "assistant", "start")
                 continue
 
-            
-
             if low in {"exit", "quit", "q"}:
                 self._say("Goodbye.")
                 break
@@ -480,6 +486,9 @@ class Dialogue:
                 break
 
             if not raw:
+                if getattr(self.tracker, "phase", "") == "CONFIRMED":
+                    self._say("All set. Goodbye.")
+                    break
                 continue
 
             self.history.add_msg(user_text, "user", "input")
@@ -531,8 +540,8 @@ class Dialogue:
                     self.history.add_msg(reply, "assistant", "fallback")
                     last_action = "fallback"
                     continue  # do not call NLU/DM
-            # -------------------- END EARLY CONTINUE_DEFERRED GATE --------------------
-
+            
+            # -------------------- Pipeline: NLU -> ingest -> DM -> policy -> execute -> NLG --------------------
 
             # 1) NLU -> MR (dict or list[dict])
             if bypass_raw_mrs is not None:
@@ -601,9 +610,6 @@ class Dialogue:
                 self.tracker.note_request_info(arg)
 
             else:
-                # Actions that should NOT clear awaiting_slot (read-only / informational “interrupts”)
-                INTERRUPT_ACTIONS = {"show_day", "show_week", "provide_info"}
-
                 if action in INTERRUPT_ACTIONS:
                     pass  # keep awaiting_slot so the user can resume answering the pending question
                 elif action != "fallback":
@@ -649,7 +655,7 @@ def main():
     args = get_args()
     model, tokenizer = load_model(args)
 
-    # Default dataset path (adjust if needed)
+    # Default dataset path 
     recipes_path = "recipes_30.json"
 
     dg = Dialogue(model, tokenizer, args, logger, recipes_path)
