@@ -203,14 +203,23 @@ def execute_action(
                         tracker.record_rejection_from_pending(pending)
                     tracker.pending_action = None
 
-            # ---- NEW: build exclusions from previously rejected suggestions ----
+            denied = getattr(tracker, "last_denied_action", None)
+            if isinstance(denied, dict):
+                if (
+                    str(denied.get("type", "")).strip().upper() == "SWAP_DAY"
+                    and str(denied.get("day", "")).strip() == day
+                ):
+                    denied_id = str(denied.get("recipe_id", "")).strip()
+                    if denied_id:
+                        payload["denied_recipe_id"] = denied_id
+                        payload["denied_title"] = recipes_by_id.get(denied_id, {}).get("title", denied_id)
+            # ---- build exclusions from previously rejected suggestions ----
             exclude_ids = set()
             rs = getattr(tracker, "rejected_suggestions", None)
             if isinstance(rs, dict):
-                # Recommended: global union so we don't repeat a rejected meal across any day
-                for lst in rs.values():
-                    if isinstance(lst, list):
-                        exclude_ids.update(str(x) for x in lst if x is not None)
+                lst = rs.get(day)
+                if isinstance(lst, list):
+                    exclude_ids.update(str(x) for x in lst if x is not None)
 
             sug_id = suggest_swap_day_in_menu(
                 tracker.active_menu or {},

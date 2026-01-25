@@ -21,6 +21,7 @@ import re
 from typing import Any, Dict, Optional, List
 
 from utils import PROMPTS, generate, format_chat, infer_input_device
+from support_classes import display_day
 from collections import defaultdict
 
 
@@ -30,6 +31,7 @@ Hard requirements:
 - Never mention internal system concepts (e.g., intents, slots, enums, IDs, variables, JSON).
 - Do not output action names or action syntax.
 - Keep the tone human, brief, and helpful.
+- When mentioning weekdays, always use full names (Monday, Tuesday, …), never abbreviations.
 
 If the input bundle contains any of these blocks:
 - MENU_BLOCK
@@ -177,13 +179,14 @@ def _append_continue_prompt(text: str, tracker_state: Dict[str, Any]) -> str:
 _WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
 _REQUEST_QUESTIONS = {
-    "servings": "How many servings should I plan for? (1–6)",
+    "servings": "How many servings should I plan for?",
     "time_limit": "How much time do you want to spend cooking on a typical night—quick (25 minutes or less) or normal (up to 40 minutes)?",
     "calorie_level": "Are you aiming for lighter meals, balanced, or more filling?",
     "avoid_items": "Any allergies or foods you want to avoid?",
-    "menu_id": "Which option do you prefer—1 or 2?",
-    "target_day": "Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?",
+    "menu_id": "Which menu do you prefer: 1 or 2?",
+    "target_day": "Which day of the week do you want to focus on?",
     "refine_type": "Do you want to swap a day, or update foods to avoid?",
+    "yes_no_swap": "Do you want me to apply the suggested swap?",
     "value": "What should I add or remove from foods to avoid? (e.g., nuts, dairy, gluten)",
     "all": "What would you like to do next?",
 }
@@ -218,7 +221,7 @@ def _render_request_info(slot: str, tracker_state: Dict[str, Any]) -> str:
         "calorie_level": "Reply “lighter”, “balanced”, or “more filling”.",
         "avoid_items": "For example: nuts, dairy, gluten — or “none”.",
         "menu_id": "Reply with 1 or 2.",
-        "target_day": "Reply with Mon, Tue, Wed, Thu, or Fri.",
+        "target_day": "Reply with Monday, Tuesday, Wednesday, Thursday, or Friday.",
         "refine_type": "Reply “swap a day” or “update foods to avoid”.",
         "value": "For example: “add nuts” or “remove dairy”.",
     }
@@ -251,8 +254,8 @@ def _render_phase_aware_fallback(tracker_state: Dict[str, Any]) -> str:
     if phase == "ACTIVE_MENU":
         return (
             "I didn’t quite get that. You can:\n"
-            "- ask what’s planned on a day (e.g., “What’s on Tue?”)\n"
-            "- swap a day (e.g., “Swap Wed”)\n"
+            "- ask what’s planned on a day (e.g., “What’s on Tuesday?”)\n"
+            "- propose an alternative for a day (e.g., “Swap Wednesday”)\n"
             "- add/remove foods to avoid (e.g., “Avoid nuts”)\n"
             "- confirm to get the shopping list\n"
             "What would you like to do?"
@@ -297,20 +300,20 @@ def _render_provide_info(payload: Dict[str, Any], tracker_state: Dict[str, Any])
     if help_slot in {"all", ""}:
         if phase == "AWAITING_PLAN":
             return (
-                "I can help you plan weekday dinners (Mon–Fri) and generate a shopping list.\n"
+                "I can help you plan weekday dinners (Monday to Friday) and generate a shopping list.\n"
                 "To start: how many servings should I plan for?"
             )
 
         if phase == "AWAITING_MENU_SELECTION":
             return (
-                "I’ve generated two options. Which do you prefer—1 or 2?"
+                "I’ve generated two options. Which do you prefer: 1 or 2?"
             )
 
         if has_active or phase == "ACTIVE_MENU":
             return (
                 "For your current plan, you can:\n"
-                "- ask what’s planned on a day (e.g., “What’s on Tue?”)\n"
-                "- swap a day (e.g., “Swap Wed”)\n"
+                "- ask what’s planned on a day (e.g., “What’s on Tuesday?”)\n"
+                "- propose an alternative for a day (e.g., “Swap Wednesday”)\n"
                 "- add/remove foods to avoid (e.g., “Avoid nuts”)\n"
                 "- confirm to get the shopping list\n"
                 "What would you like to do next?"
@@ -370,14 +373,14 @@ def _render_menus(menu1_pretty: Dict[str, str], menu2_pretty: Dict[str, str]) ->
         lines = []
         for d in _WEEK_DAYS:
             if d in menu:
-                lines.append(f"- {d}: {menu[d]}")
+                lines.append(f"- {display_day(d)}: {menu[d]}")
         return "\n".join(lines) if lines else "(no items)"
 
     return (
-        "Two weekly options (Mon–Fri):\n\n"
+        "Great! Here are two weekly options:\n\n"
         "Option 1\n" + fmt(menu1_pretty) + "\n\n"
         "Option 2\n" + fmt(menu2_pretty) + "\n\n"
-        "Which option do you prefer—1 or 2?"
+        "Which menu do you prefer: 1 or 2?"
     )
 
 def _render_week_overview(payload: Dict[str, Any], tracker_state: Dict[str, Any]) -> str:
@@ -391,14 +394,14 @@ def _render_week_overview(payload: Dict[str, Any], tracker_state: Dict[str, Any]
 
     cal_map = {"LOW": "Lighter", "MED": "Balanced", "HIGH": "More filling"}
 
-    header = "Here’s your week plan (Mon–Fri):\n\n" + _fmt_constraints(tracker_state) + "\n\n"
+    header = "Here’s your week plan (Monday to Friday):\n\n" + _fmt_constraints(tracker_state) + "\n\n"
 
     lines: list[str] = []
     for r in rows:
         if not isinstance(r, dict):
             continue
 
-        day = str(r.get("day", "") or "").strip()
+        day = display_day(r.get("day", ""))
         title = str(r.get("title", "") or "").strip()
 
         time_min = r.get("time_min", None)
@@ -469,7 +472,7 @@ def _render_shopping_list(items: list[Dict[str, Any]]) -> str:
 
 
 def _render_day_details(details: Dict[str, Any]) -> str:
-    day = str(details.get("day", "") or "").strip()
+    day = display_day(details.get("day", ""))
     title = str(details.get("title", "") or "").strip()
     time_min = details.get("time_min", "")
     cal = str(details.get("calorie_level", "") or "").upper()
@@ -535,7 +538,7 @@ def _render_day_details(details: Dict[str, Any]) -> str:
 
 
 def _render_confirm_plan(payload: Dict[str, Any], tracker_state: Dict[str, Any]) -> str:
-    header = "Shopping list (Mon–Fri):\n\n" + _fmt_constraints(tracker_state) + "\n\n"
+    header = "Great! Here's your shopping list for the menu we have chosen:\n\n" + _fmt_constraints(tracker_state) + "\n\n"
     body = _render_shopping_list(payload.get("shopping_list") or [])
     return (header + body).strip()
 
@@ -579,10 +582,11 @@ class NLG:
             denied = (tracker_state or {}).get("last_denied_action")
             if isinstance(denied, dict) and str(denied.get("type", "")).strip().upper() == "SWAP_DAY":
                 day = str(denied.get("day") or "").strip() or "that day"
+                day_txt = display_day(day)
                 if day == "that day":
                     msg = "Okay — I won’t make the swap."
                 else:
-                    msg = f"Okay — I’ll keep {day} as-is."
+                    msg = f"Okay — I’ll keep {day_txt} as-is."
                
                 pending_action = (tracker_state or {}).get("pending_action")
                 ptype = str(pending_action.get("type") or "").strip().upper() if isinstance(pending_action, dict) else ""
@@ -599,7 +603,8 @@ class NLG:
                 ood_type = str((last_mr.get("slots") or {}).get("ood_type") or "").strip().upper()
                 if ood_type == "REFUSE_PENDING":
                     day = str((tracker_state or {}).get("last_referenced_day") or "").strip()
-                    msg = f"No problem — we’ll keep {day} as-is."
+                    day_txt = display_day(day)
+                    msg = f"No problem — we’ll keep {day_txt} as-is."
                     pending_action = (tracker_state or {}).get("pending_action")
                     ptype = str(pending_action.get("type") or "").strip().upper() if isinstance(pending_action, dict) else ""
                     if ptype == "CONTINUE_DEFERRED":
@@ -649,7 +654,7 @@ class NLG:
                 msg = _append_continue_prompt(msg, tracker_state)
                 return msg
 
-            return "I couldn’t show that day. Which day should I focus on—Mon, Tue, Wed, Thu, or Fri?"
+            return "I couldn’t show that day. Which day should I focus on: Monday, Tuesday, Wednesday, Thursday, or Friday?"
             
 
         if action == "show_week":
@@ -682,11 +687,17 @@ class NLG:
         # Suggest swap (non-committing) acknowledgement (factual)
         if action == "suggest_swap_day":
             if payload.get("suggested"):
+                day_txt = display_day(argument)
+                denied_title = payload.get("denied_title")  # NEW (from main.py)
+                prefix = ""
+                if denied_title:
+                    prefix = f"Okay — I won’t swap {day_txt} to {denied_title}.\n\n"
                 # argument is the day (e.g., "Mon")
                 fact_block = (
-                    f"Sure! Here's an alternative meal for {argument}:\n\n"
+                    f"{prefix}"
+                    f"Sure! Here's an alternative meal for {day_txt}:\n\n"
                     f"- {payload.get('suggested_title', 'a new recipe')}\n\n"
-                    f"Do you want me to swap {argument} to this?"
+                    f"Do you want me to swap {day_txt} to this?"
                 )
             else:
                 fact_block = "I couldn’t find a good alternative for that day with your current preferences."
@@ -695,7 +706,8 @@ class NLG:
         # Swap acknowledgement (factual)
         if action == "swap_day":
             if payload.get("swapped"):
-                fact_block = f"Done — I swapped {argument} to: {payload.get('new_title', 'a new recipe')}."
+                day_txt = display_day(argument)
+                fact_block = f"Done — I swapped {day_txt} to: {payload.get('new_title', 'a new recipe')}."
             else:
                 fact_block = "I couldn’t find a good alternative for that day with your current preferences."
 
@@ -709,11 +721,12 @@ class NLG:
             if repairs:
                 base += "\n\nI updated these meals to keep everything compatible:"
                 for it in repairs:
+                    d_txt = display_day(it.get("day"))
                     # show the new recipe; optionally show what it replaced
-                    base += f"\n- {it.get('day')}: {it.get('new_title')} (was: {it.get('old_title')})"
+                    base += f"\n- {d_txt}: {it.get('new_title')} (was: {it.get('old_title')})"
             elif repaired:
                 # fallback to previous behavior if no detailed mapping is provided
-                base += "\n\nI also updated these days to keep everything compatible: " + ", ".join(repaired)
+                base += "\n\nI also updated these days to keep everything compatible: " + ", ".join(display_day(d) for d in repaired)
 
             fact_block = base
 
@@ -861,17 +874,18 @@ class NLG:
                 repaired = payload.get("repaired_days") or []
                 base = "Got it — I updated your foods to avoid.\n\n" + _fmt_constraints(tracker_state)
                 if repaired:
-                    base += "\n\nI also updated these days to keep everything compatible: " + ", ".join(repaired)
+                    base += "\n\nI also updated these days to keep everything compatible: " + ", ".join(display_day(d) for d in repaired)
                 chunks.append(base)
                 last_rendered_action = action
                 continue
 
             if action == "suggest_swap_day":
                 if payload.get("suggested"):
+                    day_txt = display_day(argument)
                     chunks.append(
-                        f"Sure! Here's an alternative meal for {argument}:\n\n"
+                        f"Sure! Here's an alternative meal for {day_txt}:\n\n"
                         f"- {payload.get('suggested_title', 'a new recipe')}\n\n"
-                        f"Do you want me to swap {argument} to this?"
+                        f"Do you want me to swap {day_txt} to this?"
                     )
                 else:
                     chunks.append("I couldn’t find a good alternative for that day with your current preferences.")
@@ -879,7 +893,8 @@ class NLG:
 
             if action == "swap_day":
                 if payload.get("swapped"):
-                    chunks.append(f"Done — I swapped {argument} to: {payload.get('new_title', 'a new recipe')}.")
+                    day_txt = display_day(argument)
+                    chunks.append(f"Done — I swapped {day_txt} to: {payload.get('new_title', 'a new recipe')}.")
                 else:
                     chunks.append("I couldn’t find a good alternative for that day with your current preferences.")
                 last_rendered_action = action
@@ -910,6 +925,7 @@ class NLG:
                     denied = (tracker_state or {}).get("last_denied_action")
                     if isinstance(denied, dict) and str(denied.get("type", "")).strip().upper() == "SWAP_DAY":
                         day = str(denied.get("day") or "").strip() or "that day"
+                        day = display_day(day)
                         if day == "that day":
                             msg = "Okay — I won’t make the swap."
                         else:

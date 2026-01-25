@@ -29,6 +29,7 @@ from support_classes import (
     ALLOWED_TIME_LIMITS,
     ALLOWED_CALORIE_LEVELS,
     ALLOWED_AVOID_ITEMS,
+    normalize_day,
 )
 
 
@@ -61,7 +62,57 @@ def _is_close(user_text: str) -> bool:
     t = (user_text or "").strip().lower()
     return bool(t) and any(c in t for c in _CLOSE_TOKENS)
 
+import re
 
+def _wants_another_alternative(user_text: str) -> bool:
+    t = (user_text or "").lower().strip()
+
+    # Fast path: explicit "another/different" + an option word
+    explicit = (
+        ("another" in t or "different" in t or "else" in t)
+        and any(w in t for w in ("alternative", "option", "one", "meal", "recipe", "suggest", "propose"))
+    )
+
+    # Common retry / regeneration phrases (often used without saying "alternative")
+    retry_phrases = [
+        "try again",
+        "another one",
+        "a different one",
+        "something else",
+        "give me another",
+        "give me a different",
+        "show me another",
+        "show another",
+        "can you redo",
+        "can you suggest again",
+        "suggest again",
+        "propose again",
+        "pick another",
+        "new one",
+        "not this one",
+        "not that one",
+    ]
+    retry = any(p in t for p in retry_phrases)
+
+    # More flexible regex for: "again", "next one", "different recipe", etc.
+    retry_regex = bool(re.search(r"\b(again|redo|next)\b", t)) and bool(
+        re.search(r"\b(option|one|meal|recipe|suggest|propose)\b", t)
+    )
+
+    return explicit or retry or retry_regex
+
+
+def _extract_swap_day_from_recent(recent: str) -> Optional[str]:
+    if not recent:
+        return None
+    m = re.search(r"\bswap\s+(Mon|Tue|Wed|Thu|Fri)\b", recent)
+    if m:
+        return m.group(1)
+    # fallback: match full day names
+    m2 = re.search(r"\bswap\s+(monday|tuesday|wednesday|thursday|friday)\b", recent.lower())
+    if m2:
+        return normalize_day(m2.group(1))
+    return None
 
 
 
@@ -309,6 +360,11 @@ class NLU:
             "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Fri\",\"value\":\"BEST_FIT\",\"mode\":\"COMMIT\"}}\n"
             "- Assistant: \"Do you want me to swap Mon to this?\" User: \"no thanks\" -> "
             "{\"intent\":\"out_of_domain\",\"slots\":{\"ood_type\":\"REFUSE_PENDING\"}}\n"
+            "- Assistant asked to confirm a swap day. User: \"no, can you propose another alternative?\" ->"
+            "["
+            "{\"intent\":\"out_of_domain\",\"slots\":{\"ood_type\":\"REFUSE_PENDING\"}},"
+            "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Mon\",\"value\":\"BEST_FIT\",\"mode\":\"SUGGEST\"}}"
+            "]\n"
             "- User: \"Option 1 and confirm.\" -> "
             "["
             "{\"intent\":\"select_menu\",\"slots\":{\"menu_id\":1}},"
@@ -515,14 +571,38 @@ class NLU:
 
         elif awaited == "yes_no_swap":
             yn = _text_has_yes_no_evidence(user_text)
+
             if yn is True:
                 # force confirm regardless of LLM output
                 obj = {"intent": "confirm", "slots": {}}
+
             elif yn is False:
-                # force REFUSE_PENDING regardless of LLM output
-                obj = {"intent": "out_of_domain", "slots": {"ood_type": "REFUSE_PENDING"}}
+                # Always refuse the pending swap...
+                refuse_mr = {"intent": "out_of_domain", "slots": {"ood_type": "REFUSE_PENDING"}}
+
+                # ...but if they are asking for another alternative in the same message,
+                # return two MRs: refusal + refine(SWAP_DAY, SUGGEST)
+                if _wants_another_alternative(user_text):
+                    day = _extract_swap_day_from_recent(recent)
+                    refine_mr = {
+                        "intent": "refine",
+                        "slots": {
+                            "refine_type": "SWAP_DAY",
+                            "mode": "SUGGEST",
+                            "value": "BEST_FIT",
+                        },
+                    }
+                    if day:
+                        refine_mr["slots"]["target_day"] = day
+
+                    return [refuse_mr, refine_mr]
+
+                # plain refusal only
+                obj = refuse_mr
+
             else:
                 return _invalid_answer()
+
 
 
         if isinstance(obj, dict):

@@ -84,6 +84,32 @@ def normalize_day(x: Any) -> Optional[str]:
     }
     return mapping.get(s)
 
+# --- User-facing weekday display helpers ---
+DAY_ABBR_TO_FULL = {
+    "Mon": "Monday",
+    "Tue": "Tuesday",
+    "Wed": "Wednesday",
+    "Thu": "Thursday",
+    "Fri": "Friday",
+}
+
+def display_day(x: Any) -> str:
+    """
+    Convert a day token to a full weekday name for user-facing text.
+    Accepts: "Mon", "monday", "Tuesday", etc.
+    Returns original string if it cannot be normalized.
+    """
+    if is_nullish(x):
+        return ""
+    s = str(x).strip()
+    if not s:
+        return ""
+    d3 = normalize_day(s)  # -> "Mon"/"Tue"/...
+    return DAY_ABBR_TO_FULL.get(d3, s)
+
+def display_day_list() -> str:
+    """Convenience for prompts like 'Monday, Tuesday, ...'."""
+    return ", ".join(DAY_ABBR_TO_FULL[d] for d in ORDERED_DAYS)
 
 
 
@@ -1013,6 +1039,8 @@ class Tracker:
 
     def set_pending_swap(self, day: str, recipe_id: str) -> None:
         self.pending_action = {"type": "SWAP_DAY", "day": day, "recipe_id": recipe_id}
+        self.awaiting_slot = "yes_no_swap"
+        self.reprompt_count = 0
 
     def add_rejected_suggestion(self, day: str, recipe_id: str) -> None:
         """
@@ -1247,6 +1275,8 @@ class Tracker:
                             self.last_denied_action = copy.deepcopy(self.pending_action)
                             self.record_rejection_from_pending(self.pending_action)
                             self.pending_action = None
+                            if str(getattr(self, "awaiting_slot", "")).strip() == "yes_no_swap":
+                                self.clear_awaiting()
                             break
 
         # ---- Multi-MR-safe pending_action expiry (runs ONCE per turn) ----

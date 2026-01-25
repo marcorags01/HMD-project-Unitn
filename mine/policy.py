@@ -63,6 +63,7 @@ REQUESTABLE_SLOTS = {
     "target_day",
     "refine_type",
     "value",
+    "yes_no_swap",
     "all",
 }
 

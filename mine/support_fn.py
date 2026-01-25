@@ -36,6 +36,7 @@ from support_classes import (
     ALLOWED_DAYS,
     ALLOWED_CALORIE_LEVELS,
     ALLOWED_AVOID_ITEMS,
+    
 )
 
 # ------------------------- Constants -------------------------
@@ -85,7 +86,7 @@ def _menu_infeasibility_message(constraints: Dict[str, Any], feasible_count: int
     if feasible_count <= 0:
         base = "I couldn’t find meals that match those preferences."
     else:
-        base = "I couldn’t put together a full Mon–Fri plan with those preferences."
+        base = "I couldn’t put together a full Mondat to Friday plan with those preferences."
 
     if suggestions:
         if len(suggestions) == 1:
