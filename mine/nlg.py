@@ -192,7 +192,7 @@ _REQUEST_QUESTIONS = {
     "target_day": "Which day of the week do you want to focus on?",
     "refine_type": "Do you want to swap a day, or update foods to avoid?",
     "yes_no_swap": "Do you want me to apply the suggested swap?",
-    "value": "What should I add or remove from foods to avoid? (e.g., nuts, dairy, gluten)",
+    "value": "What should I add or remove from foods to avoid? (e.g., nuts, dairy, gluten, broccoli, mushrooms)",
     "all": "What would you like to do next?",
 }
 
@@ -224,7 +224,7 @@ def _render_request_info(slot: str, tracker_state: Dict[str, Any]) -> str:
         "servings": "For example: 1, 2, 4, or 6.",
         "time_limit": "Reply “quick” (25 minutes or less) or “normal” (up to 40 minutes).",
         "calorie_level": "Reply “lighter”, “balanced”, or “more filling”.",
-        "avoid_items": "For example: nuts, dairy, gluten — or “none”.",
+        "avoid_items": "For example: nuts, dairy, gluten, mushrooms — or “none”.",
         "menu_id": "Reply with 1 or 2.",
         "target_day": "Reply with Monday, Tuesday, Wednesday, Thursday, or Friday.",
         "refine_type": "Reply “swap a day” or “update foods to avoid”.",
@@ -427,7 +427,8 @@ def _render_week_overview(payload: Dict[str, Any], tracker_state: Dict[str, Any]
 
         # Optional: surface conflicts if present
         if avoid_hits:
-            line += f" — note: contains {', '.join(avoid_hits)}"
+            line += f" — avoid matches: {', '.join(avoid_hits)}"
+
 
         lines.append(line)
 
@@ -481,6 +482,12 @@ def _render_day_details(details: Dict[str, Any]) -> str:
     time_min = details.get("time_min", "")
     cal = str(details.get("calorie_level", "") or "").upper()
     avoid_check = bool(details.get("avoid_check", False))
+    avoid_hits = details.get("avoid_hits") or []
+    if not isinstance(avoid_hits, list):
+        avoid_hits = []
+    # optional: de-dupe while preserving order
+    seen = set()
+    avoid_hits = [x for x in avoid_hits if isinstance(x, str) and x.strip() and not (x.lower() in seen or seen.add(x.lower()))]
 
     servings = details.get("servings", None)
     ings = details.get("ingredients", []) or []
@@ -505,7 +512,9 @@ def _render_day_details(details: Dict[str, Any]) -> str:
     if cal:
         lines.append(f"- Calories: {cal_map.get(cal, cal.title())}")
 
-    if avoid_check:
+    if avoid_hits:
+        lines.append(f"- Avoid matches: {', '.join(avoid_hits)}")
+    elif avoid_check:
         lines.append("- Note: this includes something you asked to avoid.")
 
     lines.append("")
@@ -546,7 +555,7 @@ def _render_confirm_plan(payload: Dict[str, Any], tracker_state: Dict[str, Any])
     body = _render_shopping_list(payload.get("shopping_list") or [])
     closing = ("\n\nType 'done' / 'bye' / 'exit' — or press Enter to close.\n\n"
     "\n\nIt was a pleasure helping you today. See you next time.")
-    return (header + body).strip()
+    return (header + body + closing).strip()
 
 
 # ------------------------- NLG Class -------------------------

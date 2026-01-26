@@ -22,7 +22,6 @@ from typing import Any, Dict, List, Tuple
 
 from support_classes import (
     ALLOWED_DAYS,
-    ALLOWED_AVOID_ITEMS,
     is_nullish,
     normalize_day,
 )
@@ -511,16 +510,6 @@ def apply_policy(
                     "refine_avoid_missing_value->request_value",
                 )
 
-            if val not in ALLOWED_AVOID_ITEMS:
-                return _final(
-                    "request_info",
-                    "value",
-                    nm,
-                    proposed_action,
-                    proposed_argument,
-                    "refine_avoid_invalid_value->request_value",
-                )
-
             # Deterministically execute avoid update (ignore DM proposal)
             return _final(
                 "update_avoid",
@@ -602,13 +591,20 @@ def sanitize_proposed_action(proposed_action: str, proposed_argument: str,) -> T
         parts = _split_args(arg)
         if len(parts) != 2 or is_nullish(parts[0]) or is_nullish(parts[1]):
             return "request_info", "value"
+
         op = parts[0].strip().upper()
         val = parts[1].strip().lower()
+
         if op not in {"ADD_AVOID_ITEM", "REMOVE_AVOID_ITEM"}:
             return "fallback", ""
-        if val not in ALLOWED_AVOID_ITEMS:
+
+        # Values may be free-text
+        val = val.replace(",", " ").strip()
+        if not val:
             return "request_info", "value"
+
         return "update_avoid", _join_args([op, val])
+
 
     if a in {"propose_menus", "show_week", "confirm_plan", "fallback"}:
         return a, ""

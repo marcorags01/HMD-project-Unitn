@@ -214,7 +214,7 @@ def validate_mr(mr: Dict[str, Any]) -> ValidationResult:
     - required slots are present and well-typed
     - enums are in controlled vocab
     - refine_type-dependent constraints
-    - avoid_items values are in the avoid vocabulary
+    - avoid_items is a list of strings (controlled tags + free-text keywords)
 
     Returns (valid, errors, normalized_mr).
     """
@@ -258,13 +258,28 @@ def validate_mr(mr: Dict[str, Any]) -> ValidationResult:
                 if non_str:
                     errors.append("avoid_items must be a list of strings")
                 else:
-                    unknown = [a for a in avoid if a not in ALLOWED_AVOID_ITEMS]
-                    if unknown:
-                        errors.append(
-                            "Unknown avoid item(s): "
-                            + ", ".join(sorted(set(unknown)))
-                            + f". Allowed: {', '.join(sorted(ALLOWED_AVOID_ITEMS))}"
-                        )
+                    # Accept any strings (controlled tags + free-text keywords).
+                    # Optional safety normalization: strip, lowercase, drop empties, dedupe, cap length.
+                    cleaned: List[str] = []
+                    for a in avoid:
+                        a_str = str(a).strip().lower()
+                        if a_str:
+                            cleaned.append(a_str)
+
+                    # Dedupe while preserving order
+                    seen = set()
+                    deduped: List[str] = []
+                    for a in cleaned:
+                        if a not in seen:
+                            seen.add(a)
+                            deduped.append(a)
+
+                    # Optional cap for safety (truncate deterministically)
+                    if len(deduped) > 20:
+                        deduped = deduped[:20]
+
+                    slots["avoid_items"] = deduped
+
 
     elif intent == "select_menu":
         mid = slots.get("menu_id")
@@ -311,14 +326,11 @@ def validate_mr(mr: Dict[str, Any]) -> ValidationResult:
                 errors.append("target_day must be null when refine_type is ADD/REMOVE_AVOID_ITEM")
 
             val = _lower(slots.get("value"))
-            if is_nullish(val):
+            if is_nullish(val) or not str(val).strip():
                 errors.append("value is required for ADD/REMOVE_AVOID_ITEM")
-            elif val not in ALLOWED_AVOID_ITEMS:
-                errors.append(
-                    f"value must be one of {sorted(ALLOWED_AVOID_ITEMS)} for ADD/REMOVE_AVOID_ITEM"
-                )
             else:
-                slots["value"] = val  # canonical lowercase
+                slots["value"] = str(val).strip().lower()  # canonical lowercase
+
 
     elif intent == "help":
         # intent: required; must be a known intent name

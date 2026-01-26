@@ -1069,6 +1069,10 @@ class Tracker:
 
     # -------------------------- MR application ------------------------------
     def _get_avoid_set(self) -> set[str]:
+        """
+        Return the current avoid set as canonicalized tokens.
+        NOTE: does NOT filter to ALLOWED_AVOID_ITEMS; supports free-text keywords.
+        """
         cur = self.constraints.get("avoid_items", None)
         if cur is None:
             return set()
@@ -1076,15 +1080,23 @@ class Tracker:
             out: set[str] = set()
             for x in cur:
                 tok = _canon_avoid_token(x)
-                if tok and tok in ALLOWED_AVOID_ITEMS:
+                if tok:
                     out.add(tok)
             return out
         return set()
 
 
     def _set_avoid_set(self, s: set[str]) -> None:
-        # Keep stable ordering for determinism; store only allowed tokens.
-        self.constraints["avoid_items"] = sorted([x for x in s if x in ALLOWED_AVOID_ITEMS])
+        """
+        Store avoid items with stable ordering for determinism.
+        NOTE: stores both controlled tags and free-text keywords.
+        """
+        cleaned: set[str] = set()
+        for x in s:
+            tok = _canon_avoid_token(x)
+            if tok:
+                cleaned.add(tok)
+        self.constraints["avoid_items"] = sorted(cleaned)
 
 
     def _can_coerce_refine_to_plan_avoid(self) -> bool:
@@ -1131,25 +1143,33 @@ class Tracker:
                         count_provided += 1
                     # else: already had an avoid list; "no" means no change, no increment
                 else:
-                    # Only accept allowed items; ignore unknowns.
+                    # Accept ALL canonical tokens (controlled tags + free-text keywords).
                     cur = self._get_avoid_set()
-                    before = len(cur)
+                    before_len = len(cur)
+                    was_missing = (self.constraints.get("avoid_items", None) is None)
 
                     for x in avoid_raw:
                         tok = _canon_avoid_token(x)
-                        if tok and tok in ALLOWED_AVOID_ITEMS:
+                        if tok:
                             cur.add(tok)
 
-                    if len(cur) > before:
-                        self._set_avoid_set(cur)
-                        count_provided += 1
-                    else:
-                        # If user provided only unknown avoids and avoid_items was missing,
-                        # keep it missing so missing_plan_slots() continues to ask.
-                        if self.constraints.get("avoid_items", None) is None:
+                    # Mark slot as provided if:
+                    # - it was missing and we now have at least one token, OR
+                    # - it was present and we actually added something.
+                    if was_missing:
+                        if len(cur) > 0:
+                            self._set_avoid_set(cur)
+                            count_provided += 1
+                        else:
+                            # defensive: keep missing if nothing usable extracted
                             self.constraints["avoid_items"] = None
-        
+                    else:
+                        if len(cur) != before_len:
+                            self._set_avoid_set(cur)
+                            count_provided += 1
+
             return count_provided
+
 
                 
         if intent == "select_menu":
@@ -1183,17 +1203,17 @@ class Tracker:
             tok = _canon_avoid_token(val_raw)
 
             if rt in ("ADD_AVOID_ITEM", "REMOVE_AVOID_ITEM"):
-                # Only accept allowed items; ignore unknowns.
-                if tok and tok in ALLOWED_AVOID_ITEMS:
+                # Accept any token (controlled tags + free-text keywords).
+                if tok:
                     cur = self._get_avoid_set()
-                    before = len(cur)
+                    before = set(cur)
 
                     if rt == "ADD_AVOID_ITEM":
                         cur.add(tok)
                     else:  # REMOVE_AVOID_ITEM
                         cur.discard(tok)
 
-                    if len(cur) != before:
+                    if cur != before:
                         self._set_avoid_set(cur)
                         # counts as "provided" if it produced an actual state change
                         count_provided += 1
@@ -1337,7 +1357,7 @@ class Tracker:
                 if isinstance(value_norm, list) and value_norm:
                     item = _canon_avoid_token(value_norm[0])
 
-                if not item or item not in ALLOWED_AVOID_ITEMS:
+                if not item:
                     continue
 
                 if r_type == "ADD_AVOID_ITEM":
@@ -1350,7 +1370,9 @@ class Tracker:
 
 
             if coerced_any:
-                self._set_avoid_set(avoid_set)
+                # If avoid_items is missing, only "provide" it when we actually have something to store.
+                if avoid_set or (self.constraints.get("avoid_items", None) is not None):
+                    self._set_avoid_set(avoid_set)
 
 
         # ---- Apply each MR WITHOUT per-MR pending expiry ----

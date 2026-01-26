@@ -44,6 +44,7 @@ from support_fn import (
     update_avoid_items,
     generate_shopping_list,
     is_feasible,
+    avoid_hits as compute_avoid_hits,
 )
 from support_classes import (
     History, Tracker, normalize_day
@@ -149,13 +150,11 @@ def execute_action(
 
         try:
             avoid_items = tracker.constraints.get("avoid_items") or []
-            avoid_set = {str(x).strip().lower() for x in avoid_items if str(x).strip()}
 
             week_rows = []
             for day in ["Mon", "Tue", "Wed", "Thu", "Fri"]:
                 rid = (tracker.active_menu or {}).get(day)
                 if rid is None:
-                    # Defensive: keep structure stable even if menu is partial
                     week_rows.append({
                         "day": day,
                         "title": "(no meal set)",
@@ -168,22 +167,21 @@ def execute_action(
                 rid_str = str(rid)
                 recipe = recipes_by_id.get(rid_str, {})
 
-                contains = recipe.get("contains_tags") or []
-                contains_set = {str(t).strip().lower() for t in contains if str(t).strip()}
-
-                avoid_hits = sorted(list(avoid_set.intersection(contains_set)))
+                # NEW: includes controlled-tag hits AND free-text keyword hits (title + ingredients)
+                hits = compute_avoid_hits(recipe, avoid_items)
 
                 week_rows.append({
                     "day": day,
                     "title": recipe.get("title", rid_str),
                     "time_min": recipe.get("time_min", None),
                     "calorie_level": recipe.get("calorie_level", None),
-                    "avoid_hits": avoid_hits,
+                    "avoid_hits": hits,
                 })
 
             payload["week_overview"] = week_rows
             payload["constraints"] = dict(tracker.constraints or {})
             return payload
+
 
         except Exception as e:
             payload["error"] = f"I couldn't show the weekly plan: {e}"

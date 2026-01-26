@@ -309,12 +309,88 @@ def _validate_recipe(r: Dict[str, Any]) -> None:
 # Feasibility and filtering
 # =============================================================================
 
+_WS = re.compile(r"\s+")
+
+def _recipe_search_text(recipe: Dict[str, Any]) -> str:
+    """
+    Lowercased searchable text for keyword avoids:
+    title + ingredient names.
+    """
+    title = str(recipe.get("title", "") or "")
+    ings = recipe.get("ingredients") or []
+    ing_names = []
+    for ing in ings:
+        if isinstance(ing, dict):
+            ing_names.append(str(ing.get("name", "") or ""))
+        else:
+            ing_names.append(str(ing))
+    text = (title + " " + " ".join(ing_names)).lower()
+    text = _WS.sub(" ", text).strip()
+    return text
+
+
+def _keyword_hits_text(text: str, kw: str) -> bool:
+    """
+    Match a keyword against text deterministically.
+    - single word: word-boundary regex
+    - multiword: substring
+    """
+    kw = _WS.sub(" ", (kw or "").strip().lower())
+    if not kw:
+        return False
+
+    if " " in kw:
+        return kw in text
+
+    # single token: reduce false positives (e.g., 'ham' in 'chamomile')
+    pattern = r"\b" + re.escape(kw) + r"\b"
+    return re.search(pattern, text) is not None
+
+
+def avoid_hits(recipe: Dict[str, Any], avoid_items: List[str]) -> List[str]:
+    """
+    Return which avoid_items are triggered by this recipe.
+    - controlled avoids: match against recipe.contains_tags
+    - free-text avoids: match against title + ingredient names
+    Order is based on the user’s avoid_items list; deduped.
+    """
+    if not avoid_items:
+        return []
+
+    avoid_norm = []
+    for a in avoid_items:
+        s = _WS.sub(" ", str(a).strip().lower())
+        if s:
+            avoid_norm.append(s)
+
+    tags = recipe.get("contains_tags") or []
+    tags_set = {str(t).strip().lower() for t in tags if str(t).strip()}
+
+    text = _recipe_search_text(recipe)
+
+    hits: List[str] = []
+    seen = set()
+    for a in avoid_norm:
+        if a in ALLOWED_AVOID_ITEMS:
+            if a in tags_set and a not in seen:
+                seen.add(a)
+                hits.append(a)
+        else:
+            if _keyword_hits_text(text, a) and a not in seen:
+                seen.add(a)
+                hits.append(a)
+
+    return hits
+
+
 def is_feasible(recipe: Dict[str, Any], constraints: Dict[str, Any]) -> bool:
     """
     Feasibility per minimal spec:
     - time_min <= threshold for time_limit
     - calorie_level matches user calorie_level (exact match)
-    - contains_tags has no overlap with avoid_items
+    - avoids:
+        * controlled avoids (in ALLOWED_AVOID_ITEMS) must not overlap recipe.contains_tags
+        * free-text avoids must not appear in recipe title/ingredients
     """
     # time
     time_limit = (constraints.get("time_limit") or "").upper()
@@ -328,16 +404,14 @@ def is_feasible(recipe: Dict[str, Any], constraints: Dict[str, Any]) -> bool:
         if str(recipe["calorie_level"]).upper() != cal:
             return False
 
-    # avoids
-    avoid_items = {str(a).strip().lower() for a in (constraints.get("avoid_items") or [])}
-    avoid_set = {a for a in avoid_items if a in ALLOWED_AVOID_ITEMS}
-
-    tags = recipe.get("contains_tags") or []
-    tags_set = {str(t).lower() for t in tags}
-    if avoid_set.intersection(tags_set):
+    # avoids (hard tags + soft keywords)
+    avoid_items = constraints.get("avoid_items") or []
+    hits = avoid_hits(recipe, avoid_items)
+    if hits:
         return False
 
     return True
+
 
 
 def filter_recipes(recipes: List[Dict[str, Any]], constraints: Dict[str, Any]) -> List[Dict[str, Any]]:
@@ -489,9 +563,9 @@ def get_day_details(
     scaled_ings = scale_ingredients(recipe, servings)
 
     avoid_items = avoid_items or []
-    avoid_set = {a for a in avoid_items if a in ALLOWED_AVOID_ITEMS}
-    tags = {str(t).lower() for t in (recipe.get("contains_tags") or [])}
-    avoid_check = bool(avoid_set.intersection(tags))
+    hits = avoid_hits(recipe, avoid_items)
+    avoid_check = bool(hits)
+
     steps = recipe.get("steps") or []
     steps = [str(s).strip() for s in steps if str(s).strip()]
 
@@ -505,6 +579,7 @@ def get_day_details(
         "ingredients": scaled_ings,
         "steps": steps,
         "avoid_check": avoid_check,
+        "avoid_hits": hits,
     }
 
 
@@ -655,17 +730,23 @@ def update_avoid_items(
 ) -> Tuple[bool, Optional[str]]:
     """
     Update constraints['avoid_items'] by adding/removing one item.
+    Supports both:
+      - controlled tags (ALLOWED_AVOID_ITEMS)
+      - free-text keywords (e.g., "broccoli", "mushrooms")
     Returns (ok, error_message).
     """
     if not item:
         return False, "Missing avoid item value."
 
-    it = str(item).lower().strip()
-    if it not in ALLOWED_AVOID_ITEMS:
-        return False, f"Unknown avoid item: {it}"
+    it = _WS.sub(" ", str(item).strip().lower().replace(",", " ")).strip()
+    if not it:
+        return False, "Missing avoid item value."
 
-    avoid = {str(a).strip().lower() for a in (constraints.get("avoid_items") or [])}
-    avoid_set = set([a for a in avoid if a in ALLOWED_AVOID_ITEMS])
+    cur = constraints.get("avoid_items")
+    if not isinstance(cur, list):
+        cur = []
+
+    avoid_set = { _WS.sub(" ", str(a).strip().lower()) for a in cur if str(a).strip() }
 
     op_up = str(op).upper().strip()
     if op_up == "ADD_AVOID_ITEM":
@@ -675,9 +756,11 @@ def update_avoid_items(
     else:
         return False, f"Unknown avoid operation: {op}"
 
-    # Keep deterministic ordering
-    constraints["avoid_items"] = sorted(avoid_set)
+    # Deterministic ordering
+    constraints["avoid_items"] = sorted([a for a in avoid_set if a])
+
     return True, None
+
 
 
 # =============================================================================

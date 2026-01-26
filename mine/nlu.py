@@ -166,11 +166,13 @@ def _text_has_yes_no_evidence(user_text: str) -> Optional[bool]:
 
 def _text_has_avoid_items_evidence(user_text: str, items: List[str]) -> bool:
     """
-    Minimal evidence check:
-    - require that each controlled token (or a close synonym) appears somewhere in the user text
-    - this prevents accepting avoid-items that are not evidenced anywhere in the user’s text
+    Evidence check:
+    - For controlled tags, accept if any synonym appears in user_text.
+    - For unknown items, require the literal string to appear in user_text (substring match).
+      This prevents the model from hallucinating arbitrary avoid keywords.
     """
     t = (user_text or "").lower()
+
     syn = {
         "dairy": ("dairy", "milk", "cheese", "butter", "yogurt"),
         "egg": ("egg", "eggs", "omelette"),
@@ -182,11 +184,28 @@ def _text_has_avoid_items_evidence(user_text: str, items: List[str]) -> bool:
         "shellfish": ("shellfish", "shrimp", "crab", "lobster"),
         "soy": ("soy", "tofu", "soy sauce"),
     }
-    for it in items:
-        keys = syn.get(it, (it,))
-        if not any(k in t for k in keys):
+
+    for raw in items:
+        it = str(raw).strip().lower()
+        if not it:
             return False
+
+        # Controlled-tag evidence via synonyms
+        if it in syn:
+            if not any(k in t for k in syn[it]):
+                return False
+            continue
+
+        # Unknown item evidence
+        if " " in it:
+            if it not in t:
+                return False
+        else:
+            if not re.search(rf"\b{re.escape(it)}\b", t):
+                return False
+
     return True
+
 
 
 class NLU:
@@ -217,7 +236,12 @@ class NLU:
                 "servings": "int 1..6",
                 "time_limit": sorted(list(ALLOWED_TIME_LIMITS)),
                 "calorie_level": sorted(list(ALLOWED_CALORIE_LEVELS)),
-                "avoid_items": sorted(list(ALLOWED_AVOID_ITEMS)),
+                "avoid_items": (
+                    "list[str] of foods/ingredients to avoid. "
+                    "Include any explicit items the user mentions (e.g., broccoli, mushrooms). "
+                    "Map common allergy categories to these tags when applicable: "
+                    + ", ".join(sorted(ALLOWED_AVOID_ITEMS))
+                ),
                 "target_day": sorted(list(ALLOWED_DAYS)),
                 "refine_type": ["SWAP_DAY", "ADD_AVOID_ITEM", "REMOVE_AVOID_ITEM"],
                 "swap_value": "BEST_FIT",
@@ -278,8 +302,9 @@ class NLU:
             "- refine (weekday preference/dislike): if the user asks to change/replace a weekday meal, output intent=refine with:\n"
             "  refine_type=SWAP_DAY, target_day=<Mon..Fri>, value=BEST_FIT, mode=SUGGEST unless they explicitly request swapping now (then COMMIT).\n"
             "  Do not treat weekdays as avoid_items; do not emit multiple inspect intents for Mon–Fri.\n"
-            "- refine (avoid list updates): if the user asks to avoid a food from now on (allergy/intolerance/preference), output intent=refine with:\n"
-            "  refine_type=ADD_AVOID_ITEM and value=<one allowed token>.\n"
+            "- refine (avoid list updates): ... output intent=refine with:\n"
+            "  refine_type=ADD_AVOID_ITEM and value=<a non-empty string food/ingredient>.\n"
+            "  Map to canonical tags when applicable (dairy/egg/gluten/etc.), otherwise keep the literal item.\n"
             "  Examples of ADD_AVOID_ITEM cues: \"avoid X\", \"no X\", \"can't eat X\", \"allergic to X\", \"remove X from the meals\", \"take out X\".\n"
             "- refine (remove from avoid list): ONLY use refine_type=REMOVE_AVOID_ITEM if the user explicitly wants to STOP avoiding something.\n"
             "  Examples: \"I can eat X again\", \"don't avoid X\", \"remove X from my avoid list\", \"X is OK\".\n"
@@ -305,14 +330,17 @@ class NLU:
 
             "avoid_items rules:\n"
             "- avoid_items must be either a JSON list, an empty list [], or null (never a single string).\n"
-            "- Allowed tokens only: [\"dairy\",\"egg\",\"fish\",\"gluten\",\"meat\",\"nuts\",\"sesame\",\"shellfish\",\"soy\"].\n"
-            "- Plurals -> singular token (eggs->egg).\n"
-            "- Synonyms (confident mappings):\n"
-            "  * seafood -> fish (unless explicitly shrimp/crab/lobster -> shellfish)\n"
-            "  * milk/cheese/butter -> dairy\n"
-            "  * bread/pasta/flour/wheat -> gluten\n"
+            "- avoid_items is a list of strings; include any explicit ingredient/food the user mentions\n"
+            " (e.g., broccoli, mushrooms, mango).\n"
+            "- Map common allergy categories to the canonical tags when applicable:\n"
+            " dairy/egg/fish/gluten/meat/nuts/sesame/shellfish/soy.\n"
+            "Examples:\n"
+            "* milk/cheese/butter -> dairy\n"
+            "* eggs -> egg\n"
+            "* bread/pasta/flour/wheat -> gluten\n"
+            "* seafood -> fish (unless explicitly shrimp/crab/lobster -> shellfish)\n"
             "- If the user explicitly indicates no restrictions (none/no allergies/nothing to avoid/I eat everything), output [].\n"
-            "- If the user mentions items that do not map confidently to the set, output null.\n\n"
+            "- Use null only if the user’s message is ambiguous about what to avoid.\n"
 
             "Help intent:\n"
             "- If the user asks what values/options are allowed/supported, use intent=help and set slots.help_slot accordingly\n"
@@ -358,7 +386,7 @@ class NLU:
             "{\"intent\":\"plan\",\"slots\":{\"avoid_items\":[\"fish\"]}}\n"
             "\n"
             "- Assistant asked about avoid items. User: \"avoid mango\" -> "
-            "{\"intent\":\"plan\",\"slots\":{\"avoid_items\":null}}\n"
+            "{\"intent\":\"plan\",\"slots\":{\"avoid_items\":[\"mango\"]}}\n"
             "\n"
             "- User: \"I don't like Friday\" -> "
             "{\"intent\":\"refine\",\"slots\":{\"refine_type\":\"SWAP_DAY\",\"target_day\":\"Fri\",\"value\":\"BEST_FIT\",\"mode\":\"SUGGEST\"}}\n"
@@ -458,6 +486,27 @@ class NLU:
         self.logger.debug(f"NLU raw output: {out}")
 
         obj = parsing_json(out)
+
+        # Strip hallucinated avoid_items even when not explicitly awaiting that slot
+        if isinstance(obj, dict) and obj.get("intent") == "plan":
+            slots = obj.get("slots") or {}
+            if "avoid_items" in slots:
+                val = slots.get("avoid_items")
+                if isinstance(val, list) and val:
+                    if not _text_has_avoid_items_evidence(user_text, [str(x) for x in val]):
+                        slots.pop("avoid_items", None)
+                        obj["slots"] = slots
+
+        # Strip hallucinated refine ADD_AVOID_ITEM value when not evidenced
+        if isinstance(obj, dict) and obj.get("intent") == "refine":
+            slots = obj.get("slots") or {}
+            if str(slots.get("refine_type") or "").upper() == "ADD_AVOID_ITEM":
+                v = slots.get("value")
+                if isinstance(v, str) and v.strip():
+                    if not _text_has_avoid_items_evidence(user_text, [v]):
+                        slots.pop("value", None)
+                        obj["slots"] = slots
+
 
         # --- Evidence gate (prevents "uga" -> FAST, etc.) ---------------------
         awaited = (awaiting_slot or "").strip()
@@ -567,6 +616,22 @@ class NLU:
 
 
         elif awaited == "avoid_items":
+            # --- Deterministic acceptance for "none"/"no avoids" answers ---
+            t = (user_text or "").strip().lower()
+
+            none_markers = {
+                "no", "none", "nope", "nah", "nothing", "no allergies", "no allergy"
+            }
+            if (
+                t in none_markers
+                or "dont want to avoid" in t
+                or "don't want to avoid" in t
+                or "do not want to avoid" in t
+                or "avoid anything" in t and ("don't" in t or "dont" in t or "do not" in t)
+            ):
+                # Force a valid plan MR regardless of what the LLM produced
+                return {"intent": "plan", "slots": {"avoid_items": []}}
+            
             if isinstance(obj, dict):
                 slots = obj.get("slots") or {}
                 if obj.get("intent") == "plan" and "avoid_items" in slots:

@@ -1,6 +1,6 @@
 # dm.py
 """
-Meal Kit Composer — Dialogue Manager (LLM-routed), Marina-style and lightweight.
+Meal Kit Composer — Dialogue Manager (LLM-routed).
 
 Responsibilities:
 - Build a DM prompt from utils.PROMPTS
@@ -9,6 +9,7 @@ Responsibilities:
 - Parse and return (action, argument, debug_text)
 - Build compact DM state snapshot (queue + tracker summary)
 - Validate/sanitize the model’s chosen action against the allowed action set
+
 
 Non-responsibilities (handled elsewhere, per compartmentalization plan):
 - Deterministic guard rails (component/policy.py)
