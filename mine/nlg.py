@@ -55,9 +55,7 @@ General behavior:
 
 
 POST_MENU_SELECTED = (
-            "From now on, at any point, you can view a specific day’s dinner, ask me to change the recipe assigned "
-            "to that day (I’ll propose a suitable replacement), update foods to avoid, or confirm the plan "
-            "to get the final weekly menu and shopping list."
+            "From now on, at any point, you can:\n-view a specific day’s dinner\n-ask me to change the recipe assigned to that day (I’ll propose a suitable replacement)\n-update foods to avoid\n-confirm the plan to get the final weekly menu and shopping list."
         )
 
 # ------------------------- Low level helpers -------------------------
@@ -185,7 +183,7 @@ _WEEK_DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri"]
 
 _REQUEST_QUESTIONS = {
     "servings": "How many servings should I plan for?",
-    "time_limit": "How much time do you want to spend cooking on a typical night—quick (25 minutes or less) or normal (up to 40 minutes)?",
+    "time_limit": "How much time do you want to spend cooking on a typical night: quick (25 minutes or less) or normal (up to 40 minutes)?",
     "calorie_level": "Are you aiming for lighter meals, balanced, or more filling?",
     "avoid_items": "Any allergies or foods you want to avoid?",
     "menu_id": "Which menu do you prefer: 1 or 2?",

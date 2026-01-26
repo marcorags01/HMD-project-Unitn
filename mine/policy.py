@@ -132,8 +132,8 @@ def apply_policy(
 
     # --- HELP intent: route to provide_info (must be early, before plan/menu gates) ---
     if intent == "help":
-        req_slot = slots.get("help_slot")
-        req_intent = slots.get("help_intent")
+        req_slot = slots.get("slot") or slots.get("help_slot")
+        req_intent = slots.get("intent") or slots.get("help_intent")
 
         if is_nullish(req_slot):
             req_slot = "all"

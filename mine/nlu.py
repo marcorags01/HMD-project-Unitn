@@ -247,12 +247,12 @@ class NLU:
                 "swap_value": "BEST_FIT",
                 "refine_mode": ["SUGGEST", "COMMIT"],
                 "menu_id": [1, 2],
-                "help_slot": [
+                "slot": [
                     "servings", "time_limit", "calorie_level", "avoid_items",
                     "menu_id", "target_day", "refine_type", "value", 
                     "all",
                 ],
-                "help_intent": ["plan", "select_menu", "inspect", "refine", "confirm", "show_week"],
+                "intent": ["plan", "select_menu", "inspect", "refine", "confirm", "show_week"],
             },
     
             "output_format": (
@@ -343,9 +343,9 @@ class NLU:
             "- Use null only if the user’s message is ambiguous about what to avoid.\n"
 
             "Help intent:\n"
-            "- If the user asks what values/options are allowed/supported, use intent=help and set slots.help_slot accordingly\n"
-            "  (servings/time_limit/calorie_level/avoid_items/menu_id/target_day/refine_type/value/all). Set help_intent if clear, else null.\n"
-
+            "- If the user asks what values/options are allowed/supported, use intent=help and set slots.slot accordingly\n"
+            "  (servings/time_limit/calorie_level/avoid_items/menu_id/target_day/refine_type/value/all).\n"
+            "  Set slots.intent if clear (plan/select_menu/inspect/refine/confirm/show_week), else null.\n"
             "\n"
             "Examples (illustrative, not exhaustive):\n"
             "- User: \"Plan my meals for two people, fast, medium calories, no allergies.\" -> "

@@ -59,11 +59,11 @@ def run_nlu(
             "swap_value": "BEST_FIT",
             "refine_mode": ["SUGGEST", "COMMIT"],
             "menu_id": [1, 2],
-            "help_slot": [
+            "slot": [
                 "servings", "time_limit", "calorie_level", "avoid_items",
                 "menu_id", "target_day", "refine_type", "value", "all",
             ],
-            "help_intent": ["plan", "select_menu", "inspect", "refine", "confirm", "show_week"],
+            "intent": ["plan", "select_menu", "inspect", "refine", "confirm", "show_week"],
         },
         "output_format": (
             "Return ONLY valid JSON: either a single MR object "

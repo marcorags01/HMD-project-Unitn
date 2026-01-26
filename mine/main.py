@@ -448,7 +448,10 @@ class Dialogue:
         print(f"Assistant: {text}\n")
 
     def _read_user(self) -> str:
-        return input("User(you): ").strip()
+        text = input("User(you): ").strip()
+        if text:
+            print()  # spacer line between user input and next assistant output
+        return text
 
     def start(self):
         print()
@@ -508,7 +511,7 @@ class Dialogue:
                     self.tracker.pending_mrs.clear()
 
                     if not next_mr:
-                        reply = "There is nothing else queued to continue."
+                        reply = "Okay. What else can i do for you?"
                         self._say(reply)
                         self.history.add_msg(reply, "assistant", "fallback")
                         last_action = "fallback"
@@ -526,7 +529,7 @@ class Dialogue:
                     self.tracker.clear_deferred()
                     self.tracker.pending_action = None
 
-                    reply = "Okay — I won’t run the queued follow-up."
+                    reply = "Okay, what else can I do for you?"
                     self._say(reply)
                     self.history.add_msg(reply, "assistant", "fallback")
                     last_action = "fallback"

@@ -47,23 +47,56 @@ class StepResult:
     phase: str
     pending_action: Any
 
+def _apply_initial_state(tracker: Tracker, initial: Any) -> None:
+    if not isinstance(initial, dict):
+        return
+
+    # Phase
+    if "phase" in initial and initial["phase"] is not None:
+        tracker.phase = initial["phase"]
+
+    # Constraints
+    c = initial.get("constraints")
+    if isinstance(c, dict):
+        tracker.constraints.update(c)
+
+    # Menus + active menu
+    m = initial.get("menus")
+    if isinstance(m, dict):
+        tracker.menus.update(m)
+
+    if "active_menu_id" in initial:
+        tracker.active_menu_id = initial.get("active_menu_id")
+
+    if "active_menu" in initial:
+        tracker.active_menu = initial.get("active_menu")
+
+    # Optional fields (only if you actually store them in scenarios)
+    if "pending_action" in initial:
+        tracker.pending_action = initial.get("pending_action")
+    if "awaiting_slot" in initial:
+        tracker.awaiting_slot = initial.get("awaiting_slot")
+    if "reprompt_count" in initial:
+        tracker.reprompt_count = int(initial.get("reprompt_count") or 0)
+
 
 def run_scenario(scn: Dict[str, Any], recipes, recipes_by_id) -> Dict[str, Any]:
     tracker = Tracker()
     history = History()
-
+    _apply_initial_state(tracker, scn.get("initial_state"))
     transcript: List[StepResult] = []
     last_action = ""
 
     for turn in scn.get("turns", []):
         user_text = str(turn.get("user_text") or "").strip()
-        if not user_text:
+        has_mrs = bool(_as_list_mrs(turn.get("mrs")))
+        if not user_text and not has_mrs:
             continue
 
         # Mirror early CONTINUE_DEFERRED gate from main.py
         bypass_mrs = None
         pending = getattr(tracker, "pending_action", None)
-        if isinstance(pending, dict) and pending.get("type") == "CONTINUE_DEFERRED":
+        if user_text and isinstance(pending, dict) and pending.get("type") == "CONTINUE_DEFERRED":
             decision = parse_continue_reply(user_text)
             if decision == "YES":
                 next_mr = tracker.pop_deferred()
@@ -132,7 +165,11 @@ def run_scenario(scn: Dict[str, Any], recipes, recipes_by_id) -> Dict[str, Any]:
         last_action = action
 
     # Post conditions
-    expected = scn.get("expected", {}) or {}
+    expected = (scn.get("expected") or scn.get("expect") or {})
+    if "phase" in expected and "final_phase" not in expected:
+        expected["final_phase"] = expected["phase"]
+    if "has_active_menu" in expected and "must_have_active_menu" not in expected:
+        expected["must_have_active_menu"] = expected["has_active_menu"]
     ok = True
 
     if "final_phase" in expected:
@@ -140,6 +177,11 @@ def run_scenario(scn: Dict[str, Any], recipes, recipes_by_id) -> Dict[str, Any]:
 
     if expected.get("must_have_active_menu") is True:
         ok = ok and tracker.has_active_menu()
+
+    if "constraints_complete" in expected:
+        want = bool(expected["constraints_complete"])
+        have = (len(tracker.missing_plan_slots()) == 0)
+        ok = ok and (have == want)
 
     return {
         "id": scn.get("id"),
