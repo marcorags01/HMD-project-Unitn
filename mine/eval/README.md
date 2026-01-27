@@ -1,4 +1,4 @@
-# Meal Kit Composer — Automatic Evaluation Pack
+# Meal Kit Composer — Evaluation Pack
 
 ## What this pack evaluates
 
@@ -7,7 +7,7 @@
 - **Slot micro-F1** over (slot,value) pairs
 - **Exact match** (intent + all slots)
 
-You can benchmark **different prompts** and **different models** (llama3/llama31/qwen3) as required by your assignment.
+You can benchmark **different prompts** and **different models** (llama31/qwen3) as required by your assignment.
 
 ### 2) DM/Policy (deterministic unit tests)
 - Sanity-check the **policy guardrails** (slot-filling gate, menu selection gate, swap confirmation handling).
