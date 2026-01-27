@@ -310,40 +310,57 @@ def _validate_recipe(r: Dict[str, Any]) -> None:
 # =============================================================================
 
 _WS = re.compile(r"\s+")
+_TOKEN_RE = re.compile(r"[a-z]+")
+
 
 def _recipe_search_text(recipe: Dict[str, Any]) -> str:
     """
     Lowercased searchable text for keyword avoids:
-    title + ingredient names.
+    title + ingredient names + contains_tags.
+    Also normalizes simple plurals (peas -> pea, tomatoes -> tomato, broccolis -> broccoli).
     """
     title = str(recipe.get("title", "") or "")
     ings = recipe.get("ingredients") or []
-    ing_names = []
+    tags = recipe.get("contains_tags") or []
+
+    parts: List[str] = [title]
+
     for ing in ings:
         if isinstance(ing, dict):
-            ing_names.append(str(ing.get("name", "") or ""))
+            parts.append(str(ing.get("name", "") or ""))
         else:
-            ing_names.append(str(ing))
-    text = (title + " " + " ".join(ing_names)).lower()
-    text = _WS.sub(" ", text).strip()
-    return text
+            parts.append(str(ing))
 
+    # include tags so open-set avoids can match tags too
+    parts.extend([str(t) for t in tags])
+
+    raw = " ".join(parts).lower()
+
+    # normalize: keep alpha tokens only + singularize each token
+    toks = _TOKEN_RE.findall(raw)
+    toks = [_singularize_token(t) for t in toks]
+
+    return " ".join(toks).strip()
 
 def _keyword_hits_text(text: str, kw: str) -> bool:
     """
-    Match a keyword against text deterministically.
+    Match a keyword against normalized text deterministically.
     - single word: word-boundary regex
     - multiword: substring
+    Keyword is normalized the same way as recipe text (alpha tokens + singularization).
     """
-    kw = _WS.sub(" ", (kw or "").strip().lower())
-    if not kw:
+    kw_raw = (kw or "").strip().lower()
+    kw_toks = _TOKEN_RE.findall(kw_raw)
+    kw_toks = [_singularize_token(t) for t in kw_toks]
+    kw_norm = " ".join(kw_toks).strip()
+
+    if not kw_norm:
         return False
 
-    if " " in kw:
-        return kw in text
+    if " " in kw_norm:
+        return kw_norm in text
 
-    # single token: reduce false positives (e.g., 'ham' in 'chamomile')
-    pattern = r"\b" + re.escape(kw) + r"\b"
+    pattern = r"\b" + re.escape(kw_norm) + r"\b"
     return re.search(pattern, text) is not None
 
 
@@ -739,6 +756,7 @@ def update_avoid_items(
         return False, "Missing avoid item value."
 
     it = _WS.sub(" ", str(item).strip().lower().replace(",", " ")).strip()
+    it = " ".join(_singularize_token(t) for t in _TOKEN_RE.findall(it))
     if not it:
         return False, "Missing avoid item value."
 
@@ -746,7 +764,12 @@ def update_avoid_items(
     if not isinstance(cur, list):
         cur = []
 
-    avoid_set = { _WS.sub(" ", str(a).strip().lower()) for a in cur if str(a).strip() }
+    
+    avoid_set = {
+        " ".join(_singularize_token(t) for t in _TOKEN_RE.findall(str(a).lower()))
+        for a in cur if str(a).strip()
+    }
+
 
     op_up = str(op).upper().strip()
     if op_up == "ADD_AVOID_ITEM":
