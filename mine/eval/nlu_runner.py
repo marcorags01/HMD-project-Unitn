@@ -1,14 +1,6 @@
 """NLU runner for automatic evaluation.
 
-This runner intentionally does *not* import or instantiate your nlu.NLU class
-so you can benchmark different prompts without touching your system files.
 
-It reuses:
-- utils.format_chat / utils.generate
-- support_fn.parsing_json
-- intents_schema.normalize_mr / validate_mr
-
-Output contract: always returns list[dict] (possibly length 1).
 """
 
 from __future__ import annotations

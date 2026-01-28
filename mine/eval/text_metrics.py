@@ -1,14 +1,4 @@
-"""Text similarity metrics for NLG automatic evaluation.
 
-Implemented in pure Python (no external deps) to keep the eval harness portable.
-
-Metrics:
-- BLEU-4 (token-level, cumulative, with smoothing)
-- ROUGE-1 / ROUGE-2 (F1)
-- ROUGE-L (F1 via LCS)
-
-These are *surface-form* metrics; interpret cautiously for open-ended generation.
-"""
 
 from __future__ import annotations
 

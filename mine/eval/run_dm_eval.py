@@ -18,7 +18,7 @@ Evaluation modes
 
 2) Flat dataset: --data (JSONL) with explicit (tracker_state, mr, gold_action, gold_arg).
 
-The script does NOT modify system files.
+
 """
 
 from __future__ import annotations

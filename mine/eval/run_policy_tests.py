@@ -1,9 +1,6 @@
 """Deterministic unit tests for policy.py.
 
-Run:
-  python -m eval.run_policy_tests
 
-These tests require no LLM.
 """
 
 from __future__ import annotations

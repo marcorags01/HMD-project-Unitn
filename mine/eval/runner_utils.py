@@ -1,15 +1,4 @@
-"""Evaluation harness utilities for Meal Kit Composer.
 
-Design goals
-- Zero edits to existing system files.
-- Reuse the project's model loading, chat formatting, and generation wrappers.
-- Provide a stable CLI-friendly way to load models and run prompts.
-
-These helpers mirror the argument post-processing done in utils.get_args():
-- args.model_key is the short key (llama3/llama31/qwen3)
-- args.model_name is the resolved Hugging Face repo id
-- args.prepare_text and args.chat_template are set appropriately
-"""
 
 from __future__ import annotations
 
