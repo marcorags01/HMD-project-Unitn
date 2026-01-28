@@ -1,4 +1,4 @@
-# HMD-pro — Meal Kit Composer (LLM-driven)
+# HMD-project: Meal Kit Composer (LLM-driven)
 
 A minimal, modular Meal Kit Composer pipeline that demonstrates an LLM-routed conversational assistant for building weekly dinner plans. The system uses small domain modules (NLU, DM, NLG, policy, executor/support functions) plus a local recipe dataset to propose and refine menus interactively.
 
