@@ -1,0 +1,3684 @@
+[
+  {
+    "id": "scn_slotfill_happy_path_v01",
+    "description": "Slot-filling plan -> propose menus -> select menu -> show a day -> confirm. (variant 01)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "quick",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "FAST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "balanced",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "MED"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "No allergies.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Option 1.",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Tue?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Tue"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_continue_gate_multi_intent_v01",
+    "description": "Multi-intent while ACTIVE_MENU should trigger CONTINUE_DEFERRED; user says yes to continue. (variant 01)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, quick, balanced, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "FAST",
+              "calorie_level": "MED",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid gluten and show Tue.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "ADD_AVOID_ITEM",
+              "value": "gluten"
+            }
+          },
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Tue"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "yes",
+        "mrs": []
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_menu_gate_inspect_before_select_v01",
+    "description": "User inspects a day before selecting a menu; policy should gate on menu_id. (variant 01)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, quick, balanced, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "FAST",
+              "calorie_level": "MED",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Tue?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Tue"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Tue?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Tue"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_show_week_then_confirm_v01",
+    "description": "Select a menu, show the week overview, then confirm shopping list. (variant 01)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, quick, balanced, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "FAST",
+              "calorie_level": "MED",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show me the week.",
+        "mrs": [
+          {
+            "intent": "show_week",
+            "slots": {}
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_swap_suggest_then_commit_v01",
+    "description": "Suggest an alternative for a day, then commit the swap. (variant 01)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, quick, balanced, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "FAST",
+              "calorie_level": "MED",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Can you suggest an alternative for Wed?",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Wed",
+              "value": "BEST_FIT",
+              "mode": "SUGGEST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Swap Wed please.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Wed",
+              "value": "BEST_FIT",
+              "mode": "COMMIT"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_help_interrupt_then_answer_v01",
+    "description": "Help request while slot-filling; provide_info should not break slot-filling flow. (variant 01)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "help",
+        "mrs": [
+          {
+            "intent": "help",
+            "slots": {
+              "intent": "plan",
+              "slot": "time_limit"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "quick",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "FAST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "balanced",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "MED"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "No allergies.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_slotfill_happy_path_v02",
+    "description": "Slot-filling plan -> propose menus -> select menu -> show a day -> confirm. (variant 02)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 4 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 4
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "normal prep",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "NORMAL"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "high calories",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "HIGH"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid nuts.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Option 2.",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Fri?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Fri"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_continue_gate_multi_intent_v02",
+    "description": "Multi-intent while ACTIVE_MENU should trigger CONTINUE_DEFERRED; user says yes to continue. (variant 02)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 4 people, normal prep, high calories, avoid nuts.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 4,
+              "time_limit": "NORMAL",
+              "calorie_level": "HIGH",
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid egg and show Fri.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "ADD_AVOID_ITEM",
+              "value": "egg"
+            }
+          },
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Fri"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "yes",
+        "mrs": []
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_menu_gate_inspect_before_select_v02",
+    "description": "User inspects a day before selecting a menu; policy should gate on menu_id. (variant 02)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 4 people, normal prep, high calories, avoid nuts.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 4,
+              "time_limit": "NORMAL",
+              "calorie_level": "HIGH",
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Fri?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Fri"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Fri?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Fri"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_show_week_then_confirm_v02",
+    "description": "Select a menu, show the week overview, then confirm shopping list. (variant 02)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 4 people, normal prep, high calories, avoid nuts.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 4,
+              "time_limit": "NORMAL",
+              "calorie_level": "HIGH",
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show me the week.",
+        "mrs": [
+          {
+            "intent": "show_week",
+            "slots": {}
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_swap_suggest_then_commit_v02",
+    "description": "Suggest an alternative for a day, then commit the swap. (variant 02)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 4 people, normal prep, high calories, avoid nuts.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 4,
+              "time_limit": "NORMAL",
+              "calorie_level": "HIGH",
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Suggest an alternative for Thu.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Thu",
+              "value": "BEST_FIT",
+              "mode": "SUGGEST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Swap Thu now.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Thu",
+              "value": "BEST_FIT",
+              "mode": "COMMIT"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_help_interrupt_then_answer_v02",
+    "description": "Help request while slot-filling; provide_info should not break slot-filling flow. (variant 02)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 4 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 4
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "help",
+        "mrs": [
+          {
+            "intent": "help",
+            "slots": {
+              "intent": "plan",
+              "slot": "time_limit"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "normal prep",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "NORMAL"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "high calories",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "HIGH"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid nuts.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_slotfill_happy_path_v03",
+    "description": "Slot-filling plan -> propose menus -> select menu -> show a day -> confirm. (variant 03)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 1 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "fast",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "FAST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "low calories",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "LOW"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "No gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": [
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Mon?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Mon"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_continue_gate_multi_intent_v03",
+    "description": "Multi-intent while ACTIVE_MENU should trigger CONTINUE_DEFERRED; user says yes to continue. (variant 03)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 1 people, fast, low calories, avoid gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 1,
+              "time_limit": "FAST",
+              "calorie_level": "LOW",
+              "avoid_items": [
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid nuts and show Mon.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "ADD_AVOID_ITEM",
+              "value": "nuts"
+            }
+          },
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Mon"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "yes",
+        "mrs": []
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_menu_gate_inspect_before_select_v03",
+    "description": "User inspects a day before selecting a menu; policy should gate on menu_id. (variant 03)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 1 people, fast, low calories, avoid gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 1,
+              "time_limit": "FAST",
+              "calorie_level": "LOW",
+              "avoid_items": [
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Mon?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Mon"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Mon?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Mon"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_show_week_then_confirm_v03",
+    "description": "Select a menu, show the week overview, then confirm shopping list. (variant 03)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 1 people, fast, low calories, avoid gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 1,
+              "time_limit": "FAST",
+              "calorie_level": "LOW",
+              "avoid_items": [
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show me the week.",
+        "mrs": [
+          {
+            "intent": "show_week",
+            "slots": {}
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_swap_suggest_then_commit_v03",
+    "description": "Suggest an alternative for a day, then commit the swap. (variant 03)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 1 people, fast, low calories, avoid gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 1,
+              "time_limit": "FAST",
+              "calorie_level": "LOW",
+              "avoid_items": [
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Alternative for Tue?",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Tue",
+              "value": "BEST_FIT",
+              "mode": "SUGGEST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Swap Tue please.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Tue",
+              "value": "BEST_FIT",
+              "mode": "COMMIT"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_help_interrupt_then_answer_v03",
+    "description": "Help request while slot-filling; provide_info should not break slot-filling flow. (variant 03)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 1 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "help",
+        "mrs": [
+          {
+            "intent": "help",
+            "slots": {
+              "intent": "plan",
+              "slot": "time_limit"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "fast",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "FAST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "low calories",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "LOW"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "No gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": [
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_slotfill_happy_path_v04",
+    "description": "Slot-filling plan -> propose menus -> select menu -> show a day -> confirm. (variant 04)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 3 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 3
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "normal",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "NORMAL"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "medium calories",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "MED"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "No restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show Wed.",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Wed"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_continue_gate_multi_intent_v04",
+    "description": "Multi-intent while ACTIVE_MENU should trigger CONTINUE_DEFERRED; user says yes to continue. (variant 04)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 3 people, normal, medium calories, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 3,
+              "time_limit": "NORMAL",
+              "calorie_level": "MED",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid gluten and show Wed.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "ADD_AVOID_ITEM",
+              "value": "gluten"
+            }
+          },
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Wed"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "yes",
+        "mrs": []
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_menu_gate_inspect_before_select_v04",
+    "description": "User inspects a day before selecting a menu; policy should gate on menu_id. (variant 04)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 3 people, normal, medium calories, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 3,
+              "time_limit": "NORMAL",
+              "calorie_level": "MED",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show Wed.",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Wed"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show Wed.",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Wed"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_show_week_then_confirm_v04",
+    "description": "Select a menu, show the week overview, then confirm shopping list. (variant 04)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 3 people, normal, medium calories, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 3,
+              "time_limit": "NORMAL",
+              "calorie_level": "MED",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show me the week.",
+        "mrs": [
+          {
+            "intent": "show_week",
+            "slots": {}
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_swap_suggest_then_commit_v04",
+    "description": "Suggest an alternative for a day, then commit the swap. (variant 04)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 3 people, normal, medium calories, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 3,
+              "time_limit": "NORMAL",
+              "calorie_level": "MED",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Can you suggest an alternative for Fri?",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Fri",
+              "value": "BEST_FIT",
+              "mode": "SUGGEST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Swap Fri.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Fri",
+              "value": "BEST_FIT",
+              "mode": "COMMIT"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_help_interrupt_then_answer_v04",
+    "description": "Help request while slot-filling; provide_info should not break slot-filling flow. (variant 04)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 3 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 3
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "help",
+        "mrs": [
+          {
+            "intent": "help",
+            "slots": {
+              "intent": "plan",
+              "slot": "time_limit"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "normal",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "NORMAL"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "medium calories",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "MED"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "No restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_slotfill_happy_path_v05",
+    "description": "Slot-filling plan -> propose menus -> select menu -> show a day -> confirm. (variant 05)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "normal time",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "NORMAL"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "light",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "LOW"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid egg.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": [
+                "egg"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Option 1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Thu?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Thu"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_continue_gate_multi_intent_v05",
+    "description": "Multi-intent while ACTIVE_MENU should trigger CONTINUE_DEFERRED; user says yes to continue. (variant 05)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, normal time, light, avoid egg.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "NORMAL",
+              "calorie_level": "LOW",
+              "avoid_items": [
+                "egg"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid nuts and show Thu.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "ADD_AVOID_ITEM",
+              "value": "nuts"
+            }
+          },
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Thu"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "yes",
+        "mrs": []
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_menu_gate_inspect_before_select_v05",
+    "description": "User inspects a day before selecting a menu; policy should gate on menu_id. (variant 05)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, normal time, light, avoid egg.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "NORMAL",
+              "calorie_level": "LOW",
+              "avoid_items": [
+                "egg"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Thu?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Thu"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Thu?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Thu"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_show_week_then_confirm_v05",
+    "description": "Select a menu, show the week overview, then confirm shopping list. (variant 05)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, normal time, light, avoid egg.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "NORMAL",
+              "calorie_level": "LOW",
+              "avoid_items": [
+                "egg"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show me the week.",
+        "mrs": [
+          {
+            "intent": "show_week",
+            "slots": {}
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_swap_suggest_then_commit_v05",
+    "description": "Suggest an alternative for a day, then commit the swap. (variant 05)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, normal time, light, avoid egg.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "NORMAL",
+              "calorie_level": "LOW",
+              "avoid_items": [
+                "egg"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Suggest an alternative for Mon.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Mon",
+              "value": "BEST_FIT",
+              "mode": "SUGGEST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Swap Mon.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Mon",
+              "value": "BEST_FIT",
+              "mode": "COMMIT"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_help_interrupt_then_answer_v05",
+    "description": "Help request while slot-filling; provide_info should not break slot-filling flow. (variant 05)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "help",
+        "mrs": [
+          {
+            "intent": "help",
+            "slots": {
+              "intent": "plan",
+              "slot": "time_limit"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "normal time",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "NORMAL"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "light",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "LOW"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid egg.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": [
+                "egg"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_slotfill_happy_path_v06",
+    "description": "Slot-filling plan -> propose menus -> select menu -> show a day -> confirm. (variant 06)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 6 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 6
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "as quick as possible",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "FAST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "high",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "HIGH"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid nuts and gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": [
+                "nuts",
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Option 2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Tue?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Tue"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_continue_gate_multi_intent_v06",
+    "description": "Multi-intent while ACTIVE_MENU should trigger CONTINUE_DEFERRED; user says yes to continue. (variant 06)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 6 people, as quick as possible, high, avoid nuts, gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 6,
+              "time_limit": "FAST",
+              "calorie_level": "HIGH",
+              "avoid_items": [
+                "nuts",
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid egg and show Tue.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "ADD_AVOID_ITEM",
+              "value": "egg"
+            }
+          },
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Tue"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "yes",
+        "mrs": []
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_menu_gate_inspect_before_select_v06",
+    "description": "User inspects a day before selecting a menu; policy should gate on menu_id. (variant 06)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 6 people, as quick as possible, high, avoid nuts, gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 6,
+              "time_limit": "FAST",
+              "calorie_level": "HIGH",
+              "avoid_items": [
+                "nuts",
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Tue?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Tue"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Tue?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Tue"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_show_week_then_confirm_v06",
+    "description": "Select a menu, show the week overview, then confirm shopping list. (variant 06)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 6 people, as quick as possible, high, avoid nuts, gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 6,
+              "time_limit": "FAST",
+              "calorie_level": "HIGH",
+              "avoid_items": [
+                "nuts",
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show me the week.",
+        "mrs": [
+          {
+            "intent": "show_week",
+            "slots": {}
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_swap_suggest_then_commit_v06",
+    "description": "Suggest an alternative for a day, then commit the swap. (variant 06)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 6 people, as quick as possible, high, avoid nuts, gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 6,
+              "time_limit": "FAST",
+              "calorie_level": "HIGH",
+              "avoid_items": [
+                "nuts",
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Can you suggest an alternative for Wed?",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Wed",
+              "value": "BEST_FIT",
+              "mode": "SUGGEST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Swap Wed.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Wed",
+              "value": "BEST_FIT",
+              "mode": "COMMIT"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_help_interrupt_then_answer_v06",
+    "description": "Help request while slot-filling; provide_info should not break slot-filling flow. (variant 06)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 6 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 6
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "help",
+        "mrs": [
+          {
+            "intent": "help",
+            "slots": {
+              "intent": "plan",
+              "slot": "time_limit"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "as quick as possible",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "FAST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "high",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "HIGH"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid nuts and gluten.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": [
+                "nuts",
+                "gluten"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_slotfill_happy_path_v07",
+    "description": "Slot-filling plan -> propose menus -> select menu -> show a day -> confirm. (variant 07)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 5 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 5
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "regular",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "NORMAL"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "balanced",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "MED"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "No nuts please.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show Fri.",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Fri"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_continue_gate_multi_intent_v07",
+    "description": "Multi-intent while ACTIVE_MENU should trigger CONTINUE_DEFERRED; user says yes to continue. (variant 07)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 5 people, regular, balanced, avoid nuts.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 5,
+              "time_limit": "NORMAL",
+              "calorie_level": "MED",
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid gluten and show Fri.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "ADD_AVOID_ITEM",
+              "value": "gluten"
+            }
+          },
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Fri"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "yes",
+        "mrs": []
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_menu_gate_inspect_before_select_v07",
+    "description": "User inspects a day before selecting a menu; policy should gate on menu_id. (variant 07)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 5 people, regular, balanced, avoid nuts.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 5,
+              "time_limit": "NORMAL",
+              "calorie_level": "MED",
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show Fri.",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Fri"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show Fri.",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Fri"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_show_week_then_confirm_v07",
+    "description": "Select a menu, show the week overview, then confirm shopping list. (variant 07)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 5 people, regular, balanced, avoid nuts.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 5,
+              "time_limit": "NORMAL",
+              "calorie_level": "MED",
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show me the week.",
+        "mrs": [
+          {
+            "intent": "show_week",
+            "slots": {}
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_swap_suggest_then_commit_v07",
+    "description": "Suggest an alternative for a day, then commit the swap. (variant 07)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 5 people, regular, balanced, avoid nuts.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 5,
+              "time_limit": "NORMAL",
+              "calorie_level": "MED",
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Suggest an alternative for Thu.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Thu",
+              "value": "BEST_FIT",
+              "mode": "SUGGEST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Swap Thu.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Thu",
+              "value": "BEST_FIT",
+              "mode": "COMMIT"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_help_interrupt_then_answer_v07",
+    "description": "Help request while slot-filling; provide_info should not break slot-filling flow. (variant 07)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 5 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 5
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "help",
+        "mrs": [
+          {
+            "intent": "help",
+            "slots": {
+              "intent": "plan",
+              "slot": "time_limit"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "regular",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "NORMAL"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "balanced",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "MED"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "No nuts please.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": [
+                "nuts"
+              ]
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "1",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 1
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_slotfill_happy_path_v08",
+    "description": "Slot-filling plan -> propose menus -> select menu -> show a day -> confirm. (variant 08)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "quick prep",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "FAST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "high",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "HIGH"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Nothing to avoid.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Mon?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Mon"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_continue_gate_multi_intent_v08",
+    "description": "Multi-intent while ACTIVE_MENU should trigger CONTINUE_DEFERRED; user says yes to continue. (variant 08)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, quick prep, high, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "FAST",
+              "calorie_level": "HIGH",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Avoid nuts and show Mon.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "ADD_AVOID_ITEM",
+              "value": "nuts"
+            }
+          },
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Mon"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "yes",
+        "mrs": []
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_menu_gate_inspect_before_select_v08",
+    "description": "User inspects a day before selecting a menu; policy should gate on menu_id. (variant 08)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, quick prep, high, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "FAST",
+              "calorie_level": "HIGH",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Mon?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Mon"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "What's planned for Mon?",
+        "mrs": [
+          {
+            "intent": "inspect",
+            "slots": {
+              "target_day": "Mon"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_show_week_then_confirm_v08",
+    "description": "Select a menu, show the week overview, then confirm shopping list. (variant 08)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, quick prep, high, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "FAST",
+              "calorie_level": "HIGH",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Show me the week.",
+        "mrs": [
+          {
+            "intent": "show_week",
+            "slots": {}
+          }
+        ]
+      },
+      {
+        "user_text": "Finalize and generate the shopping list.",
+        "mrs": [
+          {
+            "intent": "confirm",
+            "slots": {}
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "CONFIRMED",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_swap_suggest_then_commit_v08",
+    "description": "Suggest an alternative for a day, then commit the swap. (variant 08)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people, quick prep, high, no restrictions.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2,
+              "time_limit": "FAST",
+              "calorie_level": "HIGH",
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Alternative for Tue?",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Tue",
+              "value": "BEST_FIT",
+              "mode": "SUGGEST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Swap Tue now.",
+        "mrs": [
+          {
+            "intent": "refine",
+            "slots": {
+              "refine_type": "SWAP_DAY",
+              "target_day": "Tue",
+              "value": "BEST_FIT",
+              "mode": "COMMIT"
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  },
+  {
+    "id": "scn_help_interrupt_then_answer_v08",
+    "description": "Help request while slot-filling; provide_info should not break slot-filling flow. (variant 08)",
+    "initial_state": {
+      "phase": "AWAITING_PLAN",
+      "constraints": {
+        "servings": null,
+        "time_limit": null,
+        "calorie_level": null,
+        "avoid_items": null
+      }
+    },
+    "turns": [
+      {
+        "user_text": "Plan meals for 2 people.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "servings": 2
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "help",
+        "mrs": [
+          {
+            "intent": "help",
+            "slots": {
+              "intent": "plan",
+              "slot": "time_limit"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "quick prep",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "time_limit": "FAST"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "high",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "calorie_level": "HIGH"
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "Nothing to avoid.",
+        "mrs": [
+          {
+            "intent": "plan",
+            "slots": {
+              "avoid_items": []
+            }
+          }
+        ]
+      },
+      {
+        "user_text": "2",
+        "mrs": [
+          {
+            "intent": "select_menu",
+            "slots": {
+              "menu_id": 2
+            }
+          }
+        ]
+      }
+    ],
+    "expected": {
+      "final_phase": "ACTIVE_MENU",
+      "must_have_active_menu": true,
+      "constraints_complete": true
+    }
+  }
+]
