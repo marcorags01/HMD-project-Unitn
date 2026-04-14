@@ -139,6 +139,8 @@ A detailed report covering system design, conversation modeling, and evaluation:
 - Policy effectiveness and error correction
 - Human evaluation study (n = 8 participants)
 
+---
+
 
 ## Example Interaction
 
