@@ -129,7 +129,7 @@ For a deeper technical analysis, refer to the full report:
 ## Project Report
 
 📄 **Technical Report**  
-[Download PDF](./MarcoRagusa_HMDreport.pdf)
+[Download PDF](docs/MarcoRagusa_HMDreport.pdf)
 
 A detailed report covering system design, conversation modeling, and evaluation:
 
