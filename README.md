@@ -174,19 +174,48 @@ System: [final plan + shopping list]
 
 ## How to Run
 
-### Install dependencies
+### 1. Install dependencies
 
 ```
 pip install -r requirements.txt
 ```
 
-### Run the system
+---
+
+### 2. Set up a language model
+
+The system requires a HuggingFace-compatible causal language model for NLU and Dialogue Management.
+
+Recommended options:
+
+- `meta-llama/Meta-Llama-3.1-8B-Instruct` (best performance, requires GPU)
+- `Qwen/Qwen3-4B-Instruct` (lighter alternative)
+
+You can configure the model in:
+
+```
+mine/models/
+```
+
+Make sure you have access to the model and have authenticated with HuggingFace if required:
+
+```
+huggingface-cli login
+```
+
+---
+
+### 3. Run the system
 
 ```
 python mine/main.py
 ```
 
-### Run evaluation
+The system will start an interactive dialogue in the terminal.
+
+---
+
+### 4. Run evaluation
 
 ```
 python mine/eval/run_nlu_eval.py
@@ -194,7 +223,27 @@ python mine/eval/run_pipeline_eval.py
 python mine/eval/run_policy_tests.py
 ```
 
+Evaluation results will be stored in:
+
+```
+EvalResults/
+```
+
 ---
+
+## Requirements
+
+- Python 3.10+
+- 8GB+ RAM (minimum)
+- GPU recommended for large models (Llama 3.1)
+
+---
+
+## Notes
+
+- The system relies on local LLM inference via HuggingFace Transformers  
+- Performance and latency depend on the selected model  
+- Smaller models can be used for testing, but may reduce accuracy  
 
 ## Limitations
 
