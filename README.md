@@ -75,27 +75,36 @@ User → NLU (LLM) → Meaning Representation (JSON)
 ## Repository Structure
 
 ```
+## Repository Structure
+
+```
 mine/
-├── nlu.py              # Meaning Representation extraction
-├── dm.py               # Dialogue Manager
-├── policy.py           # Rule-based control layer
-├── nlg.py              # Response generation
-├── support_fn.py       # Domain logic (menus, swaps, repairs)
-├── main.py             # Dialogue orchestration
-├── utils.py
-├── models/
-└── eval/
-    ├── run_nlu_eval.py
-    ├── run_pipeline_eval.py
-    ├── run_policy_tests.py
-    ├── metrics.py
-    ├── data/
-    ├── prompts/
-    └── scenarios/
+├── main.py                 # Dialogue orchestration and control loop
+├── nlu.py                  # Meaning Representation extraction (LLM-based)
+├── dm.py                   # Dialogue Manager (next-action prediction)
+├── policy.py               # Deterministic policy and guardrails
+├── nlg.py                  # Response generation (template + LLM fallback)
+├── support_fn.py           # Domain logic (menu generation, swaps, repairs)
+├── support_classes.py      # Dialogue state tracker and core data structures
+├── intents_schema.py       # Definition and validation of intents and slots
+├── utils.py                # Utility functions
+├── models/                 # Model loading and configuration
+├── eval/                   # Evaluation pipeline
+│   ├── run_nlu_eval.py
+│   ├── run_pipeline_eval.py
+│   ├── run_policy_tests.py
+│   ├── metrics.py
+│   ├── data/
+│   ├── prompts/
+│   └── scenarios/
+├── data/
+│   └── recipes_30.json     # Recipe dataset used for menu generation
+```
 
 EvalResults/
 └── evaluation outputs
 ```
+
 
 ---
 
