@@ -124,6 +124,22 @@ The deterministic policy layer significantly improves system reliability by corr
 
 ---
 
+For a deeper technical analysis, refer to the full report:
+
+## Project Report
+
+📄 **Technical Report**  
+[Download PDF](./MarcoRagusa_HMDreport.pdf)
+
+A detailed report covering system design, conversation modeling, and evaluation:
+
+- Hybrid LLM + rule-based architecture
+- Meaning Representation schema (intents and slots)
+- Intrinsic evaluation (NLU, DM, NLG)
+- Policy effectiveness and error correction
+- Human evaluation study (n = 8 participants)
+
+
 ## Example Interaction
 
 ```
