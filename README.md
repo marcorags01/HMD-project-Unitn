@@ -96,8 +96,6 @@ mine/
 ├── data/
 │   └── recipes_30.json     # Recipe dataset used for menu generation
 ```
-Evaluation outputs are generated in `EvalResults/` after running the evaluation scripts.
-
 
 ---
 
