@@ -1,4 +1,7 @@
-# HMD-pro — Hybrid LLM + Rule-Based Dialogue System for Meal Planning
+# Hybrid LLM + Rule-Based Conversational System for Meal Planning
+
+> Course project for *Human-Machine Dialogue (2025)* — University of Trento  
+> A hybrid conversational AI system combining LLMs and deterministic policies to generate and refine weekly meal plans under user constraints.
 
 ## Overview
 
