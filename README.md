@@ -71,7 +71,6 @@ User → NLU (LLM) → Meaning Representation (JSON)
 - Rule-based policy engine  
 
 ---
-
 ## Repository Structure
 
 ```
@@ -96,11 +95,11 @@ mine/
 │   └── scenarios/
 ├── data/
 │   └── recipes_30.json     # Recipe dataset used for menu generation
-```
 
 EvalResults/
 └── evaluation outputs
 ```
+
 
 
 ---
@@ -135,7 +134,7 @@ For a deeper technical analysis, refer to the full report:
 ## Project Report
 
 📄 **Technical Report**  
-[Download PDF](docs/MarcoRagusa_HMDreport.pdf)
+[Download PDF](./docs/MarcoRagusa_HMDreport.pdf)
 
 A detailed report covering system design, conversation modeling, and evaluation:
 
