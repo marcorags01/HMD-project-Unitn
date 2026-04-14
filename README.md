@@ -75,9 +75,6 @@ User → NLU (LLM) → Meaning Representation (JSON)
 ## Repository Structure
 
 ```
-## Repository Structure
-
-```
 mine/
 ├── main.py                 # Dialogue orchestration and control loop
 ├── nlu.py                  # Meaning Representation extraction (LLM-based)
